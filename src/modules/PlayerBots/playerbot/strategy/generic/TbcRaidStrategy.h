@@ -99,8 +99,42 @@ namespace ai
         static GameObject* GetSpineToRemove(PlayerbotAI* ai);
         static Unit* GetShieldedNajentus(PlayerbotAI* ai);
 
+        // Off tank stays second on threat / stacks on the main tank
+        static Player* GetMainTankToStackOn(PlayerbotAI* ai);
+
+        // Bloodboil rotation: boss to come closer to (and the distance)
+        static Unit* GetApproachTarget(PlayerbotAI* ai, float& distance);
+
+        // Meteor Slash soaking: boss the bot has to stand in front of
+        static Unit* GetSoakBoss(PlayerbotAI* ai);
+        static bool ShouldSoakFront(PlayerbotAI* ai, Unit* boss);
+
+        // Hydross: position the tank has to drag the boss to
+        static bool GetHydrossTankPosition(PlayerbotAI* ai, WorldPosition& position);
+
+        // Lady Vashj: Tainted Core handling
+        static Creature* GetTaintedCoreCorpse(PlayerbotAI* ai);
+        static GameObject* GetNearestActiveShieldGenerator(PlayerbotAI* ai, WorldObject* from);
+        static Player* GetTaintedCoreReceiver(PlayerbotAI* ai, GameObject* generator);
+
+        // The Lurker Below: boss currently spouting
+        static Unit* GetSpoutingLurker(PlayerbotAI* ai);
+
+        // Creature possessed by the bot through a boss mechanic (Vengeful Spirit, Blue Dragon)
+        static Creature* GetPossessedCreature(PlayerbotAI* ai);
+        static bool IsPossessingBossCreature(Player* bot);
+
+        // Kil'jaeden: Blue Dragon orbs and Darkness of a Thousand Souls
+        static GameObject* GetBlueOrbToUse(PlayerbotAI* ai);
+        static Unit* GetKiljaedenCastingDarkness(PlayerbotAI* ai);
+        static Unit* GetRaidBlueDragon(PlayerbotAI* ai);
+
+        // Cast a spell of a possessed creature, selected by (part of) its name
+        static uint32 FindCharmSpell(Creature* charm, const std::string& namePart);
+
         // Utility
         static std::list<Unit*> FindCreatures(Player* bot, uint32 entry, float range);
+        static std::list<Unit*> FindCreaturesAround(WorldObject* center, uint32 entry, float range);
         static std::list<GameObject*> FindGameObjects(Player* bot, uint32 entry, float range);
         static std::vector<Player*> GetRaidMembers(Player* bot, float range, bool includeSelf = false);
         static bool IsCreatureCasting(Unit* unit, uint32 spellId);

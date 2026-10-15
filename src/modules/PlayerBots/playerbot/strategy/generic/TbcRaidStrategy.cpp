@@ -95,6 +95,46 @@ TbcRaidStrategy* TbcRaidStrategy::Get(PlayerbotAI* ai)
 void TbcRaidStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
 {
     triggers.push_back(new TriggerNode(
+        "tbc raid possessing",
+        NextAction::array(0, new NextAction("tbc raid control possessed", ACTION_EMERGENCY + 9), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "tbc raid has core",
+        NextAction::array(0, new NextAction("tbc raid use core", ACTION_EMERGENCY + 9), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "tbc raid lurker spout",
+        NextAction::array(0, new NextAction("tbc raid jump into water", ACTION_EMERGENCY + 8), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "tbc raid darkness",
+        NextAction::array(0, new NextAction("tbc raid gather under dragon", ACTION_EMERGENCY + 7), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "tbc raid use blue orb",
+        NextAction::array(0, new NextAction("tbc raid use blue orb", ACTION_EMERGENCY + 5), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "tbc raid hydross tank",
+        NextAction::array(0, new NextAction("tbc raid hydross tank", ACTION_EMERGENCY + 3), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "tbc raid loot core",
+        NextAction::array(0, new NextAction("tbc raid loot core", ACTION_CRITICAL_HEAL + 3), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "tbc raid stack on tank",
+        NextAction::array(0, new NextAction("tbc raid stack on tank", ACTION_MEDIUM_HEAL + 3), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "tbc raid soak front",
+        NextAction::array(0, new NextAction("tbc raid soak front", ACTION_MEDIUM_HEAL + 3), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "tbc raid approach boss",
+        NextAction::array(0, new NextAction("tbc raid approach boss", ACTION_MEDIUM_HEAL + 2), NULL)));
+
+    triggers.push_back(new TriggerNode(
         "tbc raid use cube",
         NextAction::array(0, new NextAction("tbc raid use cube", ACTION_EMERGENCY + 9), NULL)));
 
@@ -135,6 +175,10 @@ void TbcRaidStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
 
 void TbcRaidStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
 {
+    triggers.push_back(new TriggerNode(
+        "tbc raid possessing",
+        NextAction::array(0, new NextAction("tbc raid control possessed", ACTION_EMERGENCY + 9), NULL)));
+
     // Ground effects stay after the fight / between boss phases
     triggers.push_back(new TriggerNode(
         "tbc raid in hazard",
@@ -144,6 +188,18 @@ void TbcRaidStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
 void TbcRaidStrategy::InitReactionTriggers(std::list<TriggerNode*>& triggers)
 {
     // Reactions are checked while casting, so the bot stops casting to leave fire or click a cube
+    triggers.push_back(new TriggerNode(
+        "tbc raid possessing",
+        NextAction::array(0, new NextAction("tbc raid control possessed", ACTION_EMERGENCY + 9), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "tbc raid has core",
+        NextAction::array(0, new NextAction("tbc raid use core", ACTION_EMERGENCY + 9), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "tbc raid lurker spout",
+        NextAction::array(0, new NextAction("tbc raid jump into water", ACTION_EMERGENCY + 8), NULL)));
+
     triggers.push_back(new TriggerNode(
         "tbc raid use cube",
         NextAction::array(0, new NextAction("tbc raid use cube", ACTION_EMERGENCY + 9), NULL)));
@@ -185,6 +241,14 @@ float TbcRaidMultiplier::GetValue(Action* action)
     const std::string& name = action->getName();
     if (name.rfind("tbc raid", 0) == 0)
         return 1.0f;
+
+    // The bot controls a Vengeful Spirit / Blue Dragon, its own body does nothing
+    if (TbcRaidHelper::IsPossessingBossCreature(bot))
+        return 0.0f;
+
+    // Paralyzed by a Tainted Core: only pass the core
+    if (bot->HasAura(38132))
+        return 0.0f;
 
     if (!TbcRaidHelper::GetEncounter(ai))
         return 1.0f;
@@ -602,6 +666,12 @@ Unit* TbcRaidHelper::GetPriorityTarget(PlayerbotAI* ai)
                 if (!HasRole(rule.roles, role))
                     continue;
 
+                if (rule.requiredAuraOnSelf && !bot->HasAura(rule.requiredAuraOnSelf))
+                    continue;
+
+                if (rule.excludedAuraOnSelf && bot->HasAura(rule.excludedAuraOnSelf))
+                    continue;
+
                 Unit* best = nullptr;
                 for (Unit* unit : FindCreatures(bot, rule.entry, 70.0f))
                 {
@@ -710,11 +780,23 @@ Unit* TbcRaidHelper::GetTauntTarget(PlayerbotAI* ai)
 
 bool TbcRaidHelper::ShouldHoldTaunt(PlayerbotAI* ai)
 {
-    const Encounter* encounter = GetEncounter(ai);
-    if (!encounter || (encounter->tankSwap.empty() && encounter->formTank.empty()))
+    Unit* boss = nullptr;
+    const Encounter* encounter = GetEncounter(ai, &boss);
+    if (!encounter)
         return false;
 
     Player* bot = ai->GetBot();
+
+    // The off tanks stay second on threat, only the main tank taunts
+    if ((encounter->special & SPECIAL_OFFTANK_NO_TAUNT) && boss && boss->IsAlive())
+    {
+        Unit* victim = boss->GetVictim();
+        if (victim && victim != bot && victim->GetTypeId() == TYPEID_PLAYER && victim->IsAlive() && PlayerbotAI::IsTank((Player*)victim))
+            return true;
+    }
+
+    if (encounter->tankSwap.empty() && encounter->formTank.empty())
+        return false;
     for (const TankSwapRule& rule : encounter->tankSwap)
     {
         if (bot->GetAuraCount(rule.spellId) >= rule.stacks)
@@ -767,6 +849,10 @@ Unit* TbcRaidHelper::GetFrontDanger(PlayerbotAI* ai)
                 continue;
 
             if (!bot->IsWithinDistInMap(boss, rule.range))
+                continue;
+
+            // Soakers stand in front on purpose
+            if (ShouldSoakFront(ai, boss))
                 continue;
 
             // 120 degree cone in front of the boss

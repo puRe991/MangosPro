@@ -42,6 +42,13 @@ namespace ai
             SPECIAL_NONE              = 0x00,
             SPECIAL_MANTICRON_CUBES   = 0x01,   // Magtheridon: interrupt Blast Nova with the 5 cubes
             SPECIAL_NAJENTUS_SPINES   = 0x02,   // Naj'entus: free impaled players, throw spines at Tidal Shield
+            SPECIAL_TAINTED_CORES     = 0x04,   // Lady Vashj: loot Tainted Cores, pass them to the shield generators
+            SPECIAL_LURKER_SPOUT      = 0x08,   // The Lurker Below: jump into the water during Spout
+            SPECIAL_TERON_SPIRITS     = 0x10,   // Teron Gorefiend: use the Vengeful Spirit abilities on the constructs
+            SPECIAL_BLUE_DRAGON       = 0x20,   // Kil'jaeden: use the Blue Dragon orbs, Shield of the Blue on Darkness
+            SPECIAL_HYDROSS_TANKING   = 0x40,   // Hydross: drag the boss in and out of the purification circle
+            SPECIAL_OFFTANK_NO_TAUNT  = 0x80,   // off tanks stay second on threat (Hurtful Strike, Saber Lash)
+            SPECIAL_STACK_OFFTANKS    = 0x100,  // off tanks stand on the main tank (Saber Lash)
         };
 
         // Keep a distance from a creature (optionally only while it has an aura / casts a spell / targets the bot)
@@ -101,6 +108,24 @@ namespace ai
             uint32 entry;
             uint8 roles;
             bool onlyIfTargetingMe = false; // personal adds (Inner Demons)
+            uint32 requiredAuraOnSelf = 0;  // only while the bot has this aura (Spectral Realm)
+            uint32 excludedAuraOnSelf = 0;  // not while the bot has this aura
+        };
+
+        // Come closer to the boss while having enough stacks of a debuff (Bloodboil rotation)
+        struct DebuffApproachRule
+        {
+            uint32 spellId;
+            uint8 minStacks;
+            float distance;
+        };
+
+        // Melee soak a frontal attack, rotate out when the debuff stacks too high (Meteor Slash)
+        struct FrontSoakRule
+        {
+            uint32 bossEntry;
+            uint32 spellId;
+            uint8 maxStacks;
         };
 
         // The off tank taunts when the current tank reached the debuff stacks
@@ -141,6 +166,8 @@ namespace ai
             std::vector<TankSwapRule> tankSwap;
             std::vector<FormTankRule> formTank;
             std::vector<AvoidFrontRule> avoidFront;
+            std::vector<DebuffApproachRule> debuffApproach;
+            std::vector<FrontSoakRule> frontSoak;
             uint32 special = SPECIAL_NONE;
 
             // Builder helpers to keep the encounter table readable
@@ -157,6 +184,10 @@ namespace ai
             Encounter& GatherOn(uint32 spellId, float distance) { gather.push_back({ spellId, distance }); return *this; }
             Encounter& Kill(uint32 entry, uint8 roles = ROLE_DPS) { priority.push_back({ entry, roles, false }); return *this; }
             Encounter& KillMine(uint32 entry) { priority.push_back({ entry, ROLE_ALL, true }); return *this; }
+            Encounter& KillWithAura(uint32 entry, uint8 roles, uint32 auraOnSelf) { priority.push_back({ entry, roles, false, auraOnSelf, 0 }); return *this; }
+            Encounter& KillWithoutAura(uint32 entry, uint8 roles, uint32 auraOnSelf) { priority.push_back({ entry, roles, false, 0, auraOnSelf }); return *this; }
+            Encounter& ApproachWithDebuff(uint32 spellId, uint8 minStacks, float distance) { debuffApproach.push_back({ spellId, minStacks, distance }); return *this; }
+            Encounter& SoakFront(uint32 bossEntry, uint32 spellId, uint8 maxStacks) { frontSoak.push_back({ bossEntry, spellId, maxStacks }); return *this; }
             Encounter& TankSwap(uint32 bossEntry, uint32 spellId, uint8 stacks) { tankSwap.push_back({ bossEntry, spellId, stacks }); return *this; }
             Encounter& FormTank(uint32 bossEntry, uint32 auraId) { formTank.push_back({ bossEntry, auraId }); return *this; }
             Encounter& AvoidFront(uint32 bossEntry, float range = 15.0f, uint8 roles = ROLE_NON_TANK) { avoidFront.push_back({ bossEntry, range, roles }); return *this; }

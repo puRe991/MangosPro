@@ -1,6 +1,7 @@
 #include "playerbot/playerbot.h"
 #include "TbcRaidActions.h"
 #include "playerbot/strategy/generic/TbcRaidStrategy.h"
+#include "Loot/LootMgr.h"
 
 using namespace ai;
 using namespace ai::tbcraid;
@@ -475,4 +476,370 @@ bool TbcRaidTauntAction::Execute(Event& event)
     SET_AI_VALUE(ObjectGuid, "current target", boss->GetObjectGuid());
     bot->SetSelectionGuid(boss->GetObjectGuid());
     return true;
+}
+
+// ---------------------------------------------------------------------------
+// Off tank stacking / Bloodboil rotation / Meteor Slash soaking
+// ---------------------------------------------------------------------------
+
+bool TbcRaidStackOnTankAction::Execute(Event& event)
+{
+    Player* mainTank = TbcRaidHelper::GetMainTankToStackOn(ai);
+    if (!mainTank)
+        return false;
+
+    return MoveToPoint(WorldPosition(mainTank));
+}
+
+bool TbcRaidApproachBossAction::Execute(Event& event)
+{
+    float distance = 0.0f;
+    Unit* boss = TbcRaidHelper::GetApproachTarget(ai, distance);
+    if (!boss)
+        return false;
+
+    const WorldPosition botPosition(bot);
+    const WorldPosition bossPosition(boss);
+    const float angle = bossPosition.getAngleTo(botPosition);
+    const float wanted = std::max(5.0f, distance - 3.0f);
+    const float x = bossPosition.getX() + wanted * cos(angle);
+    const float y = bossPosition.getY() + wanted * sin(angle);
+    const float z = bot->GetMap()->GetHeight(x, y, bossPosition.getZ() + 5.0f);
+    if (z <= INVALID_HEIGHT)
+        return false;
+
+    const WorldPosition point(bot->GetMapId(), x, y, z);
+    if (TbcRaidHelper::IsInHazard(point, TbcRaidHelper::GetHazards(ai), 1.0f))
+        return false;
+
+    return MoveToPoint(point);
+}
+
+bool TbcRaidSoakFrontAction::Execute(Event& event)
+{
+    Unit* boss = TbcRaidHelper::GetSoakBoss(ai);
+    if (!boss)
+        return false;
+
+    // Stand next to the main tank in front of the boss
+    const float distance = std::max(2.0f, boss->GetCombatReach());
+    const float angle = boss->GetOrientation() + frand(-0.4f, 0.4f);
+    const float x = boss->GetPositionX() + distance * cos(angle);
+    const float y = boss->GetPositionY() + distance * sin(angle);
+    const float z = bot->GetMap()->GetHeight(x, y, boss->GetPositionZ() + 5.0f);
+    if (z <= INVALID_HEIGHT)
+        return false;
+
+    return MoveToPoint(WorldPosition(bot->GetMapId(), x, y, z));
+}
+
+// ---------------------------------------------------------------------------
+// Hydross
+// ---------------------------------------------------------------------------
+
+bool TbcRaidHydrossTankAction::Execute(Event& event)
+{
+    WorldPosition position;
+    if (!TbcRaidHelper::GetHydrossTankPosition(ai, position))
+        return false;
+
+    return MoveToPoint(position);
+}
+
+// ---------------------------------------------------------------------------
+// Lady Vashj - Tainted Cores
+// ---------------------------------------------------------------------------
+
+namespace
+{
+    const uint32 ITEM_TAINTED_CORE = 31088;
+    const uint32 SPELL_PARALYZE = 38132;
+}
+
+bool TbcRaidLootCoreAction::Execute(Event& event)
+{
+    Creature* corpse = TbcRaidHelper::GetTaintedCoreCorpse(ai);
+    if (!corpse)
+        return false;
+
+    if (!bot->IsWithinDistInMap(corpse, INTERACTION_DISTANCE - 1.0f))
+        return MoveToPoint(WorldPosition(corpse));
+
+    if (bot->IsMoving())
+        bot->StopMoving();
+
+    const ObjectGuid corpseGuid = corpse->GetObjectGuid();
+
+    WorldPacket lootPacket(CMSG_LOOT, 8);
+    lootPacket << corpseGuid;
+    bot->GetSession()->HandleLootOpcode(lootPacket);
+
+    bool looted = false;
+    if (Loot* loot = sLootMgr.GetLoot(bot, corpseGuid))
+    {
+        LootItemList items;
+        loot->GetLootItemsListFor(bot, items);
+        for (LootItem* item : items)
+        {
+            if (item && item->itemId == ITEM_TAINTED_CORE)
+            {
+                looted = loot->SendItem(bot, item) == EQUIP_ERR_OK;
+                break;
+            }
+        }
+    }
+
+    WorldPacket releasePacket(CMSG_LOOT_RELEASE, 8);
+    releasePacket << corpseGuid;
+    bot->GetSession()->HandleLootReleaseOpcode(releasePacket);
+    return looted;
+}
+
+bool TbcRaidUseCoreAction::isUseful()
+{
+    return bot->HasItemCount(ITEM_TAINTED_CORE, 1) && TbcRaidHelper::GetNearestActiveShieldGenerator(ai, bot);
+}
+
+bool TbcRaidUseCoreAction::Execute(Event& event)
+{
+    GameObject* generator = TbcRaidHelper::GetNearestActiveShieldGenerator(ai, bot);
+    if (!generator)
+        return false;
+
+    // Close enough: deactivate the generator
+    if (bot->IsWithinDistInMap(generator, INTERACTION_DISTANCE))
+    {
+        generator->Use(bot);
+        bot->DestroyItemCount(ITEM_TAINTED_CORE, 1, true);
+        bot->RemoveAurasDueToSpell(SPELL_PARALYZE);
+        return true;
+    }
+
+    // Otherwise throw the core to the raid member closest to the generator
+    Player* receiver = TbcRaidHelper::GetTaintedCoreReceiver(ai, generator);
+    if (!receiver)
+        return false;
+
+    Player* requester = event.getOwner() ? event.getOwner() : GetMaster();
+    return UseItem(requester, ITEM_TAINTED_CORE, receiver);
+}
+
+// ---------------------------------------------------------------------------
+// The Lurker Below - Spout
+// ---------------------------------------------------------------------------
+
+bool TbcRaidJumpIntoWaterAction::Execute(Event& event)
+{
+    if (!TbcRaidHelper::GetSpoutingLurker(ai) || bot->IsInWater())
+        return false;
+
+    const TerrainInfo* terrain = bot->GetMap()->GetTerrain();
+    if (!terrain)
+        return false;
+
+    const WorldPosition botPosition(bot);
+    const uint8 angles = 24;
+    bool found = false;
+    WorldPosition best;
+    float bestDistance = 9999.0f;
+    for (float radius = 4.0f; radius <= 34.0f && !found; radius += 3.0f)
+    {
+        for (uint8 i = 0; i < angles; ++i)
+        {
+            const float angle = i * (2.0f * M_PI_F / angles);
+            const float x = botPosition.getX() + radius * cos(angle);
+            const float y = botPosition.getY() + radius * sin(angle);
+
+            float ground = INVALID_HEIGHT;
+            const float level = terrain->GetWaterLevel(x, y, botPosition.getZ() + 2.0f, &ground);
+            if (level <= INVALID_HEIGHT || level < ground + 2.0f || level > botPosition.getZ() + 2.0f)
+                continue;
+
+            const WorldPosition point(bot->GetMapId(), x, y, level - 1.0f);
+            if (TbcRaidHelper::IsInHazard(point, TbcRaidHelper::GetHazards(ai), 1.0f))
+                continue;
+
+            const float distance = botPosition.distance(point);
+            if (distance < bestDistance)
+            {
+                best = point;
+                bestDistance = distance;
+                found = true;
+            }
+        }
+    }
+
+    if (!found)
+        return false;
+
+    // Jumping down from the platform is not always on the navmesh, move straight if needed
+    if (MoveToPoint(best))
+        return true;
+
+    return MoveTo(bot->GetMapId(), best.getX(), best.getY(), best.getZ(), false, IsReaction(), true, true);
+}
+
+// ---------------------------------------------------------------------------
+// Possessed creatures
+// ---------------------------------------------------------------------------
+
+bool TbcRaidControlPossessedAction::CastCharmSpell(Creature* charm, uint32 spellId, Unit* target)
+{
+    if (!spellId || !charm->IsSpellReady(spellId))
+        return false;
+
+    return charm->CastSpell(target ? target : charm, spellId, TRIGGERED_NONE) == SPELL_CAST_OK;
+}
+
+bool TbcRaidControlPossessedAction::Execute(Event& event)
+{
+    Creature* charm = TbcRaidHelper::GetPossessedCreature(ai);
+    if (!charm)
+        return false;
+
+    if (charm->IsNonMeleeSpellCasted(false))
+        return true;
+
+    if (bot->HasAura(40268))
+        return ControlSpirit(charm);
+
+    return ControlBlueDragon(charm);
+}
+
+bool TbcRaidControlPossessedAction::ControlSpirit(Creature* spirit)
+{
+    // Find the Shadowy Construct closest to the spirit
+    Unit* target = nullptr;
+    uint32 nearby = 0;
+    for (Unit* construct : TbcRaidHelper::FindCreaturesAround(spirit, 23111, 80.0f))
+    {
+        if (!construct->IsAlive())
+            continue;
+
+        if (spirit->IsWithinDistInMap(construct, 10.0f))
+            ++nearby;
+
+        if (!target || spirit->GetDistance(construct) < spirit->GetDistance(target))
+            target = construct;
+    }
+
+    if (!target)
+        return false;
+
+    // Get in range of the construct
+    if (!spirit->IsWithinDistInMap(target, 20.0f))
+    {
+        spirit->GetMotionMaster()->MoveChase(target, 15.0f);
+        return true;
+    }
+
+    spirit->SetFacingToObject(target);
+
+    // AoE when several constructs are close, root and slow them before they reach the raid, then nuke
+    if (nearby >= 2 && CastCharmSpell(spirit, TbcRaidHelper::FindCharmSpell(spirit, "Volley"), target))
+        return true;
+
+    if (CastCharmSpell(spirit, TbcRaidHelper::FindCharmSpell(spirit, "Chains"), target))
+        return true;
+
+    if (CastCharmSpell(spirit, TbcRaidHelper::FindCharmSpell(spirit, "Lance"), target))
+        return true;
+
+    if (spirit->CanReachWithMeleeAttack(target))
+        return CastCharmSpell(spirit, TbcRaidHelper::FindCharmSpell(spirit, "Strike"), target);
+
+    spirit->GetMotionMaster()->MoveChase(target);
+    return true;
+}
+
+bool TbcRaidControlPossessedAction::ControlBlueDragon(Creature* dragon)
+{
+    // Darkness of a Thousand Souls: protect the raid
+    if (TbcRaidHelper::GetKiljaedenCastingDarkness(ai))
+        return CastCharmSpell(dragon, TbcRaidHelper::FindCharmSpell(dragon, "Shield of the Blue"), dragon);
+
+    // Stay above the raid
+    const std::vector<Player*> members = TbcRaidHelper::GetRaidMembers(bot, 100.0f);
+    if (!members.empty())
+    {
+        float x = 0.0f, y = 0.0f, z = 0.0f;
+        for (Player* member : members)
+        {
+            x += member->GetPositionX();
+            y += member->GetPositionY();
+            z += member->GetPositionZ();
+        }
+
+        x /= members.size();
+        y /= members.size();
+        z /= members.size();
+
+        const float dx = dragon->GetPositionX() - x;
+        const float dy = dragon->GetPositionY() - y;
+        if (dx * dx + dy * dy > 8.0f * 8.0f)
+        {
+            dragon->GetMotionMaster()->MovePoint(1, x, y, z + 3.0f);
+            return true;
+        }
+    }
+
+    // Heal the most injured raid member, speed up the raid
+    Player* injured = nullptr;
+    for (Player* member : members)
+    {
+        if (member->GetHealthPercent() < 70.0f && (!injured || member->GetHealthPercent() < injured->GetHealthPercent()))
+            injured = member;
+    }
+
+    if (injured && CastCharmSpell(dragon, TbcRaidHelper::FindCharmSpell(dragon, "Revitalize"), injured))
+        return true;
+
+    return CastCharmSpell(dragon, TbcRaidHelper::FindCharmSpell(dragon, "Haste"), dragon);
+}
+
+// ---------------------------------------------------------------------------
+// Kil'jaeden - Blue Dragon orbs
+// ---------------------------------------------------------------------------
+
+bool TbcRaidUseBlueOrbAction::Execute(Event& event)
+{
+    GameObject* orb = TbcRaidHelper::GetBlueOrbToUse(ai);
+    if (!orb)
+        return false;
+
+    if (!bot->IsWithinDistInMap(orb, INTERACTION_DISTANCE - 1.0f))
+    {
+        const float angle = orb->GetAngle(bot);
+        const float x = orb->GetPositionX() + 2.0f * cos(angle);
+        const float y = orb->GetPositionY() + 2.0f * sin(angle);
+        float z = bot->GetMap()->GetHeight(x, y, orb->GetPositionZ() + 5.0f);
+        if (z <= INVALID_HEIGHT)
+            z = orb->GetPositionZ();
+
+        return MoveToPoint(WorldPosition(bot->GetMapId(), x, y, z));
+    }
+
+    if (bot->IsNonMeleeSpellCasted(true))
+        bot->InterruptNonMeleeSpells(true);
+
+    if (bot->IsMoving())
+        bot->StopMoving();
+
+    orb->Use(bot);
+    return true;
+}
+
+bool TbcRaidGatherUnderDragonAction::Execute(Event& event)
+{
+    Unit* dragon = TbcRaidHelper::GetRaidBlueDragon(ai);
+    if (!dragon)
+        return false;
+
+    const float x = dragon->GetPositionX();
+    const float y = dragon->GetPositionY();
+    float z = bot->GetMap()->GetHeight(x, y, dragon->GetPositionZ());
+    if (z <= INVALID_HEIGHT)
+        z = bot->GetPositionZ();
+
+    return MoveToPoint(WorldPosition(bot->GetMapId(), x, y, z));
 }

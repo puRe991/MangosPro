@@ -32,6 +32,70 @@ namespace ai
             creators["tbc raid taunt"] = [](PlayerbotAI* ai) { return new TbcRaidTauntTrigger(ai); };
             creators["tbc raid use cube"] = [](PlayerbotAI* ai) { return new TbcRaidUseCubeTrigger(ai); };
             creators["tbc raid use spine"] = [](PlayerbotAI* ai) { return new TbcRaidUseSpineTrigger(ai); };
+
+            creators["tbc raid stack on tank"] = [](PlayerbotAI* ai) { return new TbcRaidMechanicTrigger(ai, "tbc raid stack on tank", [](PlayerbotAI* ai)
+            {
+                Player* mainTank = TbcRaidHelper::GetMainTankToStackOn(ai);
+                return mainTank && !ai->GetBot()->IsWithinDistInMap(mainTank, 3.0f);
+            }); };
+
+            creators["tbc raid approach boss"] = [](PlayerbotAI* ai) { return new TbcRaidMechanicTrigger(ai, "tbc raid approach boss", [](PlayerbotAI* ai)
+            {
+                float distance = 0.0f;
+                Unit* boss = TbcRaidHelper::GetApproachTarget(ai, distance);
+                return boss && !ai->GetBot()->IsWithinDistInMap(boss, distance);
+            }); };
+
+            creators["tbc raid soak front"] = [](PlayerbotAI* ai) { return new TbcRaidMechanicTrigger(ai, "tbc raid soak front", [](PlayerbotAI* ai)
+            {
+                return TbcRaidHelper::GetSoakBoss(ai) != nullptr;
+            }); };
+
+            creators["tbc raid hydross tank"] = [](PlayerbotAI* ai) { return new TbcRaidMechanicTrigger(ai, "tbc raid hydross tank", [](PlayerbotAI* ai)
+            {
+                WorldPosition position;
+                return TbcRaidHelper::GetHydrossTankPosition(ai, position);
+            }); };
+
+            creators["tbc raid loot core"] = [](PlayerbotAI* ai) { return new TbcRaidMechanicTrigger(ai, "tbc raid loot core", [](PlayerbotAI* ai)
+            {
+                return TbcRaidHelper::GetTaintedCoreCorpse(ai) != nullptr;
+            }); };
+
+            creators["tbc raid has core"] = [](PlayerbotAI* ai) { return new TbcRaidMechanicTrigger(ai, "tbc raid has core", [](PlayerbotAI* ai)
+            {
+                return ai->GetBot()->HasItemCount(31088, 1) && TbcRaidHelper::GetNearestActiveShieldGenerator(ai, ai->GetBot());
+            }); };
+
+            creators["tbc raid lurker spout"] = [](PlayerbotAI* ai) { return new TbcRaidMechanicTrigger(ai, "tbc raid lurker spout", [](PlayerbotAI* ai)
+            {
+                return !ai->GetBot()->IsInWater() && TbcRaidHelper::GetSpoutingLurker(ai) != nullptr;
+            }); };
+
+            creators["tbc raid possessing"] = [](PlayerbotAI* ai) { return new TbcRaidMechanicTrigger(ai, "tbc raid possessing", [](PlayerbotAI* ai)
+            {
+                return TbcRaidHelper::GetPossessedCreature(ai) != nullptr;
+            }); };
+
+            creators["tbc raid use blue orb"] = [](PlayerbotAI* ai) { return new TbcRaidMechanicTrigger(ai, "tbc raid use blue orb", [](PlayerbotAI* ai)
+            {
+                return TbcRaidHelper::GetBlueOrbToUse(ai) != nullptr;
+            }); };
+
+            creators["tbc raid darkness"] = [](PlayerbotAI* ai) { return new TbcRaidMechanicTrigger(ai, "tbc raid darkness", [](PlayerbotAI* ai)
+            {
+                Player* bot = ai->GetBot();
+                if (TbcRaidHelper::IsPossessingBossCreature(bot) || !TbcRaidHelper::GetKiljaedenCastingDarkness(ai))
+                    return false;
+
+                Unit* dragon = TbcRaidHelper::GetRaidBlueDragon(ai);
+                if (!dragon)
+                    return false;
+
+                const float dx = bot->GetPositionX() - dragon->GetPositionX();
+                const float dy = bot->GetPositionY() - dragon->GetPositionY();
+                return dx * dx + dy * dy > 6.0f * 6.0f;
+            }); };
         }
     };
 
@@ -51,6 +115,16 @@ namespace ai
             creators["tbc raid use cube"] = [](PlayerbotAI* ai) { return new TbcRaidUseCubeAction(ai); };
             creators["tbc raid move to spine"] = [](PlayerbotAI* ai) { return new TbcRaidMoveToSpineAction(ai); };
             creators["tbc raid use spine"] = [](PlayerbotAI* ai) { return new TbcRaidUseSpineAction(ai); };
+            creators["tbc raid stack on tank"] = [](PlayerbotAI* ai) { return new TbcRaidStackOnTankAction(ai); };
+            creators["tbc raid approach boss"] = [](PlayerbotAI* ai) { return new TbcRaidApproachBossAction(ai); };
+            creators["tbc raid soak front"] = [](PlayerbotAI* ai) { return new TbcRaidSoakFrontAction(ai); };
+            creators["tbc raid hydross tank"] = [](PlayerbotAI* ai) { return new TbcRaidHydrossTankAction(ai); };
+            creators["tbc raid loot core"] = [](PlayerbotAI* ai) { return new TbcRaidLootCoreAction(ai); };
+            creators["tbc raid use core"] = [](PlayerbotAI* ai) { return new TbcRaidUseCoreAction(ai); };
+            creators["tbc raid jump into water"] = [](PlayerbotAI* ai) { return new TbcRaidJumpIntoWaterAction(ai); };
+            creators["tbc raid control possessed"] = [](PlayerbotAI* ai) { return new TbcRaidControlPossessedAction(ai); };
+            creators["tbc raid use blue orb"] = [](PlayerbotAI* ai) { return new TbcRaidUseBlueOrbAction(ai); };
+            creators["tbc raid gather under dragon"] = [](PlayerbotAI* ai) { return new TbcRaidGatherUnderDragonAction(ai); };
         }
     };
 }

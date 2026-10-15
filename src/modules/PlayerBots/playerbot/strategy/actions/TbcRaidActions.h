@@ -113,4 +113,92 @@ namespace ai
         bool Execute(Event& event) override;
         bool isUseful() override;
     };
+
+    // Off tanks stand on the main tank (Saber Lash)
+    class TbcRaidStackOnTankAction : public TbcRaidMovementAction
+    {
+    public:
+        TbcRaidStackOnTankAction(PlayerbotAI* ai) : TbcRaidMovementAction(ai, "tbc raid stack on tank") {}
+        bool Execute(Event& event) override;
+    };
+
+    // Come closer to the boss with debuff stacks (Bloodboil rotation)
+    class TbcRaidApproachBossAction : public TbcRaidMovementAction
+    {
+    public:
+        TbcRaidApproachBossAction(PlayerbotAI* ai) : TbcRaidMovementAction(ai, "tbc raid approach boss") {}
+        bool Execute(Event& event) override;
+    };
+
+    // Stand in front of the boss to soak (Meteor Slash)
+    class TbcRaidSoakFrontAction : public TbcRaidMovementAction
+    {
+    public:
+        TbcRaidSoakFrontAction(PlayerbotAI* ai) : TbcRaidMovementAction(ai, "tbc raid soak front") {}
+        bool Execute(Event& event) override;
+    };
+
+    // Hydross: drag the boss in or out of the purification circle
+    class TbcRaidHydrossTankAction : public TbcRaidMovementAction
+    {
+    public:
+        TbcRaidHydrossTankAction(PlayerbotAI* ai) : TbcRaidMovementAction(ai, "tbc raid hydross tank") {}
+        bool Execute(Event& event) override;
+    };
+
+    // Lady Vashj: loot the Tainted Core
+    class TbcRaidLootCoreAction : public TbcRaidMovementAction
+    {
+    public:
+        TbcRaidLootCoreAction(PlayerbotAI* ai) : TbcRaidMovementAction(ai, "tbc raid loot core") {}
+        bool Execute(Event& event) override;
+    };
+
+    // Lady Vashj: use the Tainted Core on a shield generator or throw it closer to one
+    class TbcRaidUseCoreAction : public UseAction
+    {
+    public:
+        TbcRaidUseCoreAction(PlayerbotAI* ai) : UseAction(ai, "tbc raid use core") {}
+        bool Execute(Event& event) override;
+        bool isUseful() override;
+        bool isUsefulWhenStunned() override { return true; }
+    };
+
+    // The Lurker Below: jump into the water during Spout
+    class TbcRaidJumpIntoWaterAction : public TbcRaidMovementAction
+    {
+    public:
+        TbcRaidJumpIntoWaterAction(PlayerbotAI* ai) : TbcRaidMovementAction(ai, "tbc raid jump into water") {}
+        bool Execute(Event& event) override;
+    };
+
+    // Teron Gorefiend / Kil'jaeden: control the possessed Vengeful Spirit or Blue Dragon
+    class TbcRaidControlPossessedAction : public Action
+    {
+    public:
+        TbcRaidControlPossessedAction(PlayerbotAI* ai) : Action(ai, "tbc raid control possessed") {}
+        bool Execute(Event& event) override;
+        bool isUsefulWhenStunned() override { return true; }
+
+    private:
+        bool ControlSpirit(Creature* spirit);
+        bool ControlBlueDragon(Creature* dragon);
+        bool CastCharmSpell(Creature* charm, uint32 spellId, Unit* target);
+    };
+
+    // Kil'jaeden: use a Blue Dragon orb
+    class TbcRaidUseBlueOrbAction : public TbcRaidMovementAction
+    {
+    public:
+        TbcRaidUseBlueOrbAction(PlayerbotAI* ai) : TbcRaidMovementAction(ai, "tbc raid use blue orb") {}
+        bool Execute(Event& event) override;
+    };
+
+    // Kil'jaeden: stand below the Blue Dragon for Shield of the Blue
+    class TbcRaidGatherUnderDragonAction : public TbcRaidMovementAction
+    {
+    public:
+        TbcRaidGatherUnderDragonAction(PlayerbotAI* ai) : TbcRaidMovementAction(ai, "tbc raid gather under dragon") {}
+        bool Execute(Event& event) override;
+    };
 }

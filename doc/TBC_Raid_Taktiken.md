@@ -35,18 +35,18 @@ Code:
 
 ### Gruul's Lair
 - **High King Maulgar** – Kill-Order Blindeye → Olm (+ Felhunter) → Kiggler → Krosh (nur Fernkampf) → Maulgar. Raus aus Maulgars Wirbelwind und Kroshs Blast Wave, nicht vor Maulgar stehen.
-- **Gruul** – Fernkampf immer 10 m verteilt; mit Gronn Lord's Grasp/Stoned verteilen sich **alle** auf 15 m (Shatter), raus aus Cave In.
+- **Gruul** – der Off-Tank bleibt im Nahkampf auf Platz 2 der Bedrohung (Hurtful Strike) und spottet nicht. Fernkampf immer 10 m verteilt; mit Gronn Lord's Grasp/Stoned verteilen sich **alle** auf 15 m (Shatter), raus aus Cave In.
 
 ### Magtheridon's Lair
 - **Magtheridon** – Phase 1: Hellfire Channeler nacheinander töten, dann Burning Abyssals. Phase 2: **Manticron-Würfel** – 5 Bots (Fernkampf vor Heilern vor Nahkampf, ohne Mind Exhaustion) stellen sich an je einen Würfel und klicken, sobald Magtheridon Blast Nova wirkt (oder ein anderer Spieler schon klickt). Den Kanal brechen sie nicht ab. Raus aus Blaze/Conflagration, nicht vor dem Boss stehen.
 
 ### Serpentshrine Cavern
-- **Hydross** – Pure/Tainted Spawns zuerst.
-- **Lurker Below** – Ambusher (Fernkampf) und Guardians (Nahkampf) töten, raus aus Whirl und Geysir.
+- **Hydross** – Tank 1 hält ihn im 20-m-Reinigungskreis (Frostform). Hat der Raid 100 % Mark of Hydross, zieht er ihn hinaus. Tank 2 spottet sofort und hält die verderbte Form draußen. Bei 100 % Mark of Corruption zieht Tank 2 ihn zurück in den Kreis. Pure/Tainted Spawns sterben zuerst.
+- **Lurker Below** – bei **Spout** springen alle Bots ins Wasser (nächstes ausreichend tiefes Wasser). Ambusher (Fernkampf) und Guardians (Nahkampf) töten, raus aus Whirl und Geysir.
 - **Leotheras** – jeder tötet seinen **eigenen Inner Demon**, raus aus dem Wirbelwind, Nahkampf weg von der Dämonenform, Shadow of Leotheras töten.
 - **Karathress** – Spitfire Totem sofort, dann Tidalvess → Sharkkis → Caribdis → Karathress; Zyklone meiden.
 - **Morogrim** – Water Globules meiden, nicht vor dem Boss (Tidal Wave).
-- **Lady Vashj** – Static Charge → raus; Tainted Elemental → Enchanted Elemental → Coilfang Elite/Sporebats; Striders (Fear) und Toxic Spores meiden.
+- **Lady Vashj** – Static Charge → raus. Tainted Elemental → Enchanted Elemental → Coilfang Elite/Sporebats. **Tainted Cores:** Der nächste Bot mit Plünderrecht lootet den Kern (er ist dann gelähmt). Steht er an einem aktiven Schildgenerator, benutzt er ihn. Sonst wirft er den Kern zum Raidmitglied, das näher am nächsten aktiven Generator steht. So wandert der Kern per Kette bis zum Generator. Striders (Fear) und Toxic Spores meiden.
 
 ### Tempest Keep: The Eye
 - **Al'ar** – Embers töten, Flame Patches meiden, Tankwechsel bei Melt Armor, Caster verteilen sich.
@@ -65,10 +65,10 @@ Code:
 - **Naj'entus** – Caster verteilen sich; der nächste freie Bot zieht den Impaling Spine aus dem Opfer und wirft ihn bei Tidal Shield auf den Boss.
 - **Supremus** – Gaze-Ziel kitet den Boss, Volcanos und Molten Flame meiden.
 - **Shade of Akama** – Sorcerer → Channeler → Spiritbinder → Elementalist → Rogue → Defender.
-- **Teron Gorefiend** – Shadowy Constructs töten.
-- **Gurtogg Bloodboil** – nur Tanks vorne (Arcing Smash), Caster verteilen sich.
+- **Teron Gorefiend** – Wer nach Shadow of Death den **Vengeful Spirit** steuert, greift damit die Shadowy Constructs an: bei mehreren Constructs Spirit Volley, sonst Spirit Chains, Spirit Lance und im Nahkampf Spirit Strike. Normale Angriffe des Raids schaden den Constructs nicht.
+- **Gurtogg Bloodboil** – nur Tanks vorne (Arcing Smash), Caster verteilen sich. **Bloodboil-Rotation:** Fernkämpfer und Heiler mit 2+ Stapeln kommen auf ~14 m heran, damit Spieler ohne Stapel die nächsten Bloodboils (5 entfernteste Spieler) bekommen.
 - **Reliquary of Souls** – Enslaved Souls töten, nicht in den Soul-Scream-Kegel.
-- **Mother Shahraz** – Fatal Attraction → sofort auseinander.
+- **Mother Shahraz** – Fatal Attraction → sofort auseinander. Off-Tanks stehen auf dem Main-Tank und teilen sich Saber Lash, spotten aber nicht.
 - **Illidari Council** – raus aus Flamestrike/Blizzard/Consecration, Abstand zu Zerevor.
 - **Illidan** – Shadow Demons und Parasitic Shadowfiends sofort; Flame Crash, Blaze, Eye Blast, Demon Fire meiden; nur Tanks an die Flames of Azzinoth; Parasit-Debuff → raus; in der Dämonenform verteilen.
 
@@ -81,23 +81,18 @@ Code:
 - **Zul'jin** – raus aus Wirbelwind, Feather Vortex und Column of Fire.
 
 ### Sunwell Plateau
-- **Brutallus** – Burn → raus aus dem Raid.
+- **Kalecgos** – wer im Spektralreich ist, tötet Sathrovarr (auch Tanks), alle anderen kämpfen gegen den Drachen. Nicht vor den Drachen stellen (Frost Breath).
+- **Brutallus** – Burn → raus aus dem Raid. **Meteor Slash:** Nahkämpfer und Off-Tanks mit weniger als 2 Stapeln stellen sich mit vor den Boss und teilen den Schaden. Mit 2 Stapeln gehen sie hinter den Boss, bis der Debuff weg ist.
 - **Felmyst** – Demonic Vapor + Spur meiden, Unyielding Dead töten.
 - **Eredar Twins** – Conflagration → raus, Blaze meiden, verteilen.
 - **M'uru / Entropius** – Void Sentinels → Fury Mages → Berserker; Dark Fiends meiden/aus der Ferne töten; Darkness und Singularity meiden.
-- **Kil'jaeden** – Shield Orbs (Fernkampf) und Sinister Reflections töten, Armageddon meiden, Fire Bloom → raus.
+- **Kil'jaeden** – Shield Orbs (Fernkampf) und Sinister Reflections töten, Armageddon meiden, Fire Bloom → raus. **Blaue Drachen:** Wird eine Drachenkugel aktiv, benutzt der nächste freie DD-Bot sie. Er fliegt den Drachen über dem Raid, heilt mit Breath: Revitalize und wirkt bei **Darkness of a Thousand Souls** Shield of the Blue. Alle anderen stellen sich unter den Drachen.
 
-## Bekannte Grenzen
+## Hinweise
 
-- **Lady Vashj Phase 2**: Die Tainted Cores werden nicht durch den Raid geworfen. Das müssen echte Spieler machen.
-- **Lurker Spout**: Die Bots springen nicht ins Wasser.
-- **Teron Gorefiend**: Als Geist steuern Bots ihre Fähigkeiten nicht.
-- **Kalecgos**: Den Wechsel ins Dämonenreich machen Bots nicht.
-- **Kil'jaeden**: Bots nutzen das Darkness-Schild der blauen Drachen nicht.
-- **Hydross**: Bots ziehen keine Resistenz-Ausrüstung an und machen keinen Positionswechsel des Tanks.
-- **Gurtogg Bloodboil**: Die Bloodboil-Rotation der Fernkämpfer fehlt.
-- **Hurtful Strike, Saber Lash und Meteor Slash**: Bots ordnen die Bedrohung nicht gezielt an.
-- **Nicht im Spiel getestet**: Die Abstände sind aus Raid-Guides übernommen und noch nicht im Spiel geprüft. Bei Bedarf passt du sie in `TbcRaidEncounters.cpp` an.
+- **Hydross**: Bots ziehen keine Resistenz-Ausrüstung an. Sie tanken mit dem, was sie tragen. Den Positionswechsel machen sie selbst.
+- **Kalecgos**: Bots werden nur durch Spectral Blast ins Spektralreich geschickt, so wie im Original. Freiwillig gehen sie nicht hinein.
+- **Im Spiel testen**: Die Abstände stammen aus den Raid-Guides. Wenn etwas nicht passt, passt du es in `TbcRaidEncounters.cpp` an.
 
 ## Eigene Taktik hinzufügen
 

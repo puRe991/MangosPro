@@ -1,5 +1,6 @@
 #pragma once
 #include "playerbot/strategy/Trigger.h"
+#include <functional>
 
 namespace ai
 {
@@ -88,5 +89,17 @@ namespace ai
     public:
         TbcRaidUseSpineTrigger(PlayerbotAI* ai) : Trigger(ai, "tbc raid use spine", 1) {}
         bool IsActive() override;
+    };
+
+    // Generic "the helper says yes" trigger for the special mechanics
+    class TbcRaidMechanicTrigger : public Trigger
+    {
+    public:
+        TbcRaidMechanicTrigger(PlayerbotAI* ai, std::string name, std::function<bool(PlayerbotAI*)> check)
+            : Trigger(ai, name, 1), check(check) {}
+        bool IsActive() override { return bot->IsAlive() && check(ai); }
+
+    private:
+        std::function<bool(PlayerbotAI*)> check;
     };
 }
