@@ -30,12 +30,12 @@ static bool IsLustAllowed(PlayerbotAI* ai)
 
 bool HeroismTrigger::IsActive()
 {
-    return IsLustAllowed(ai) && BoostTrigger::IsActive();
+    return BoostTrigger::IsActive() && IsLustAllowed(ai);
 }
 
 bool BloodlustTrigger::IsActive()
 {
-    return IsLustAllowed(ai) && BoostTrigger::IsActive();
+    return BoostTrigger::IsActive() && IsLustAllowed(ai);
 }
 
 std::list<std::string> ShamanWeaponTrigger::spells;

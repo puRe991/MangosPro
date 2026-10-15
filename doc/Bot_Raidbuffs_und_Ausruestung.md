@@ -22,6 +22,10 @@ Per Flüstern an einen Bot oder im Gruppen-/Schlachtzugschat an alle Bots.
 
 ## Boss-Taktiken: Zuweisungen, Positionen, Marker
 
+`tactic` erkennt den nächsten Boss der Raid-Tabelle im Umkreis von 150 m, auch wenn die Bots ihn noch nicht sehen.
+Die Aggro-Reichweite der Raid-Bosse ist auf 15 m begrenzt (`sql/mangospro/world/03_raid_boss_aggro_range.sql`,
+ausgenommen Bosse mit Event-Start: Archimonde, Kael'thas, Brutallus, Kalecgos, M'uru, Leotheras).
+
 Beim Pull eines Bosses aus der Raid-Tabelle schreibt ein Bot (niedrigste GUID) automatisch in den Schlachtzugchat:
 `[Taktik] <Boss> geladen. Reihenfolge: ... Tanks: ... Unterbrecher: ...` – fehlt diese Zeile, ist keine Taktik aktiv.
 

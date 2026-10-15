@@ -1,5 +1,8 @@
 #include "playerbot/playerbot.h"
 #include "TbcRaidEncounters.h"
+#include "Grids/GridNotifiers.h"
+#include "Grids/GridNotifiersImpl.h"
+#include "Grids/CellImpl.h"
 
 using namespace ai;
 using namespace ai::tbcraid;
@@ -17,6 +20,27 @@ namespace
         MAP_BLACK_TEMPLE        = 564,
         MAP_ZULAMAN             = 568,
         MAP_SUNWELL_PLATEAU     = 580,
+    };
+}
+
+namespace
+{
+    // Living creatures of any TBC raid encounter in range
+    class EncounterCreatureInRangeCheck
+    {
+    public:
+        EncounterCreatureInRangeCheck(WorldObject const* obj, const EncounterRegistry& registry, float range) : i_obj(obj), i_registry(registry), i_range(range) {}
+        WorldObject const& GetFocusObject() const { return *i_obj; }
+        bool operator()(Creature* creature)
+        {
+            return creature && creature->IsAlive() && i_obj->IsWithinDistInMap(creature, i_range) &&
+                   i_registry.FindByCreature(i_obj->GetMapId(), creature->GetEntry());
+        }
+
+    private:
+        WorldObject const* i_obj;
+        const EncounterRegistry& i_registry;
+        float i_range;
     };
 }
 
@@ -64,17 +88,26 @@ const Encounter* EncounterRegistry::FindNearby(PlayerbotAI* ai) const
     if (!IsRaidMap(bot->GetMapId()))
         return nullptr;
 
-    for (ObjectGuid guid : ai->GetAiObjectContext()->GetValue<std::list<ObjectGuid>>("possible attack targets")->Get())
-    {
-        Unit* unit = ai->GetUnit(guid);
-        if (!unit || unit->IsPlayer())
-            continue;
+    // Nearest living encounter creature of this map within 150 yards (works before the pull,
+    // the bots do not need to see the boss). One grid search for all encounter creatures.
+    std::list<Creature*> creatures;
+    EncounterCreatureInRangeCheck check(bot, *this, 150.0f);
+    MaNGOS::CreatureListSearcher<EncounterCreatureInRangeCheck> searcher(creatures, check);
+    Cell::VisitGridObjects(bot, searcher, 150.0f);
 
-        if (const Encounter* encounter = FindByCreature(bot->GetMapId(), unit->GetEntry()))
-            return encounter;
+    const Encounter* nearest = nullptr;
+    float nearestDistance = 0.0f;
+    for (Creature* creature : creatures)
+    {
+        const float distance = bot->GetDistance(creature);
+        if (!nearest || distance < nearestDistance)
+        {
+            nearestDistance = distance;
+            nearest = FindByCreature(bot->GetMapId(), creature->GetEntry());
+        }
     }
 
-    return nullptr;
+    return nearest;
 }
 
 bool EncounterRegistry::IsRaidMap(uint32 mapId) const
