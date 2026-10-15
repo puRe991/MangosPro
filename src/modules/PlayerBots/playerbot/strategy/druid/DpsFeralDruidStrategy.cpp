@@ -610,6 +610,10 @@ void DpsFeralDruidStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers
         NextAction::array(0, new NextAction("ferocious bite", ACTION_HIGH), NULL)));
 
     triggers.push_back(new TriggerNode(
+        "mangle (cat) debuff",
+        NextAction::array(0, new NextAction("mangle (cat)", ACTION_NORMAL + 3), NULL)));
+
+    triggers.push_back(new TriggerNode(
         "rake",
         NextAction::array(0, new NextAction("rake", ACTION_NORMAL + 2), NULL)));
 

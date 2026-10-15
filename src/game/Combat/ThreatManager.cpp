@@ -26,6 +26,10 @@
 #include "Entities/UnitEvents.h"
 #include "Spells/SpellAuras.h"
 
+#ifdef ENABLE_PLAYERBOTS
+#include "playerbot/PlayerbotAIConfig.h"
+#endif
+
 //==============================================================
 //================= ThreatCalcHelper ===========================
 //==============================================================
@@ -56,6 +60,16 @@ float ThreatCalcHelper::CalcThreat(Unit* hatedUnit, Unit* hatingUnit, float thre
     }
 
     threat = hatedUnit->ApplyTotalThreatModifier(threat, schoolMask);
+
+#ifdef ENABLE_PLAYERBOTS
+    // Extra threat for tanks: Defensive Stance, Bear Form, Dire Bear Form, Righteous Fury
+    if (threat > 0.f && hatedUnit->GetTypeId() == TYPEID_PLAYER && sPlayerbotAIConfig.tankThreatMultiplier != 1.0f)
+    {
+        if (hatedUnit->HasAura(71) || hatedUnit->HasAura(5487) || hatedUnit->HasAura(9634) || hatedUnit->HasAura(25780))
+            threat *= sPlayerbotAIConfig.tankThreatMultiplier;
+    }
+#endif
+
     return threat;
 }
 

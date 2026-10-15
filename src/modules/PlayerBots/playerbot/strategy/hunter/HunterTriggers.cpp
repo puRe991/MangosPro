@@ -5,6 +5,27 @@
 
 using namespace ai;
 
+bool SteadyShotCanCastTrigger::IsActive()
+{
+    if (!SpellCanBeCastedTrigger::IsActive())
+        return false;
+
+#ifdef MANGOSBOT_ONE
+    // Weave steady shot between auto shots: only start the cast if it finishes before the next auto shot
+    if (!bot->GetCurrentSpell(CURRENT_AUTOREPEAT_SPELL))
+        return true;
+
+    const uint32 spellId = AI_VALUE2(uint32, "spell id", "steady shot");
+    SpellEntry const* spellInfo = sServerFacade.LookupSpellInfo(spellId);
+    if (!spellInfo)
+        return true;
+
+    return bot->getAttackTimer(RANGED_ATTACK) >= GetSpellCastTime(spellInfo, bot);
+#else
+    return true;
+#endif
+}
+
 bool HunterNoStingsActiveTrigger::IsActive()
 {
 	Unit* target = ai->GetUnit(AI_VALUE(ObjectGuid, "current target"));

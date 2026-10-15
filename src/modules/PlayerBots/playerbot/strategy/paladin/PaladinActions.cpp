@@ -1,6 +1,8 @@
 
 #include "playerbot/playerbot.h"
 #include "PaladinActions.h"
+#include "playerbot/strategy/generic/TbcRaidEncounters.h"
+#include "PaladinAuraAssignment.h"
 
 using namespace ai;
 
@@ -40,6 +42,15 @@ bool ProtSealAction::Execute(Event& event)
     else
         SetSpellName("seal of righteousness");
     return CastBuffSpellAction::Execute(event);
+}
+
+bool CastAssignedAuraAction::Execute(Event& event)
+{
+    const std::string aura = paladinaura::GetAssignedAura(ai);
+    if (aura.empty() || ai->HasMyAura(aura, bot))
+        return false;
+
+    return ai->CastSpell(aura, bot, nullptr, false);
 }
 
 bool CastPaladinAuraAction::Execute(Event& event)
@@ -300,12 +311,44 @@ bool CastBlessingOnPartyAction::isPossible()
     return false;
 }
 
+Unit* CastBlessingOnPartyAction::GetClassMajorityTarget(Unit* target)
+{
+    if (!target || !target->IsPlayer())
+        return target;
+
+    const uint8 targetClass = ((Player*)target)->getClass();
+    std::map<uint8, std::vector<Player*>> membersByRole;
+    for (ObjectGuid guid : AI_VALUE(std::list<ObjectGuid>, "group members"))
+    {
+        Player* member = sObjectMgr.GetPlayer(guid);
+        if (member && member->getClass() == targetClass)
+            membersByRole[tbcraid::GetRole(ai, member)].push_back(member);
+    }
+
+    Unit* majority = target;
+    size_t majorityCount = 0;
+    for (auto& role : membersByRole)
+    {
+        if (role.second.size() > majorityCount)
+        {
+            majorityCount = role.second.size();
+            majority = role.second.front();
+        }
+    }
+
+    // Keep the target itself when it already belongs to the majority role
+    if (majority != target && membersByRole[tbcraid::GetRole(ai, (Player*)target)].size() == majorityCount)
+        return target;
+
+    return majority;
+}
+
 std::string CastBlessingOnPartyAction::GetBlessingForTarget(Unit* target)
 {
     std::string chosenBlessing = "";
     if (target)
     {
-        std::vector<std::string> possibleBlessings = GetPossibleBlessingsForTarget(target);
+        std::vector<std::string> possibleBlessings = GetPossibleBlessingsForTarget(greater ? GetClassMajorityTarget(target) : target);
         // Multiple paladins may each contribute one blessing, but this
         // paladin must never overwrite its own active blessing when the
         // cached party target survives into the next action pass.

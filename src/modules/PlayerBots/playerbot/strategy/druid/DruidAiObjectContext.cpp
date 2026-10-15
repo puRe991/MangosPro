@@ -227,7 +227,12 @@ namespace ai
                 creators["nature's swiftness"] = [](PlayerbotAI* ai) { return new NaturesSwiftnessTrigger(ai); };
                 creators["ferocious bite"] = [](PlayerbotAI* ai) { return new FerociousBiteTrigger(ai); };
                 creators["claw"] = [](PlayerbotAI* ai) { return new SpellCanBeCastedTrigger(ai, "claw"); };
+#ifdef MANGOSBOT_ONE
+                creators["rip"] = [](PlayerbotAI* ai) { return new RipTrigger(ai, 5); };
+#else
                 creators["rip"] = [](PlayerbotAI* ai) { return new RipTrigger(ai, 3); };
+#endif
+                creators["mangle (cat) debuff"] = [](PlayerbotAI* ai) { return new MangleCatDebuffTrigger(ai); };
                 creators["enrage"] = [](PlayerbotAI* ai) { return new EnrageTrigger(ai); };
                 creators["demoralizing roar"] = [](PlayerbotAI* ai) { return new DemoralizingRoarTrigger(ai); };
                 creators["lacerate"] = [](PlayerbotAI* ai) { return new LacerateTrigger(ai); };

@@ -917,12 +917,14 @@ void HunterStingPveStrategy::InitCombatTriggers(std::list<TriggerNode*>& trigger
 {
     triggers.push_back(new TriggerNode(
         "no stings",
-        NextAction::array(0, new NextAction("serpent sting", ACTION_NORMAL + 4), NULL)));
+        NextAction::array(0, new NextAction("serpent sting", ACTION_NORMAL + 6), NULL)));
 }
 
 void HunterStingRaidStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
 {
-
+    triggers.push_back(new TriggerNode(
+        "no stings",
+        NextAction::array(0, new NextAction("serpent sting", ACTION_NORMAL + 6), NULL)));
 }
 
 void HunterAspectStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)

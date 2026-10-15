@@ -98,6 +98,8 @@ namespace ai
             creators["lfg"] = [](PlayerbotAI* ai) { return new ChatCommandTrigger(ai, "lfg"); };
             creators["spell"] = [](PlayerbotAI* ai) { return new ChatCommandTrigger(ai, "spell"); };
             creators["rti"] = [](PlayerbotAI* ai) { return new ChatCommandTrigger(ai, "rti"); };
+            creators["lust"] = [](PlayerbotAI* ai) { return new ChatCommandTrigger(ai, "lust"); };
+            creators["auras"] = [](PlayerbotAI* ai) { return new ChatCommandTrigger(ai, "auras"); };
             creators["revive"] = [](PlayerbotAI* ai) { return new ChatCommandTrigger(ai, "revive"); };
             creators["runaway"] = [](PlayerbotAI* ai) { return new ChatCommandTrigger(ai, "runaway"); };
             creators["warning"] = [](PlayerbotAI* ai) { return new ChatCommandTrigger(ai, "warning"); };

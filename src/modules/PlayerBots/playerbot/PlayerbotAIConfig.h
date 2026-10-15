@@ -331,6 +331,11 @@ public:
     std::string autoPickReward;
     bool autoEquipUpgradeLoot;
     bool autoEnchantUpgradeLoot;
+    bool autoGemUpgradeLoot;
+    bool autoExchangeTierTokens;
+    float needRollMinUpgradePct;
+    bool needRollBestUpgradeOnly;
+    float tankThreatMultiplier;
     bool syncQuestWithPlayer;
     bool syncQuestForPlayer;
     std::string autoTrainSpells;

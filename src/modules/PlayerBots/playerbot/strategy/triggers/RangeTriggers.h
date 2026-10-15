@@ -62,6 +62,10 @@ namespace ai
                 if (bot->GetMap()->IsRaid())
                     isRaid = true;
 
+                // A creature that attacks someone else is no reason to run: casters can cast at any distance
+                if (!target->IsPlayer() && !isVictim)
+                    return false;
+
                 //if (isBoss || isRaid)
                 //    return sServerFacade.IsDistanceLessThan(targetDistance, (ai->GetRange("spell") + combatReach) / 2);
 
@@ -131,6 +135,10 @@ namespace ai
 
                 if (bot->GetMap()->IsRaid())
                     isRaid = true;
+
+                // A creature that attacks someone else: only leave the dead zone of ranged weapons (8 yards)
+                if (!target->IsPlayer() && !isVictim)
+                    return sServerFacade.IsDistanceLessOrEqualThan(sServerFacade.GetDistance2d(bot, target) - target->GetObjectBoundingRadius(), 8.0f);
 
                 //if (isBoss || isRaid)
                 //    return sServerFacade.IsDistanceLessThan(targetDistance, (ai->GetRange("spell") + combatReach));

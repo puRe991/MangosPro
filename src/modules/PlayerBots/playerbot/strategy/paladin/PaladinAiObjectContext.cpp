@@ -21,6 +21,7 @@ namespace ai
                 creators["buff"] = [](PlayerbotAI* ai) { return new BuffPlaceholderStrategy(ai); };
                 creators["cc"] = [](PlayerbotAI* ai) { return new CcPlaceholderStrategy(ai); };
                 creators["offheal"] = [](PlayerbotAI* ai) { return new OffhealPlaceholderStrategy(ai); };
+                creators["auras auto"] = [](PlayerbotAI* ai) { return new PaladinAurasAutoStrategy(ai); };
                 creators["boost"] = [](PlayerbotAI* ai) { return new BoostPlaceholderStrategy(ai); };
                 creators["pull"] = [](PlayerbotAI* ai) {
 #ifdef MANGOSBOT_TWO
@@ -271,6 +272,7 @@ namespace ai
                 creators["greater blessing of light on party"] = [](PlayerbotAI* ai) { return new GreaterBlessingOfLightOnPartyTrigger(ai); };
                 creators["greater blessing of salvation on party"] = [](PlayerbotAI* ai) { return new GreaterBlessingOfSalvationOnPartyTrigger(ai); };
                 creators["no paladin aura"] = [](PlayerbotAI* ai) { return new NoPaladinAuraTrigger(ai); };
+                creators["assigned aura"] = [](PlayerbotAI* ai) { return new AssignedAuraTrigger(ai); };
                 creators["crusader aura"] = [](PlayerbotAI* ai) { return new CrusaderAuraTrigger(ai); };
                 creators["retribution aura"] = [](PlayerbotAI* ai) { return new RetributionAuraTrigger(ai); };
                 creators["devotion aura"] = [](PlayerbotAI* ai) { return new DevotionAuraTrigger(ai); };
@@ -353,6 +355,7 @@ namespace ai
                 creators["blessing of salvation on party"] = [](PlayerbotAI* ai) { return new CastBlessingOfSalvationOnPartyAction(ai); };
                 creators["greater blessing of salvation on party"] = [](PlayerbotAI* ai) { return new CastGreaterBlessingOfSalvationOnPartyAction(ai); };
                 creators["paladin aura"] = [](PlayerbotAI* ai) { return new CastPaladinAuraAction(ai); };
+                creators["assigned aura"] = [](PlayerbotAI* ai) { return new CastAssignedAuraAction(ai); };
                 creators["devotion aura"] = [](PlayerbotAI* ai) { return new CastDevotionAuraAction(ai); };
                 creators["concentration aura"] = [](PlayerbotAI* ai) { return new CastConcentrationAuraAction(ai); };
                 creators["crusader aura"] = [](PlayerbotAI* ai) { return new CastCrusaderAuraAction(ai); };

@@ -494,6 +494,10 @@ void ElementalShamanStrategy::InitCombatTriggers(std::list<TriggerNode*>& trigge
     ShamanStrategy::InitCombatTriggers(triggers);
 
     triggers.push_back(new TriggerNode(
+        "chain lightning",
+        NextAction::array(0, new NextAction("chain lightning", ACTION_NORMAL + 2), NULL)));
+
+    triggers.push_back(new TriggerNode(
         "shock",
         NextAction::array(0, new NextAction("earth shock", ACTION_NORMAL), NULL)));
 }

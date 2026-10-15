@@ -153,6 +153,21 @@ AiPlayerbot.RandomGearBlacklist = 0
 # 0 - roll greed on such items (Default)
 AiPlayerbot.RollBadItemsWithPlayer = 0
 
+# Minimum upgrade (in percent of the current item's stat weight) before a bot rolls need.
+# Smaller upgrades are rolled greed.
+# Default: 0 (any upgrade)
+AiPlayerbot.NeedRollMinUpgradePct = 5
+
+# In a group with a real player only the bot with the biggest upgrade rolls need,
+# the other bots roll greed on the item.
+# Default: 0 (disabled)
+AiPlayerbot.NeedRollBestUpgradeOnly = 1
+
+# Threat multiplier for tanks (Defensive Stance, Bear / Dire Bear Form, Righteous Fury).
+# Applies to bots and real players.
+# Default: 1.0 (normal threat)
+AiPlayerbot.TankThreatMultiplier = 3.0
+
 # Chance random bot has max level on first randomize (default 0.15)
 AiPlayerbot.RandomBotMaxLevelChance = 0.15
 
@@ -219,7 +234,7 @@ AiPlayerbot.DisableRandomLevels = 0
 
 # Set minimum level of randombots where gets enchants on items (Maxlevel + 1 to disable)
 # Default: 60
-AiPlayerbot.minEnchantingBotLevel = 81
+AiPlayerbot.minEnchantingBotLevel = 60
 
 # Randombots checking players gear score level and deny the group invite if it's too low
 # Default: 1 (enabled)
@@ -361,9 +376,19 @@ AiPlayerbot.AutoPickReward = yes
 # Default: 0 (disabled)
 AiPlayerbot.AutoEquipUpgradeLoot = 1
 
-# Bots enchant upgrades automatically
+# Bots enchant upgrades automatically (all enchantable slots of the item, by class and spec)
 # Default: 0 (disabled)
-AiPlayerbot.AutoEnchantUpgradeLoot = 0
+AiPlayerbot.AutoEnchantUpgradeLoot = 1
+
+# Bots put gems into the sockets of upgrades automatically
+# (best gem for the spec, socket bonus is respected, meta gem by role)
+# Default: 0 (disabled)
+AiPlayerbot.AutoGemUpgradeLoot = 1
+
+# Bots trade tier tokens (T4-T6) right away for the set item of their class and spec,
+# and rate tokens like that set item when they roll on loot
+# Default: 0 (disabled)
+AiPlayerbot.AutoExchangeTierTokens = 1
 
 # Sync quests with player (Bots will complete quests the moment you hand them in. Bots will ignore looting quest items.)
 # Default: 0 (disabled)

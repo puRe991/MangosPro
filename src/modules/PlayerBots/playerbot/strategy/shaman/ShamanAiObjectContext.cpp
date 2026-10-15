@@ -25,6 +25,7 @@ namespace ai
                 creators["boost"] = [](PlayerbotAI* ai) { return new BoostPlaceholderStrategy(ai); };
                 creators["pull"] = [](PlayerbotAI* ai) { return new PullStrategy(ai, "lightning bolt"); };
                 creators["offheal"] = [](PlayerbotAI* ai) { return new OffhealPlaceholderStrategy(ai); };
+                creators["hold lust"] = [](PlayerbotAI* ai) { return new ShamanHoldLustStrategy(ai); };
             }
         };
 
@@ -293,6 +294,7 @@ namespace ai
                 creators["earth shield on party tank"] = [](PlayerbotAI* ai) { return new PartyTankEarthShieldTrigger(ai); };
                 creators["chain lightning"] = [](PlayerbotAI* ai) { return new ChainLightningTrigger(ai); };
                 creators["stormstrike"] = [](PlayerbotAI* ai) { return new StormstrikeTrigger(ai); };
+                creators["shamanistic rage"] = [](PlayerbotAI* ai) { return new ShamanisticRageTrigger(ai); };
             }
         };
 
@@ -344,6 +346,7 @@ namespace ai
                 creators["riptide"] = [](PlayerbotAI* ai) { return new CastRiptideAction(ai); };
                 creators["riptide on party"] = [](PlayerbotAI* ai) { return new CastRiptideOnPartyAction(ai); };
                 creators["stormstrike"] = [](PlayerbotAI* ai) { return new CastStormstrikeAction(ai); };
+                creators["shamanistic rage"] = [](PlayerbotAI* ai) { return new CastShamanisticRageAction(ai); };
                 creators["lava lash"] = [](PlayerbotAI* ai) { return new CastLavaLashAction(ai); };
                 creators["fire nova"] = [](PlayerbotAI* ai) { return new CastFireNovaAction(ai); };
                 creators["ancestral spirit"] = [](PlayerbotAI* ai) { return new CastAncestralSpiritAction(ai); };

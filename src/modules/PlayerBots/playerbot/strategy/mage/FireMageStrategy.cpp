@@ -394,9 +394,6 @@ void FireMageStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
         "no fire vulnerability",
         NextAction::array(0, new NextAction("scorch", ACTION_NORMAL + 4), NULL)));
 
-    triggers.push_back(new TriggerNode(
-        "living bomb",
-        NextAction::array(0, new NextAction("living bomb", ACTION_NORMAL + 3), NULL)));
 
     triggers.push_back(new TriggerNode(
         "fire spells locked",

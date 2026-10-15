@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ListQuestsActions.h"
+#include "RaidBuffActions.h"
 #include "StatsAction.h"
 #include "LeaveGroupAction.h"
 #include "TellReputationAction.h"
@@ -166,6 +167,8 @@ namespace ai
             creators["lfg"] = [](PlayerbotAI* ai) { return new LfgAction(ai); };
             creators["spell"] = [](PlayerbotAI* ai) { return new TellSpellAction(ai); };
             creators["rti"] = [](PlayerbotAI* ai) { return new RtiAction(ai); };
+            creators["lust"] = [](PlayerbotAI* ai) { return new LustAction(ai); };
+            creators["auras"] = [](PlayerbotAI* ai) { return new AurasAction(ai); };
             creators["spirit healer"] = [](PlayerbotAI* ai) { return new SpiritHealerAction(ai); };
             creators["position"] = [](PlayerbotAI* ai) { return new PositionAction(ai); };
             creators["tell target"] = [](PlayerbotAI* ai) { return new TellTargetAction(ai); };

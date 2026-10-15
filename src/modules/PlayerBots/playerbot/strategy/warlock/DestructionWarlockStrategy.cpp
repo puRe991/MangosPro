@@ -371,7 +371,7 @@ void DestructionWarlockCursesRaidStrategy::InitCombatTriggers(std::list<TriggerN
 
 ai::NextAction** DestructionWarlockStrategy::GetDefaultCombatActions()
 {
-    return NextAction::array(0, new NextAction("incinerate", ACTION_IDLE), NULL);
+    return NextAction::array(0, new NextAction("shadow bolt", ACTION_IDLE), NULL);
 }
 
 void DestructionWarlockStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)

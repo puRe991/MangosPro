@@ -119,6 +119,11 @@ bool HasAreaDebuffValue::Calculate()
         if (IsPositiveEffect(spellProto, go->GetEffIndex()))
             continue;
 
+        // Ground effects of friendly casters (Blizzard, Consecration, Rain of Fire, ...) do not hurt us
+        Unit* caster = go->GetCaster();
+        if (caster && !caster->CanAttack(checkTarget))
+            continue;
+
         if (go->IsAffecting(checkTarget))
             return true;
     }

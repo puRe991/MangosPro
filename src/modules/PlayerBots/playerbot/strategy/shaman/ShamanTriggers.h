@@ -467,12 +467,14 @@ namespace ai
     {
     public:
         HeroismTrigger(PlayerbotAI* ai) : BoostTrigger(ai, "heroism") {}
+        bool IsActive() override;
     };
 
     class BloodlustTrigger : public BoostTrigger
     {
     public:
         BloodlustTrigger(PlayerbotAI* ai) : BoostTrigger(ai, "bloodlust") {}
+        bool IsActive() override;
     };
 
     class MaelstromWeaponTrigger : public HasAuraTrigger
@@ -535,4 +537,18 @@ namespace ai
     CAN_CAST_TRIGGER(ChainLightningTrigger, "chain lightning");
 
     CAN_CAST_TRIGGER(StormstrikeTrigger, "stormstrike");
+
+    // Shamanistic rage as mana regeneration once mana drops to medium
+    class ShamanisticRageTrigger : public SpellCanBeCastedTrigger
+    {
+    public:
+        ShamanisticRageTrigger(PlayerbotAI* ai) : SpellCanBeCastedTrigger(ai, "shamanistic rage") {}
+        virtual std::string GetTargetName() override { return "self target"; }
+        bool IsActive() override
+        {
+            return ai->IsStateActive(BotState::BOT_STATE_COMBAT) &&
+                   AI_VALUE2(uint8, "mana", "self target") <= sPlayerbotAIConfig.mediumMana &&
+                   SpellCanBeCastedTrigger::IsActive();
+        }
+    };
 }

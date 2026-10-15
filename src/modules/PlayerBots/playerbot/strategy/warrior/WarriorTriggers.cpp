@@ -38,3 +38,21 @@ bool CommandingShoutTrigger::IsActive()
 
     return false;
 }
+
+bool SunderArmorDpsTrigger::IsActive()
+{
+    if (!SunderArmorDebuffTrigger::IsActive())
+        return false;
+
+    for (ObjectGuid guid : AI_VALUE(std::list<ObjectGuid>, "group members"))
+    {
+        Player* player = sObjectMgr.GetPlayer(guid);
+        if (!player || player == bot || !player->IsAlive())
+            continue;
+
+        if (player->getClass() == CLASS_WARRIOR && ai->IsTank(player))
+            return false;
+    }
+
+    return true;
+}
