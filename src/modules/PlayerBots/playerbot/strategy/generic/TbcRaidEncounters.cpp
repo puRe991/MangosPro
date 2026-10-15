@@ -131,7 +131,8 @@ EncounterRegistry::EncounterRegistry()
         .Spread(10.0f, ROLE_CASTERS)
         .SpreadWithAura(15.0f, ROLE_ALL, 33572)     // Gronn Lord's Grasp -> Stoned -> Shatter
         .SpreadWithAura(15.0f, ROLE_ALL, 33652)     // Stoned
-        .AvoidArea(36240);                          // Cave In
+        .AvoidArea(36240)                           // Cave In
+        .Special(SPECIAL_OFFTANK_NO_TAUNT);         // off tank takes Hurtful Strike
 
     // ---------------------------------------------------------------------
     // Magtheridon's Lair
@@ -152,8 +153,12 @@ EncounterRegistry::EncounterRegistry()
     // Serpentshrine Cavern
     // ---------------------------------------------------------------------
 
-    // Hydross the Unstable: kill the elementals spawned on every phase change first.
+    // Hydross the Unstable: the frost tank holds him inside the purification circle, at 100% Mark of Hydross
+    // he is dragged out and the nature tank takes him (and back in at 100% Mark of Corruption).
+    // The elementals spawned on every phase change die first.
     Add("hydross the unstable", MAP_SERPENTSHRINE, { 21216, 22035, 22036 })
+        .FormTank(21216, 37961)                     // tank 1: clean form, tank 2: corrupted form
+        .Special(SPECIAL_HYDROSS_TANKING)
         .Kill(22035, ROLE_DPS)                      // Pure Spawn of Hydross
         .Kill(22036, ROLE_DPS)                      // Tainted Spawn of Hydross
         .Spread(6.0f, ROLE_CASTERS);                // Water Tomb / Vile Sludge
@@ -164,7 +169,8 @@ EncounterRegistry::EncounterRegistry()
         .Kill(21873, ROLE_MELEE)                    // Coilfang Guardian
         .AvoidWhileCasting(21217, 37660, 14.0f, ROLE_NON_TANK) // Whirl
         .AvoidArea(37478)                           // Geyser
-        .Spread(8.0f, ROLE_CASTERS);
+        .Spread(8.0f, ROLE_CASTERS)
+        .Special(SPECIAL_LURKER_SPOUT);
 
     // Leotheras the Blind: everybody kills their own Inner Demon, nobody stands in the Whirlwind,
     // melee leave the demon form (Chaos Blast) to the warlock tank.
@@ -200,7 +206,8 @@ EncounterRegistry::EncounterRegistry()
         .Kill(22140, ROLE_RANGED)                   // Toxic Sporebat
         .Avoid(22056, 14.0f, ROLE_NON_TANK)         // Coilfang Strider (Panic)
         .Avoid(22207, 8.0f)                         // Toxic Spores
-        .Spread(8.0f, ROLE_CASTERS);
+        .Spread(8.0f, ROLE_CASTERS)
+        .Special(SPECIAL_TAINTED_CORES);
 
     // ---------------------------------------------------------------------
     // Tempest Keep: The Eye
@@ -302,14 +309,17 @@ EncounterRegistry::EncounterRegistry()
         .Kill(23318, ROLE_DPS)                      // Ashtongue Rogue
         .Kill(23216, ROLE_DPS);                     // Ashtongue Defender
 
-    // Teron Gorefiend: kill the Shadowy Constructs before they reach the raid.
+    // Teron Gorefiend: the Shadowy Constructs can only be damaged by the Vengeful Spirits,
+    // a player with Shadow of Death controls his spirit and kills them.
     Add("teron gorefiend", MAP_BLACK_TEMPLE, { 22871, 23111 })
-        .Kill(23111, ROLE_DPS)
-        .Spread(6.0f, ROLE_CASTERS);
+        .Spread(6.0f, ROLE_CASTERS)
+        .Special(SPECIAL_TERON_SPIRITS);
 
     // Gurtogg Bloodboil: nobody but the tanks in front (Arcing Smash), ranged spread for Fel Geyser.
+    // Bloodboil hits the 5 players furthest away: players with 2+ stacks move in, fresh players take the next ones.
     Add("gurtogg bloodboil", MAP_BLACK_TEMPLE, { 22948 })
         .AvoidFront(22948, 15.0f)
+        .ApproachWithDebuff(42005, 2, 14.0f)
         .Spread(6.0f, ROLE_CASTERS);
 
     // Reliquary of Souls: kill the Enslaved Souls, stay out of the Soul Scream cone.
@@ -322,7 +332,8 @@ EncounterRegistry::EncounterRegistry()
     // Mother Shahraz: Fatal Attraction targets run away from each other immediately.
     Add("mother shahraz", MAP_BLACK_TEMPLE, { 22947 })
         .RunWithDebuff(41001, 18.0f)
-        .AvoidFront(22947, 10.0f);
+        .AvoidFront(22947, 10.0f)
+        .Special(SPECIAL_OFFTANK_NO_TAUNT | SPECIAL_STACK_OFFTANKS); // Saber Lash is split between the tanks
 
     // Illidari Council: leave Consecration, Flamestrike and Blizzard, stay away from Zerevor's Arcane Explosion.
     Add("illidari council", MAP_BLACK_TEMPLE, { 23426, 22949, 22950, 22951, 22952 })
@@ -390,9 +401,17 @@ EncounterRegistry::EncounterRegistry()
     // Sunwell Plateau
     // ---------------------------------------------------------------------
 
-    // Brutallus: Burn runs away from everybody so it does not spread.
+    // Kalecgos: players sent to the Spectral Realm kill Sathrovarr, the others fight the dragon.
+    Add("kalecgos", MAP_SUNWELL_PLATEAU, { 24850, 24892 })
+        .KillWithAura(24892, ROLE_ALL, 46021)       // Sathrovarr the Corruptor (Spectral Realm)
+        .KillWithoutAura(24850, ROLE_DPS, 46021)    // Kalecgos dragon (normal realm)
+        .AvoidFront(24850, 25.0f)                   // Frost Breath
+        .Spread(8.0f, ROLE_CASTERS);
+
+    // Brutallus: Burn runs away from everybody so it does not spread, the melee groups rotate soaking Meteor Slash.
     Add("brutallus", MAP_SUNWELL_PLATEAU, { 24882 })
         .RunWithDebuff(45141, 12.0f)
+        .SoakFront(24882, 45150, 2)
         .Spread(8.0f, ROLE_CASTERS);
 
     // Felmyst: stay away from Demonic Vapor and its trail, kill the Unyielding Dead.
@@ -426,5 +445,6 @@ EncounterRegistry::EncounterRegistry()
         .Kill(25708, ROLE_DPS)                      // Sinister Reflection
         .Avoid(25735, 9.0f)                         // Armageddon
         .RunWithDebuff(45641, 10.0f)                // Fire Bloom
-        .Spread(8.0f, ROLE_CASTERS);
+        .Spread(8.0f, ROLE_CASTERS)
+        .Special(SPECIAL_BLUE_DRAGON);
 }
