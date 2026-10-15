@@ -1308,6 +1308,48 @@ Unit* TbcRaidHelper::GetInterruptTarget(PlayerbotAI* ai, std::string& spellName)
     return nullptr;
 }
 
+namespace
+{
+    // Healers and the tank each of them keeps up: healer n -> tank n % tanks (guid order)
+    std::vector<std::pair<Player*, Player*>> ComputeHealerAssignments(Player* bot)
+    {
+        std::vector<std::pair<Player*, Player*>> pairs;
+        std::vector<Player*> members = TbcRaidHelper::GetRaidMembers(bot, 150.0f, true);
+        std::sort(members.begin(), members.end(), LowerGuid);
+
+        std::vector<Player*> tanks, healers;
+        for (Player* member : members)
+        {
+            if (PlayerbotAI::IsTank(member))
+                tanks.push_back(member);
+            else if (PlayerbotAI::IsHeal(member))
+                healers.push_back(member);
+        }
+
+        if (tanks.empty())
+            return pairs;
+
+        for (size_t i = 0; i < healers.size(); ++i)
+            pairs.push_back({ healers[i], tanks[i % tanks.size()] });
+
+        return pairs;
+    }
+}
+
+Player* TbcRaidHelper::GetAssignedTankToHeal(PlayerbotAI* ai)
+{
+    if (!GetEncounter(ai) || GetRole(ai) != ROLE_HEAL)
+        return nullptr;
+
+    for (auto& pair : ComputeHealerAssignments(ai->GetBot()))
+    {
+        if (pair.first == ai->GetBot())
+            return pair.second;
+    }
+
+    return nullptr;
+}
+
 std::vector<Unit*> TbcRaidHelper::GetSortedCreatures(Player* bot, uint32 entry, float range)
 {
     std::vector<Unit*> creatures;
@@ -1425,6 +1467,15 @@ std::string TbcRaidHelper::DescribeTactic(PlayerbotAI* ai, const Encounter* enco
         out << ".";
     }
 
+    const std::vector<std::pair<Player*, Player*>> healers = ComputeHealerAssignments(ai->GetBot());
+    if (!healers.empty())
+    {
+        out << " Heiler:";
+        for (size_t i = 0; i < healers.size(); ++i)
+            out << (i ? "," : "") << " " << healers[i].first->GetName() << " -> " << healers[i].second->GetName();
+        out << ".";
+    }
+
     if (encounter->lustBelowHealthPct < 100.0f)
         out << " Kampfrausch unter " << uint32(encounter->lustBelowHealthPct) << "%.";
 
@@ -1461,6 +1512,12 @@ std::string TbcRaidHelper::DescribeMyTask(PlayerbotAI* ai)
 
     if (std::find(interrupters.begin(), interrupters.end(), ai->GetBot()->GetObjectGuid()) != interrupters.end())
         out << ", unterbreche " << CreatureName(encounter->interrupts.front().entry);
+
+    for (auto& pair : ComputeHealerAssignments(ai->GetBot()))
+    {
+        if (pair.first == ai->GetBot())
+            out << ", heile zuerst " << pair.second->GetName();
+    }
 
     if (Unit* priority = GetPriorityTarget(ai))
         out << ", Ziel " << priority->GetName();

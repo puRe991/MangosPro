@@ -112,6 +112,9 @@ namespace ai
         // Spot of the holder of a creature (relative to its spawn point, checked for height and line of sight)
         static bool GetAssignmentSpot(Unit* creature, const tbcraid::TankAssignment& rule, WorldPosition& spot);
 
+        // Raid boss: tank this healer keeps up first (healers and tanks paired in guid order)
+        static Player* GetAssignedTankToHeal(PlayerbotAI* ai);
+
         // Interrupt the bot has to cast right now (fixed interrupters of the encounter)
         static Unit* GetInterruptTarget(PlayerbotAI* ai, std::string& spellName);
         static bool IsInterrupter(PlayerbotAI* ai, Player* member);

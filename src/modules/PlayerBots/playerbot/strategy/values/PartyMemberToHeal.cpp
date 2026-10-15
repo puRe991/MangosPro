@@ -5,6 +5,7 @@
 #include "playerbot/ServerFacade.h"
 #include "playerbot/LootObjectStack.h"
 #include "playerbot/strategy/generic/KarazhanDungeonStrategies.h"
+#include "playerbot/strategy/generic/TbcRaidStrategy.h"
 
 using namespace ai;
 
@@ -106,7 +107,9 @@ ObjectGuid PartyMemberToHeal::Calculate()
                 incomingDamage = getIncomingdamage(player);
 
             uint8 health = (((player->GetHealth() - incomingDamage) * 100.0f) / player->GetMaxHealth());
-            if (isTank || (health < sPlayerbotAIConfig.almostFullHealth && !IsTargetOfSpellCast(player, predicate)))
+            // Only members who lost health: a full health tank in the list made the other healers idle,
+            // because the healers are handed out over the list (healer n takes the n-th target)
+            if ((isTank && health < 100) || (health < sPlayerbotAIConfig.almostFullHealth && !IsTargetOfSpellCast(player, predicate)))
             { 
                 needHeals.push_back(player);
             }
@@ -133,6 +136,27 @@ ObjectGuid PartyMemberToHeal::Calculate()
         return ObjectGuid();
     }
 
+    // Raid boss: the healer keeps its assigned tank up first, unless somebody else is about to die
+    if (Player* assignedTank = TbcRaidHelper::GetAssignedTankToHeal(ai))
+    {
+        if (Check(assignedTank) && assignedTank->IsAlive() && assignedTank->GetHealthPercent() < sPlayerbotAIConfig.almostFullHealth)
+        {
+            bool someoneCritical = false;
+            for (Unit* unit : needHeals)
+            {
+                if (unit != assignedTank && unit->GetHealthPercent() < sPlayerbotAIConfig.criticalHealth)
+                {
+                    someoneCritical = true;
+                    break;
+                }
+            }
+
+            if (!someoneCritical)
+                return assignedTank->GetObjectGuid();
+        }
+    }
+
+    // Nobody lost health: keep the tanks as target (heal over time, shields)
     if (needHeals.empty() && !tankTargets.empty())
     {
         needHeals = tankTargets;
