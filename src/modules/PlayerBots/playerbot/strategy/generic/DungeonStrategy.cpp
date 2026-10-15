@@ -30,6 +30,10 @@ void DungeonStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
     triggers.push_back(new TriggerNode(
         "enter tbc raid",
         NextAction::array(0, new NextAction("enable tbc raid strategy", 100.0f), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "raid boss map strategy",
+        NextAction::array(0, new NextAction("update raid boss map strategy", 100.0f), NULL)));
 }
 
 void DungeonStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
@@ -81,4 +85,8 @@ void DungeonStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
     triggers.push_back(new TriggerNode(
         "leave tbc raid",
         NextAction::array(0, new NextAction("disable tbc raid strategy", 100.0f), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "raid boss map strategy",
+        NextAction::array(0, new NextAction("update raid boss map strategy", 100.0f), NULL)));
 }
