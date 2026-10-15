@@ -688,6 +688,10 @@ void PaladinStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
     ClassStrategy::InitCombatTriggers(triggers);
 
     triggers.push_back(new TriggerNode(
+        "assigned aura",
+        NextAction::array(0, new NextAction("assigned aura", ACTION_HIGH + 9), NULL)));
+
+    triggers.push_back(new TriggerNode(
         "critical health",
         NextAction::array(0, new NextAction("lay on hands", ACTION_EMERGENCY + 2), NULL)));
 }
@@ -695,6 +699,10 @@ void PaladinStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
 void PaladinStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
 {
     ClassStrategy::InitNonCombatTriggers(triggers);
+
+    triggers.push_back(new TriggerNode(
+        "assigned aura",
+        NextAction::array(0, new NextAction("assigned aura", ACTION_HIGH + 9), NULL)));
 
     triggers.push_back(new TriggerNode(
         "party member dead",

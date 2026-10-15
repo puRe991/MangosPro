@@ -2,8 +2,41 @@
 #include "playerbot/playerbot.h"
 #include "ShamanTriggers.h"
 #include "ShamanActions.h"
+#include "playerbot/strategy/generic/TbcRaidEncounters.h"
 
 using namespace ai;
+
+// Bloodlust / Heroism timing: never while "hold lust" is set, in raids follow the boss timing of the encounter table
+static bool IsLustAllowed(PlayerbotAI* ai)
+{
+    if (ai->HasStrategy("hold lust", BotState::BOT_STATE_COMBAT))
+        return false;
+
+    // Raid wide Bloodlust / Heroism: one shaman is enough
+    Player* bot = ai->GetBot();
+    if (ai->HasAura("bloodlust", bot) || ai->HasAura("heroism", bot))
+        return false;
+
+    const tbcraid::Encounter* encounter = tbcraid::EncounterRegistry::Instance().FindNearby(ai);
+    if (!encounter || encounter->lustBelowHealthPct >= 100.0f || encounter->entries.empty())
+        return true;
+
+    Unit* target = ai->GetAiObjectContext()->GetValue<Unit*>("current target")->Get();
+    if (!target || target->GetEntry() != encounter->entries.front())
+        return false;
+
+    return target->GetHealthPercent() <= encounter->lustBelowHealthPct;
+}
+
+bool HeroismTrigger::IsActive()
+{
+    return IsLustAllowed(ai) && BoostTrigger::IsActive();
+}
+
+bool BloodlustTrigger::IsActive()
+{
+    return IsLustAllowed(ai) && BoostTrigger::IsActive();
+}
 
 std::list<std::string> ShamanWeaponTrigger::spells;
 

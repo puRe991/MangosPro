@@ -428,11 +428,11 @@ void ShadowPriestStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
 
     triggers.push_back(new TriggerNode(
         "hex of weakness",
-        NextAction::array(0, new NextAction("hex of weakness", ACTION_NORMAL + 2), NULL)));
+        NextAction::array(0, new NextAction("hex of weakness", ACTION_NORMAL + 1), NULL)));
 
     triggers.push_back(new TriggerNode(
         "vampiric touch",
-        NextAction::array(0, new NextAction("vampiric touch", ACTION_NORMAL + 1), NULL)));
+        NextAction::array(0, new NextAction("vampiric touch", ACTION_NORMAL + 4), NULL)));
 
     triggers.push_back(new TriggerNode(
         "no mana",

@@ -316,6 +316,14 @@ namespace ai
         static void InitNonCombatTriggers(std::list<TriggerNode*>& triggers);
     };
 
+    // Marker strategy: the paladins of a sub group share out the auras ("auras auto" chat command)
+    class PaladinAurasAutoStrategy : public Strategy
+    {
+    public:
+        PaladinAurasAutoStrategy(PlayerbotAI* ai) : Strategy(ai) {}
+        std::string getName() override { return "auras auto"; }
+    };
+
     class PaladinManualAuraStrategy : public Strategy
     {
     public:

@@ -3,8 +3,55 @@
 #include "LootRollAction.h"
 #include "playerbot/strategy/values/ItemUsageValue.h"
 #include "playerbot/strategy/values/LootValues.h"
+#include "playerbot/RandomItemMgr.h"
+#include "playerbot/RandomPlayerbotMgr.h"
+#include "playerbot/BotGearHelper.h"
 
 using namespace ai;
+
+// Upgrade of the item over the gear the player wears in that slot, in percent of the stat weight.
+// -1 when the item is no equip upgrade for the player (or the player is no bot).
+static float GetUpgradePct(Player* player, ItemQualifier& itemQualifier)
+{
+    PlayerbotAI* playerAi = player->GetPlayerbotAI();
+    if (!playerAi || playerAi->IsRealPlayer())
+        return -1.0f;
+
+    // Tier token: compare the set item the player would trade it for
+    if (const uint32 tokenReward = botgear::ChooseTierTokenReward(player, itemQualifier.GetId()))
+    {
+        ItemQualifier rewardQualifier(tokenReward);
+        if (playerAi->GetAiObjectContext()->GetValue<ItemUsage>("item usage", itemQualifier.GetQualifier())->Get() != ItemUsage::ITEM_USAGE_EQUIP)
+            return -1.0f;
+
+        uint16 dest;
+        if (RandomPlayerbotMgr::CanEquipUnseenItem(player, NULL_SLOT, dest, tokenReward) != EQUIP_ERR_OK)
+            return -1.0f;
+
+        Item* oldItem = player->GetItemByPos(dest);
+        const uint32 oldWeight = oldItem ? sRandomItemMgr.ItemStatWeight(player, oldItem) : 0;
+        if (!oldWeight)
+            return 100.0f;
+
+        return (float(sRandomItemMgr.ItemStatWeight(player, rewardQualifier)) - float(oldWeight)) * 100.0f / float(oldWeight);
+    }
+
+    ItemUsage usage = playerAi->GetAiObjectContext()->GetValue<ItemUsage>("item usage", itemQualifier.GetQualifier())->Get();
+    if (usage != ItemUsage::ITEM_USAGE_EQUIP)
+        return -1.0f;
+
+    uint16 dest;
+    if (RandomPlayerbotMgr::CanEquipUnseenItem(player, NULL_SLOT, dest, itemQualifier.GetId()) != EQUIP_ERR_OK)
+        return -1.0f;
+
+    Item* oldItem = player->GetItemByPos(dest);
+    const uint32 oldWeight = oldItem ? sRandomItemMgr.ItemStatWeight(player, oldItem) : 0;
+    if (!oldWeight)
+        return 100.0f;
+
+    const uint32 newWeight = sRandomItemMgr.ItemStatWeight(player, itemQualifier);
+    return (float(newWeight) - float(oldWeight)) * 100.0f / float(oldWeight);
+}
 
 bool LootStartRollAction::Execute(Event& event)
 {
@@ -215,6 +262,35 @@ RollVote RollAction::CalculateRollVote(ItemQualifier& itemQualifier)
             needVote = ROLL_GREED;
     }
 
+    // Need only for real upgrades, and with a real player in the group only the bot that gains the most
+    std::string needReason;
+    if (needVote == ROLL_NEED && usage == ItemUsage::ITEM_USAGE_EQUIP)
+    {
+        const float upgradePct = GetUpgradePct(bot, itemQualifier);
+        if (upgradePct >= 0.0f && upgradePct < sPlayerbotAIConfig.needRollMinUpgradePct)
+        {
+            needVote = ROLL_GREED;
+            needReason = " (upgrade too small)";
+        }
+        else if (upgradePct >= 0.0f && sPlayerbotAIConfig.needRollBestUpgradeOnly && ai->HasRealPlayerMaster() && bot->GetGroup())
+        {
+            for (GroupReference* ref = bot->GetGroup()->GetFirstMember(); ref; ref = ref->next())
+            {
+                Player* member = ref->getSource();
+                if (!member || member == bot || !member->IsInWorld() || !member->IsAtGroupRewardDistance(bot))
+                    continue;
+
+                const float memberPct = GetUpgradePct(member, itemQualifier);
+                if (memberPct > upgradePct || (memberPct == upgradePct && member->GetObjectGuid() < bot->GetObjectGuid()))
+                {
+                    needVote = ROLL_GREED;
+                    needReason = std::string(" (") + member->GetName() + " needs it more)";
+                    break;
+                }
+            }
+        }
+    }
+
     bool canLoot = StoreLootAction::IsLootAllowed(itemQualifier, bot->GetPlayerbotAI());
 
     if (AI_VALUE2(bool, "manual bool", "roll feedback"))
@@ -222,7 +298,7 @@ RollVote RollAction::CalculateRollVote(ItemQualifier& itemQualifier)
         std::string reason = "because it can not be looted.";
         std::string vote = "Passing";
         if(canLoot)
-            reason = ItemUsageValue::ReasonForNeed(usage, itemQualifier, 1, bot);
+            reason = ItemUsageValue::ReasonForNeed(usage, itemQualifier, 1, bot) + needReason;
 
         if (needVote == ROLL_GREED)
             vote = "Rolling greed";

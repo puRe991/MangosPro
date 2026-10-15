@@ -256,6 +256,18 @@ namespace ai
         CastEviscerateAction(PlayerbotAI* ai) : CastMeleeSpellAction(ai, "eviscerate") {}
     };
 
+    class CastEnvenomAction : public CastMeleeSpellAction
+    {
+    public:
+        CastEnvenomAction(PlayerbotAI* ai) : CastMeleeSpellAction(ai, "envenom") {}
+    };
+
+    class CastShivAction : public CastMeleeSpellAction
+    {
+    public:
+        CastShivAction(PlayerbotAI* ai) : CastMeleeSpellAction(ai, "shiv") {}
+    };
+
     class CastSliceAndDiceAction : public CastMeleeSpellAction
     {
     public:

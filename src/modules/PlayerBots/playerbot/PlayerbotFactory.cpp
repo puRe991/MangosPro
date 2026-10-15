@@ -9,6 +9,7 @@
 #include "Database/DBCStore.h"
 #include "Globals/SharedDefines.h"
 #include "RandomItemMgr.h"
+#include "BotGearHelper.h"
 #include "RandomPlayerbotFactory.h"
 #include "playerbot/ServerFacade.h"
 #include "playerbot/AiFactory.h"
@@ -3813,6 +3814,10 @@ void PlayerbotFactory::EnchantItem(Item* item)
 void PlayerbotFactory::AddGems(Item* item)
 {
     if (!item)
+        return;
+
+    // Best gems for the spec, socket bonus and meta gem by role
+    if (ai::botgear::SocketItem(bot, item))
         return;
 
 #ifndef MANGOSBOT_ZERO

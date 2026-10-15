@@ -495,8 +495,8 @@ void FuryWarriorRaidStrategy::InitCombatTriggers(std::list<TriggerNode*>& trigge
     WarriorRaidStrategy::InitCombatTriggers(triggers);
 
     triggers.push_back(new TriggerNode(
-        "sunder armor",
-        NextAction::array(0, new NextAction("sunder armor", ACTION_HIGH + 2), NULL)));
+        "sunder armor dps",
+        NextAction::array(0, new NextAction("sunder armor", ACTION_NORMAL + 0.5f), NULL)));
 }
 
 void FuryWarriorRaidStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)

@@ -58,6 +58,25 @@ const Encounter* EncounterRegistry::FindByCreature(uint32 mapId, uint32 entry) c
     return nullptr;
 }
 
+const Encounter* EncounterRegistry::FindNearby(PlayerbotAI* ai) const
+{
+    Player* bot = ai->GetBot();
+    if (!IsRaidMap(bot->GetMapId()))
+        return nullptr;
+
+    for (ObjectGuid guid : ai->GetAiObjectContext()->GetValue<std::list<ObjectGuid>>("possible attack targets")->Get())
+    {
+        Unit* unit = ai->GetUnit(guid);
+        if (!unit || unit->IsPlayer())
+            continue;
+
+        if (const Encounter* encounter = FindByCreature(bot->GetMapId(), unit->GetEntry()))
+            return encounter;
+    }
+
+    return nullptr;
+}
+
 bool EncounterRegistry::IsRaidMap(uint32 mapId) const
 {
     return std::find(raidMaps.begin(), raidMaps.end(), mapId) != raidMaps.end();
@@ -94,11 +113,13 @@ EncounterRegistry::EncounterRegistry()
 
     // Terestian Illhoof: free the sacrificed player (Demon Chains), kill Kil'rek.
     Add("terestian illhoof", MAP_KARAZHAN, { 15688, 17248, 17229 })
+        .ResistanceAura("shadow resistance aura")
         .Kill(17248, ROLE_DPS)
         .Kill(17229, ROLE_RANGED);
 
     // Nightbane: get out of Charred Earth, kill the skeletons in the air phase.
     Add("nightbane", MAP_KARAZHAN, { 17225, 17261 })
+        .ResistanceAura("fire resistance aura")
         .AvoidArea(30129)
         .Kill(17261, ROLE_DPS)
         .AvoidFront(17225, 25.0f)                   // Bellowing Roar / Cleave / Smoldering Breath
@@ -157,6 +178,7 @@ EncounterRegistry::EncounterRegistry()
     // he is dragged out and the nature tank takes him (and back in at 100% Mark of Corruption).
     // The elementals spawned on every phase change die first.
     Add("hydross the unstable", MAP_SERPENTSHRINE, { 21216, 22035, 22036 })
+        .ResistanceAura("frost resistance aura")
         .FormTank(21216, 37961)                     // tank 1: clean form, tank 2: corrupted form
         .Special(SPECIAL_HYDROSS_TANKING)
         .Kill(22035, ROLE_DPS)                      // Pure Spawn of Hydross
@@ -199,6 +221,7 @@ EncounterRegistry::EncounterRegistry()
     // Lady Vashj: Static Charge runs out, phase 2 Tainted Elementals and Enchanted Elementals
     // die first (before they reach Vashj), stay out of the Striders fear and the Toxic Spores.
     Add("lady vashj", MAP_SERPENTSHRINE, { 21212, 22009, 21958, 22056, 22055, 22140 })
+        .LustBelow(49.0f)
         .RunWithDebuff(38280, 12.0f)                // Static Charge
         .Kill(22009, ROLE_DPS)                      // Tainted Elemental
         .Kill(21958, ROLE_DPS)                      // Enchanted Elemental
@@ -215,6 +238,7 @@ EncounterRegistry::EncounterRegistry()
 
     // Al'ar: kill the Embers, get out of Flame Patches, swap tanks on Melt Armor, ranged spread for Dive Bomb.
     Add("al'ar", MAP_THE_EYE, { 19514, 19551 })
+        .ResistanceAura("fire resistance aura")
         .Kill(19551, ROLE_DPS)                      // Ember of Al'ar
         .Avoid(20602, 7.0f)                         // Flame Patch
         .TankSwap(19514, 35410, 1)                  // Melt Armor
@@ -237,6 +261,7 @@ EncounterRegistry::EncounterRegistry()
     // stay out of Flame Strikes and Nether Vapor, spread in Gravity Lapse.
     Add("kael'thas sunstrider", MAP_THE_EYE, { 19622, 20060, 20062, 20063, 20064,
         21268, 21269, 21270, 21271, 21272, 21273, 21274, 21362, 21364 })
+        .LustBelow(50.0f)                           // Kael'thas himself, phase 4/5
         .Kite(20064, 18.0f, ROLE_ALL)               // Thaladred the Darkener gaze
         .Avoid(20062, 12.0f, ROLE_MELEE)            // Capernian Arcane Burst
         .Kill(21364, ROLE_DPS)                      // Phoenix Egg
@@ -280,6 +305,7 @@ EncounterRegistry::EncounterRegistry()
 
     // Archimonde: never touch Doomfire, ranged spread for Air Burst.
     Add("archimonde", MAP_HYJAL, { 17968 })
+        .ResistanceAura("fire resistance aura")
         .Avoid(18095, 7.0f)                         // Doomfire
         .Avoid(18104, 7.0f)                         // Doomfire Spirit
         .Spread(10.0f, ROLE_CASTERS);
@@ -295,6 +321,7 @@ EncounterRegistry::EncounterRegistry()
 
     // Supremus: Gaze target kites the boss, nobody stands in Volcanoes or the Molten Flame trail.
     Add("supremus", MAP_BLACK_TEMPLE, { 22898 })
+        .ResistanceAura("fire resistance aura")
         .Kite(22898, 22.0f, ROLE_NON_TANK)
         .Avoid(23085, 12.0f)                        // Volcano
         .Avoid(23095, 5.0f)                         // Molten Flame
@@ -312,6 +339,7 @@ EncounterRegistry::EncounterRegistry()
     // Teron Gorefiend: the Shadowy Constructs can only be damaged by the Vengeful Spirits,
     // a player with Shadow of Death controls his spirit and kills them.
     Add("teron gorefiend", MAP_BLACK_TEMPLE, { 22871, 23111 })
+        .ResistanceAura("shadow resistance aura")
         .Spread(6.0f, ROLE_CASTERS)
         .Special(SPECIAL_TERON_SPIRITS);
 
@@ -331,6 +359,7 @@ EncounterRegistry::EncounterRegistry()
 
     // Mother Shahraz: Fatal Attraction targets run away from each other immediately.
     Add("mother shahraz", MAP_BLACK_TEMPLE, { 22947 })
+        .ResistanceAura("shadow resistance aura")
         .RunWithDebuff(41001, 18.0f)
         .AvoidFront(22947, 10.0f)
         .Special(SPECIAL_OFFTANK_NO_TAUNT | SPECIAL_STACK_OFFTANKS); // Saber Lash is split between the tanks
@@ -346,6 +375,7 @@ EncounterRegistry::EncounterRegistry()
     // Illidan Stormrage: leave Flame Crash and Blaze, dodge the Eye Blast, only tanks near the Flames
     // of Azzinoth, kill Parasitic Shadowfiends and Shadow Demons on sight, spread in demon form.
     Add("illidan stormrage", MAP_BLACK_TEMPLE, { 22917, 22997, 23498, 23375 })
+        .LustBelow(30.0f)
         .Kill(23375, ROLE_DPS)                      // Shadow Demon
         .Kill(23498, ROLE_DPS)                      // Parasitic Shadowfiend
         .Avoid(23336, 9.0f)                         // Flame Crash
@@ -410,6 +440,7 @@ EncounterRegistry::EncounterRegistry()
 
     // Brutallus: Burn runs away from everybody so it does not spread, the melee groups rotate soaking Meteor Slash.
     Add("brutallus", MAP_SUNWELL_PLATEAU, { 24882 })
+        .ResistanceAura("fire resistance aura")
         .RunWithDebuff(45141, 12.0f)
         .SoakFront(24882, 45150, 2)
         .Spread(8.0f, ROLE_CASTERS);
@@ -423,12 +454,14 @@ EncounterRegistry::EncounterRegistry()
 
     // Eredar Twins: Conflagration target runs out, leave Blaze, ranged spread.
     Add("eredar twins", MAP_SUNWELL_PLATEAU, { 25165, 25166 })
+        .ResistanceAura("shadow resistance aura")
         .RunWithDebuff(45342, 12.0f)                // Conflagration
         .AvoidObject(187366, 5.0f)                  // Blaze
         .Spread(10.0f, ROLE_CASTERS);
 
     // M'uru / Entropius: Void Sentinels and Fury Mages first, avoid Dark Fiends, Darkness and Singularities.
     Add("m'uru", MAP_SUNWELL_PLATEAU, { 25741, 25840, 25772, 25798, 25799, 25744 })
+        .ResistanceAura("shadow resistance aura")
         .Kill(25772, ROLE_DPS)                      // Void Sentinel
         .Kill(25799, ROLE_DPS)                      // Shadowsword Fury Mage
         .Kill(25798, ROLE_DPS)                      // Shadowsword Berserker
@@ -441,6 +474,7 @@ EncounterRegistry::EncounterRegistry()
 
     // Kil'jaeden: kill Shield Orbs and Sinister Reflections, Fire Bloom runs out, avoid Armageddon.
     Add("kil'jaeden", MAP_SUNWELL_PLATEAU, { 25315, 25502, 25708 })
+        .LustBelow(25.0f).ResistanceAura("shadow resistance aura")
         .Kill(25502, ROLE_RANGED)                   // Shield Orb
         .Kill(25708, ROLE_DPS)                      // Sinister Reflection
         .Avoid(25735, 9.0f)                         // Armageddon

@@ -494,6 +494,10 @@ void EnhancementShamanStrategy::InitCombatTriggers(std::list<TriggerNode*>& trig
     ShamanStrategy::InitCombatTriggers(triggers);
 
     triggers.push_back(new TriggerNode(
+        "shamanistic rage",
+        NextAction::array(0, new NextAction("shamanistic rage", ACTION_HIGH + 5), NULL)));
+
+    triggers.push_back(new TriggerNode(
         "stormstrike",
         NextAction::array(0, new NextAction("stormstrike", ACTION_NORMAL + 2), NULL)));
 

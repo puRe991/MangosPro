@@ -109,6 +109,13 @@ namespace ai
     };
 
     // Pick the aura that is not being used by another paladin
+	class CastAssignedAuraAction : public Action
+	{
+	public:
+		CastAssignedAuraAction(PlayerbotAI* ai) : Action(ai, "assigned aura") {}
+		bool Execute(Event& event) override;
+	};
+
 	class CastPaladinAuraAction : public CastBuffSpellAction
 	{
 	public:
@@ -240,6 +247,8 @@ namespace ai
         Unit* GetTarget() override;
         bool isPossible() override;
         virtual std::string GetBlessingForTarget(Unit* target);
+        // Greater blessings hit the whole class: pick the blessing for the role most members of that class have
+        Unit* GetClassMajorityTarget(Unit* target);
 
     protected:
         virtual std::vector<std::string> GetPossibleBlessingsForTarget(Unit* target) const = 0;

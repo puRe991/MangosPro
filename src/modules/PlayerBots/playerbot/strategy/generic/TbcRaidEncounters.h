@@ -169,6 +169,8 @@ namespace ai
             std::vector<DebuffApproachRule> debuffApproach;
             std::vector<FrontSoakRule> frontSoak;
             uint32 special = SPECIAL_NONE;
+            float lustBelowHealthPct = 100.0f;  // Bloodlust / Heroism once the boss is at or below this health (100 = on pull)
+            std::string resistanceAura;         // paladin aura one paladin per group switches to ("shadow resistance aura", ...)
 
             // Builder helpers to keep the encounter table readable
             Encounter& Avoid(uint32 entry, float radius, uint8 roles = ROLE_ALL) { avoidCreatures.push_back({ entry, radius, roles }); return *this; }
@@ -192,6 +194,8 @@ namespace ai
             Encounter& FormTank(uint32 bossEntry, uint32 auraId) { formTank.push_back({ bossEntry, auraId }); return *this; }
             Encounter& AvoidFront(uint32 bossEntry, float range = 15.0f, uint8 roles = ROLE_NON_TANK) { avoidFront.push_back({ bossEntry, range, roles }); return *this; }
             Encounter& Special(uint32 mechanic) { special |= mechanic; return *this; }
+            Encounter& LustBelow(float bossHealthPct) { lustBelowHealthPct = bossHealthPct; return *this; }
+            Encounter& ResistanceAura(const std::string& aura) { resistanceAura = aura; return *this; }
         };
 
         class EncounterRegistry
@@ -200,6 +204,8 @@ namespace ai
             static EncounterRegistry& Instance();
 
             const Encounter* FindByCreature(uint32 mapId, uint32 entry) const;
+            // Encounter of the first boss / add among the bot's possible attack targets
+            const Encounter* FindNearby(PlayerbotAI* ai) const;
             bool IsRaidMap(uint32 mapId) const;
 
         private:

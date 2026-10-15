@@ -631,6 +631,11 @@ bool PlayerbotAIConfig::Initialize()
     autoPickReward = config.GetStringDefault("AiPlayerbot.AutoPickReward", "no");
     autoEquipUpgradeLoot = config.GetBoolDefault("AiPlayerbot.AutoEquipUpgradeLoot", false);
     autoEnchantUpgradeLoot = config.GetBoolDefault("AiPlayerbot.AutoEnchantUpgradeLoot", false);
+    autoGemUpgradeLoot = config.GetBoolDefault("AiPlayerbot.AutoGemUpgradeLoot", false);
+    autoExchangeTierTokens = config.GetBoolDefault("AiPlayerbot.AutoExchangeTierTokens", false);
+    needRollMinUpgradePct = config.GetFloatDefault("AiPlayerbot.NeedRollMinUpgradePct", 0.0f);
+    needRollBestUpgradeOnly = config.GetBoolDefault("AiPlayerbot.NeedRollBestUpgradeOnly", false);
+    tankThreatMultiplier = config.GetFloatDefault("AiPlayerbot.TankThreatMultiplier", 1.0f);
     syncQuestWithPlayer = config.GetBoolDefault("AiPlayerbot.SyncQuestWithPlayer", false);
     syncQuestForPlayer = config.GetBoolDefault("AiPlayerbot.SyncQuestForPlayer", false);
     autoTrainSpells = config.GetStringDefault("AiPlayerbot.AutoTrainSpells", "no");

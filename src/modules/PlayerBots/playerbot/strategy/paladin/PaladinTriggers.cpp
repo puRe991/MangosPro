@@ -2,6 +2,7 @@
 #include "playerbot/playerbot.h"
 #include "PaladinTriggers.h"
 #include "PaladinActions.h"
+#include "PaladinAuraAssignment.h"
 
 using namespace ai;
 
@@ -198,6 +199,12 @@ bool GreaterBlessingOnPartyTrigger::IsActive()
     // Doesn't have any of my blessings
     Unit* target = ai->GetUnit(AI_VALUE2(ObjectGuid, "party member without my aura", blessings));
     return target && bot->IsInGroup(target);
+}
+
+bool AssignedAuraTrigger::IsActive()
+{
+    const std::string aura = paladinaura::GetAssignedAura(ai);
+    return !aura.empty() && !ai->HasMyAura(aura, bot);
 }
 
 bool NoPaladinAuraTrigger::IsActive()

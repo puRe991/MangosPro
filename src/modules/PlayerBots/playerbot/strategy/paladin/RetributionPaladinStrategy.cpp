@@ -601,7 +601,7 @@ void RetributionPaladinStrategy::InitCombatTriggers(std::list<TriggerNode*>& tri
 
     triggers.push_back(new TriggerNode(
         "crusader strike",
-        NextAction::array(0, new NextAction("crusader strike", ACTION_NORMAL), NULL)));
+        NextAction::array(0, new NextAction("crusader strike", ACTION_NORMAL + 5), NULL)));
 }
 
 void RetributionPaladinStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)

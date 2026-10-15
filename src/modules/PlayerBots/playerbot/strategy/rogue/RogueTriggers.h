@@ -36,6 +36,22 @@ namespace ai
         EviscerateTrigger(PlayerbotAI* ai, uint8 comboPoints = 4) : ComboPointsAvailableTrigger(ai, comboPoints) {}
     };
 
+    // Envenom only pays off while our own deadly poison is on the target
+    class EnvenomTrigger : public ComboPointsAvailableTrigger
+    {
+    public:
+        EnvenomTrigger(PlayerbotAI* ai, uint8 comboPoints = 4) : ComboPointsAvailableTrigger(ai, comboPoints) {}
+        bool IsActive() override;
+    };
+
+    // Shiv refreshes our deadly poison shortly before it expires
+    class ShivTrigger : public SpellCanBeCastedTrigger
+    {
+    public:
+        ShivTrigger(PlayerbotAI* ai) : SpellCanBeCastedTrigger(ai, "shiv") {}
+        bool IsActive() override;
+    };
+
     class CloakOfShadowsTrigger : public NeedCureTrigger
     {
     public:

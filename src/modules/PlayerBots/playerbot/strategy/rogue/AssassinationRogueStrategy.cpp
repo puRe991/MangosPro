@@ -432,16 +432,24 @@ void AssassinationRogueStrategy::InitCombatTriggers(std::list<TriggerNode*>& tri
     RogueStrategy::InitCombatTriggers(triggers);
 
     triggers.push_back(new TriggerNode(
-        "eviscerate",
-        NextAction::array(0, new NextAction("eviscerate", ACTION_HIGH + 2), NULL)));
-
-    triggers.push_back(new TriggerNode(
         "slice and dice",
-        NextAction::array(0, new NextAction("slice and dice", ACTION_HIGH + 1), NULL)));
+        NextAction::array(0, new NextAction("slice and dice", ACTION_HIGH + 3), NULL)));
 
     triggers.push_back(new TriggerNode(
-        "3 combo",
-        NextAction::array(0, new NextAction("rupture", ACTION_HIGH), NULL)));
+        "rupture",
+        NextAction::array(0, new NextAction("rupture", ACTION_HIGH + 2), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "envenom",
+        NextAction::array(0, new NextAction("envenom", ACTION_HIGH + 1), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "eviscerate",
+        NextAction::array(0, new NextAction("eviscerate", ACTION_HIGH), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "shiv",
+        NextAction::array(0, new NextAction("shiv", ACTION_NORMAL + 2), NULL)));
 
     triggers.push_back(new TriggerNode(
         "behind target",

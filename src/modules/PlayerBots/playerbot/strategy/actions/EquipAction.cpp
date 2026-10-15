@@ -3,6 +3,7 @@
 #include "EquipAction.h"
 
 #include "playerbot/RandomItemMgr.h"
+#include "playerbot/BotGearHelper.h"
 #include "playerbot/strategy/values/ItemCountValue.h"
 #include "playerbot/strategy/values/ItemUsageValue.h"
 #include "UnequipAction.h"
@@ -385,6 +386,10 @@ bool EquipUpgradesAction::Execute(Event& event)
             data >> count;
             // data >> invCount; // [-ZERO] count of items in inventory
 
+            // Tier token: trade it for the set item of the bot's class and spec right away
+            if (sPlayerbotAIConfig.autoExchangeTierTokens && botgear::ExchangeTierToken(bot, itemId))
+                valid = true;
+
             ItemQualifier itemQualifier(itemId, (int32)itemRandomPropertyId);
             const ItemPrototype* itemProto = itemQualifier.GetProto();
             if (itemProto && (itemProto->Class == ItemClass::ITEM_CLASS_WEAPON || 
@@ -449,6 +454,10 @@ bool EquipUpgradesAction::Execute(Event& event)
             // auto enchant if cheat is turned on
             if (sPlayerbotAIConfig.autoEnchantUpgradeLoot && !item->GetEnchantmentId(EnchantmentSlot(0)))
                 EnchantItem(item); 
+
+            // auto socket the best gems for the spec if cheat is turned on
+            if (sPlayerbotAIConfig.autoGemUpgradeLoot)
+                botgear::SocketItem(bot, item);
         }
     }
 

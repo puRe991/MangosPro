@@ -3,6 +3,14 @@
 
 namespace ai
 {
+    // Aura handed out by the aura assignment (auras auto, boss resistance aura) is not up
+    class AssignedAuraTrigger : public Trigger
+    {
+    public:
+        AssignedAuraTrigger(PlayerbotAI* ai) : Trigger(ai, "assigned aura", 2) {}
+        bool IsActive() override;
+    };
+
     class NoPaladinAuraTrigger : public BuffTrigger
     {
     public:

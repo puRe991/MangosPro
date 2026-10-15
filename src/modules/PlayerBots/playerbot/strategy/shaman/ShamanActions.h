@@ -463,6 +463,12 @@ namespace ai
         CastBloodlustAction(PlayerbotAI* ai) : CastBuffSpellAction(ai, "bloodlust") {}
     };
 
+    class CastShamanisticRageAction : public CastBuffSpellAction
+    {
+    public:
+        CastShamanisticRageAction(PlayerbotAI* ai) : CastBuffSpellAction(ai, "shamanistic rage") {}
+    };
+
     class CastWindShearOnEnemyHealerAction : public CastSpellOnEnemyHealerAction
     {
     public:

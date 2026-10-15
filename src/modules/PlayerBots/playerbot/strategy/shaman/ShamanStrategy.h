@@ -10,6 +10,14 @@ namespace ai
         std::string getName() override { return "totems"; }
     };
 
+    // Marker strategy: keep Bloodlust / Heroism for the "lust" chat command
+    class ShamanHoldLustStrategy : public Strategy
+    {
+    public:
+        ShamanHoldLustStrategy(PlayerbotAI* ai) : Strategy(ai) {}
+        std::string getName() override { return "hold lust"; }
+    };
+
     class ShamanStrategy : public ClassStrategy
     {
     public:

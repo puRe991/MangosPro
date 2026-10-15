@@ -150,4 +150,12 @@ namespace ai
     public:
         SlamTrigger(PlayerbotAI* ai) : SpellCanBeCastedTrigger(ai, "slam") {}
     };
+
+    // Sunder armor for dps warriors: only when no warrior tank in the group keeps the stacks up
+    class SunderArmorDpsTrigger : public SunderArmorDebuffTrigger
+    {
+    public:
+        SunderArmorDpsTrigger(PlayerbotAI* ai) : SunderArmorDebuffTrigger(ai) {}
+        bool IsActive() override;
+    };
 }

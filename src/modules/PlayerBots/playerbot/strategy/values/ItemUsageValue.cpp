@@ -8,6 +8,7 @@
 
 #include "playerbot/RandomItemMgr.h"
 #include "playerbot/ServerFacade.h"
+#include "playerbot/BotGearHelper.h"
 
 using namespace ai;
 
@@ -114,6 +115,17 @@ ItemUsage ItemUsageValue::Calculate()
 
     if (forceUsage == ForceItemUsage::FORCE_USAGE_BAG)
         return ItemUsage::ITEM_USAGE_KEEP;
+
+    // Tier token: rate it like the set item of the bot's class and spec it can be traded for
+    if (const uint32 tokenReward = sPlayerbotAIConfig.autoExchangeTierTokens ? botgear::ChooseTierTokenReward(bot, itemId) : 0)
+    {
+        ItemQualifier rewardQualifier(tokenReward);
+        ItemUsage equip = QueryItemUsageForEquip(rewardQualifier, bot);
+        if (equip == ItemUsage::ITEM_USAGE_EQUIP || equip == ItemUsage::ITEM_USAGE_BAD_EQUIP)
+            return equip;
+
+        return ItemUsage::ITEM_USAGE_NONE;
+    }
 
     if (bot->GetGuildId())
     {

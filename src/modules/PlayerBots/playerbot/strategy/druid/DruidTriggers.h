@@ -101,6 +101,19 @@ namespace ai
         FaerieFireFeralTrigger(PlayerbotAI* ai) : DebuffTrigger(ai, "faerie fire (feral)") {}
     };
 
+    // Keep the mangle debuff (+30% bleed/shred damage) up, no matter if a cat or a bear applied it
+    class MangleCatDebuffTrigger : public SpellCanBeCastedTrigger
+    {
+    public:
+        MangleCatDebuffTrigger(PlayerbotAI* ai) : SpellCanBeCastedTrigger(ai, "mangle (cat)") {}
+        bool IsActive() override
+        {
+            Unit* target = GetTarget();
+            return target && SpellCanBeCastedTrigger::IsActive() &&
+                   !ai->HasAura("mangle (cat)", target) && !ai->HasAura("mangle (bear)", target);
+        }
+    };
+
     class DemoralizingRoarTrigger : public DebuffTrigger
     {
     public:

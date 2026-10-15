@@ -144,6 +144,7 @@ namespace ai
                 creators["berserker stance"] = [](PlayerbotAI* ai) { return new BerserkerStanceTrigger(ai); };
                 creators["shield block"] = [](PlayerbotAI* ai) { return new ShieldBlockTrigger(ai); };
                 creators["sunder armor"] = [](PlayerbotAI* ai) { return new SunderArmorDebuffTrigger(ai); };
+                creators["sunder armor dps"] = [](PlayerbotAI* ai) { return new SunderArmorDpsTrigger(ai); };
                 creators["demoralizing shout"] = [](PlayerbotAI* ai) { return new DemoralizingShoutDebuffTrigger(ai); };
                 creators["devastate"] = [](PlayerbotAI* ai) { return new DevastateAvailableTrigger(ai); };
                 creators["revenge"] = [](PlayerbotAI* ai) { return new RevengeAvailableTrigger(ai); };

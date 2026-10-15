@@ -46,6 +46,10 @@ Alle TBC-Raids haben Boss-Taktiken: Karazhan, Gruul, Magtheridon, SSC, Festung d
 Hyjal, Black Temple, Zul'Aman, Sunwell (Strategie `tbc raid`, wird im Raid automatisch aktiv).
 Details, Kill-Reihenfolgen und bekannte Grenzen: **[doc/TBC_Raid_Taktiken.md](doc/TBC_Raid_Taktiken.md)**.
 
+Rotationen, Raid-Buffs (Befehle `lust` / `auras`), Edelsteine, Würfelregeln und Tank-Bedrohung:
+**[doc/Bot_Raidbuffs_und_Ausruestung.md](doc/Bot_Raidbuffs_und_Ausruestung.md)**.
+Zusätzliche SQL-Änderungen: **[sql/mangospro/README.md](sql/mangospro/README.md)**.
+
 Relevanter Code:
 - `src/modules/PlayerBots/playerbot/strategy/generic/TbcRaidEncounters.cpp` – Boss-Tabelle der TBC-Raids
 - `src/modules/PlayerBots/playerbot/strategy/generic/*DungeonStrategies.*` – ältere Boss-Strategien

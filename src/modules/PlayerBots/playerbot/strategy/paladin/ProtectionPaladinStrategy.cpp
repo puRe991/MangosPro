@@ -592,6 +592,10 @@ void ProtectionPaladinStrategy::InitCombatTriggers(std::list<TriggerNode*>& trig
         NextAction::array(0, new NextAction("seal of wisdom", ACTION_HIGH + 1), NULL)));
 
     triggers.push_back(new TriggerNode(
+        "consecration",
+        NextAction::array(0, new NextAction("consecration", ACTION_HIGH + 2), NULL)));
+
+    triggers.push_back(new TriggerNode(
         "exorcism",
         NextAction::array(0, new NextAction("exorcism", ACTION_NORMAL + 3), NULL)));
 
