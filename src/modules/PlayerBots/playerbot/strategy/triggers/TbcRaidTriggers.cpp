@@ -28,6 +28,95 @@ bool TbcRaidLeaveTrigger::IsActive()
     return !EncounterRegistry::Instance().IsRaidMap(bot->GetMapId());
 }
 
+bool TbcRaidTankAssignedTrigger::IsActive()
+{
+    if (!bot->IsAlive())
+        return false;
+
+    const auto mine = TbcRaidHelper::GetMyAssignments(ai);
+    if (mine.empty())
+        return false;
+
+    const ObjectGuid current = AI_VALUE(ObjectGuid, "current target");
+    bool currentIsMine = false;
+    for (auto& assignment : mine)
+    {
+        // a loose creature has to be picked up (class tanks only need it as target)
+        if (!assignment.second->playerClass && assignment.first->GetVictim() != bot)
+            return true;
+
+        if (assignment.first->GetObjectGuid() == current)
+            currentIsMine = true;
+    }
+
+    return !currentIsMine;
+}
+
+bool TbcRaidTankPositionTrigger::IsActive()
+{
+    if (!bot->IsAlive() || !ai->CanMove())
+        return false;
+
+    const auto mine = TbcRaidHelper::GetMyAssignments(ai);
+    if (mine.empty())
+        return false;
+
+    Unit* creature = mine.front().first;
+    const TankAssignment& rule = *mine.front().second;
+
+    // a tank first picks the creature up, a class tank goes to its spot right away
+    if (!rule.playerClass && creature->GetVictim() != bot)
+        return false;
+
+    WorldPosition spot;
+    if (!TbcRaidHelper::GetAssignmentSpot(creature, rule, spot))
+        return false;
+
+    return WorldPosition(bot).distance(spot) > (rule.playerClass ? 6.0f : 4.0f);
+}
+
+bool TbcRaidStealAuraTrigger::IsActive()
+{
+    for (auto& assignment : TbcRaidHelper::GetMyAssignments(ai))
+    {
+        if (assignment.second->stealAura && assignment.first->HasAura(assignment.second->stealAura) &&
+            ai->CanCastSpell("spellsteal", assignment.first, 0))
+            return true;
+    }
+
+    return false;
+}
+
+bool TbcRaidInterruptTrigger::IsActive()
+{
+    std::string spell;
+    return bot->IsAlive() && TbcRaidHelper::GetInterruptTarget(ai, spell) != nullptr;
+}
+
+bool TbcRaidMarkTargetsTrigger::IsActive()
+{
+    const Encounter* encounter = TbcRaidHelper::GetEncounter(ai);
+    Group* group = bot->GetGroup();
+    if (!encounter || encounter->marks.empty() || !group || !TbcRaidHelper::IsRaidLeaderBot(ai))
+        return false;
+
+    for (const MarkRule& mark : encounter->marks)
+    {
+        // one icon per entry: fine while it sits on a living creature of that entry
+        Unit* marked = ai->GetUnit(group->GetTargetIcon(mark.icon));
+        if (marked && marked->IsAlive() && marked->GetEntry() == mark.entry)
+            continue;
+
+        for (Unit* creature : TbcRaidHelper::FindCreatures(bot, mark.entry, 100.0f))
+        {
+            if (creature->IsAlive())
+                return true;
+        }
+    }
+
+    return false;
+}
+
 bool TbcRaidInHazardTrigger::IsActive()
 {
     if (!bot->IsAlive())

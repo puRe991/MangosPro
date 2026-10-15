@@ -134,8 +134,22 @@ EncounterRegistry::EncounterRegistry()
     // ---------------------------------------------------------------------
 
     // High King Maulgar: kill order Blindeye -> Olm (and his felhunters) -> Kiggler -> Krosh -> Maulgar.
-    // Krosh is only fought from range (Blast Wave), nobody stands in Maulgar's Whirlwind.
+    // Every ogre has its own tank and spot: the ogres stand in a row (facing the raid), Maulgar is turned
+    // to the back wall, Blindeye + Olm next to him, Kiggler dragged to the west end, Krosh held by a mage
+    // (Spellsteal on Spell Shield) at the east end so his Blast Wave hits nobody. Two fixed interrupters
+    // on Blindeye's heals. Krosh is only fought from range (Blast Wave), nobody stands in the Whirlwind.
     Add("high king maulgar", MAP_GRUULS_LAIR, { 18831, 18832, 18834, 18835, 18836 })
+        .TankAt(18831, 0, -8.0f, 0.0f)              // Maulgar: main tank, turned to the back wall
+        .TankAt(18836, 1, -6.0f, 9.0f)              // Blindeye: off tank 1
+        .TankAt(18834, 1, -6.0f, 9.0f)              // Olm: off tank 1 together with Blindeye (dies next)
+        .TankAt(18835, 2, -6.0f, -22.0f)            // Kiggler: off tank 2, west end (with 2 tanks: off tank 1)
+        .ClassTankAt(18832, CLASS_MAGE, -2.0f, 24.0f, 33054) // Krosh: mage tank, east end, Spellsteal Spell Shield
+        .Interrupt(18836, { 33144, 33152 }, 2)      // Blindeye: Heal, Prayer of Healing
+        .Mark(18836, ICON_SKULL)
+        .Mark(18834, ICON_CROSS)
+        .Mark(18835, ICON_SQUARE)
+        .Mark(18832, ICON_MOON)
+        .Mark(18831, ICON_TRIANGLE)
         .Kill(18836, ROLE_DPS)                      // Blindeye the Seer (healer)
         .Kill(18834, ROLE_DPS)                      // Olm the Summoner
         .Kill(18847, ROLE_DPS)                      // Wild Fel Stalker

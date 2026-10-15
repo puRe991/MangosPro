@@ -3,6 +3,7 @@
 #include "ThreatStrategy.h"
 #include "playerbot/PlayerbotAIConfig.h"
 #include "playerbot/strategy/actions/GenericSpellActions.h"
+#include "TbcRaidStrategy.h"
 
 using namespace ai;
 
@@ -12,6 +13,10 @@ float ThreatMultiplier::GetValue(Action* action)
         return 1.0f;
 
     if (!AI_VALUE(bool, "group"))
+        return 1.0f;
+
+    // A raid bot that holds its target on purpose (mage on Krosh Firehand) must build threat
+    if (TbcRaidHelper::IsAssignedToMe(ai, ai->GetUnit(AI_VALUE(ObjectGuid, "current target"))))
         return 1.0f;
 
     if (action->getThreatType() == ActionThreatType::ACTION_THREAT_AOE)

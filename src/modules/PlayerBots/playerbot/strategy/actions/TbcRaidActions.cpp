@@ -433,6 +433,145 @@ bool TbcRaidAttackPriorityTargetAction::Execute(Event& event)
 }
 
 // ---------------------------------------------------------------------------
+// Fixed tank assignments
+// ---------------------------------------------------------------------------
+
+bool TbcRaidTankAssignedAction::Execute(Event& event)
+{
+    const auto mine = TbcRaidHelper::GetMyAssignments(ai);
+    if (mine.empty())
+        return false;
+
+    // a loose creature first, otherwise the first one of the kill order the bot holds
+    Unit* target = nullptr;
+    bool loose = false;
+    for (auto& assignment : mine)
+    {
+        if (!assignment.second->playerClass && assignment.first->GetVictim() != bot)
+        {
+            target = assignment.first;
+            loose = true;
+            break;
+        }
+    }
+
+    if (!target)
+        target = mine.front().first;
+
+    bool done = false;
+    if (loose && TbcRaidHelper::GetRole(ai) == ROLE_TANK)
+    {
+        for (const std::string& taunt : { "taunt", "growl", "mocking blow" })
+        {
+            if (ai->CanCastSpell(taunt, target, 0) && ai->CastSpell(taunt, target))
+            {
+                done = true;
+                break;
+            }
+        }
+
+        Unit* victim = target->GetVictim();
+        if (!done && victim && victim->IsPlayer() && ai->CanCastSpell("righteous defense", victim, 0))
+            done = ai->CastSpell("righteous defense", victim);
+    }
+
+    if (AI_VALUE(ObjectGuid, "current target") != target->GetObjectGuid())
+    {
+        Player* requester = event.getOwner() ? event.getOwner() : GetMaster();
+        done = Attack(requester, target) || done;
+    }
+
+    return done;
+}
+
+bool TbcRaidTankPositionAction::Execute(Event& event)
+{
+    const auto mine = TbcRaidHelper::GetMyAssignments(ai);
+    if (mine.empty())
+        return false;
+
+    WorldPosition spot;
+    if (!TbcRaidHelper::GetAssignmentSpot(mine.front().first, *mine.front().second, spot))
+        return false;
+
+    return MoveToPoint(spot);
+}
+
+bool TbcRaidStealAuraAction::Execute(Event& event)
+{
+    for (auto& assignment : TbcRaidHelper::GetMyAssignments(ai))
+    {
+        if (assignment.second->stealAura && assignment.first->HasAura(assignment.second->stealAura))
+            return ai->CastSpell("spellsteal", assignment.first);
+    }
+
+    return false;
+}
+
+bool TbcRaidInterruptAction::Execute(Event& event)
+{
+    std::string spell;
+    Unit* target = TbcRaidHelper::GetInterruptTarget(ai, spell);
+    return target && ai->CastSpell(spell, target);
+}
+
+bool TbcRaidMarkTargetsAction::Execute(Event& event)
+{
+    const Encounter* encounter = TbcRaidHelper::GetEncounter(ai);
+    Group* group = bot->GetGroup();
+    if (!encounter || !group)
+        return false;
+
+    bool marked = false;
+    for (const MarkRule& mark : encounter->marks)
+    {
+        Unit* current = ai->GetUnit(group->GetTargetIcon(mark.icon));
+        if (current && current->IsAlive() && current->GetEntry() == mark.entry)
+            continue;
+
+        for (Unit* creature : TbcRaidHelper::FindCreatures(bot, mark.entry, 100.0f))
+        {
+            if (!creature->IsAlive())
+                continue;
+
+            group->SetTargetIcon(mark.icon, creature->GetObjectGuid());
+            marked = true;
+            break;
+        }
+    }
+
+    return marked;
+}
+
+bool TbcRaidInfoAction::Execute(Event& event)
+{
+    Player* requester = event.getOwner() ? event.getOwner() : GetMaster();
+    const std::string param = event.getParam();
+
+    // every bot: its own task
+    if (param == "?")
+    {
+        ai->TellPlayerNoFacing(requester, TbcRaidHelper::DescribeMyTask(ai), PlayerbotSecurityLevel::PLAYERBOT_SECURITY_ALLOW_ALL, false);
+        return true;
+    }
+
+    // one bot of the group: the tactic of the boss nearby
+    if (bot->GetGroup() && !TbcRaidHelper::IsRaidLeaderBot(ai))
+        return false;
+
+    const Encounter* encounter = TbcRaidHelper::GetEncounter(ai);
+    if (!encounter)
+        encounter = EncounterRegistry::Instance().FindNearby(ai);
+
+    std::string text = TbcRaidHelper::DescribeTactic(ai, encounter);
+    if (!ai->HasStrategy("tbc raid", BotState::BOT_STATE_COMBAT))
+        text += " (Strategie tbc raid ist AUS)";
+
+    ai->TellPlayerNoFacing(requester, text, PlayerbotSecurityLevel::PLAYERBOT_SECURITY_ALLOW_ALL, false);
+    return true;
+}
+
+// ---------------------------------------------------------------------------
 // Taunt
 // ---------------------------------------------------------------------------
 

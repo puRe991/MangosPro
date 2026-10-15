@@ -30,6 +30,11 @@ namespace ai
             creators["tbc raid in front of boss"] = [](PlayerbotAI* ai) { return new TbcRaidInFrontOfBossTrigger(ai); };
             creators["tbc raid priority target"] = [](PlayerbotAI* ai) { return new TbcRaidPriorityTargetTrigger(ai); };
             creators["tbc raid taunt"] = [](PlayerbotAI* ai) { return new TbcRaidTauntTrigger(ai); };
+            creators["tbc raid tank assigned"] = [](PlayerbotAI* ai) { return new TbcRaidTankAssignedTrigger(ai); };
+            creators["tbc raid tank position"] = [](PlayerbotAI* ai) { return new TbcRaidTankPositionTrigger(ai); };
+            creators["tbc raid steal aura"] = [](PlayerbotAI* ai) { return new TbcRaidStealAuraTrigger(ai); };
+            creators["tbc raid interrupt"] = [](PlayerbotAI* ai) { return new TbcRaidInterruptTrigger(ai); };
+            creators["tbc raid mark targets"] = [](PlayerbotAI* ai) { return new TbcRaidMarkTargetsTrigger(ai); };
             creators["tbc raid use cube"] = [](PlayerbotAI* ai) { return new TbcRaidUseCubeTrigger(ai); };
             creators["tbc raid use spine"] = [](PlayerbotAI* ai) { return new TbcRaidUseSpineTrigger(ai); };
 
@@ -112,6 +117,11 @@ namespace ai
             creators["tbc raid leave front"] = [](PlayerbotAI* ai) { return new TbcRaidLeaveFrontAction(ai); };
             creators["tbc raid attack priority target"] = [](PlayerbotAI* ai) { return new TbcRaidAttackPriorityTargetAction(ai); };
             creators["tbc raid taunt"] = [](PlayerbotAI* ai) { return new TbcRaidTauntAction(ai); };
+            creators["tbc raid tank assigned"] = [](PlayerbotAI* ai) { return new TbcRaidTankAssignedAction(ai); };
+            creators["tbc raid tank position"] = [](PlayerbotAI* ai) { return new TbcRaidTankPositionAction(ai); };
+            creators["tbc raid steal aura"] = [](PlayerbotAI* ai) { return new TbcRaidStealAuraAction(ai); };
+            creators["tbc raid interrupt"] = [](PlayerbotAI* ai) { return new TbcRaidInterruptAction(ai); };
+            creators["tbc raid mark targets"] = [](PlayerbotAI* ai) { return new TbcRaidMarkTargetsAction(ai); };
             creators["tbc raid use cube"] = [](PlayerbotAI* ai) { return new TbcRaidUseCubeAction(ai); };
             creators["tbc raid move to spine"] = [](PlayerbotAI* ai) { return new TbcRaidMoveToSpineAction(ai); };
             creators["tbc raid use spine"] = [](PlayerbotAI* ai) { return new TbcRaidUseSpineAction(ai); };

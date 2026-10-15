@@ -3,6 +3,7 @@
 #include "AttackAction.h"
 #include "ChangeStrategyAction.h"
 #include "UseItemAction.h"
+#include "GenericActions.h"
 #include <functional>
 
 namespace ai
@@ -103,6 +104,56 @@ namespace ai
         TbcRaidAttackPriorityTargetAction(PlayerbotAI* ai) : AttackAction(ai, "tbc raid attack priority target") {}
         bool Execute(Event& event) override;
         bool isUseful() override;
+    };
+
+    // Pick up / keep the creatures the bot holds (fixed tank assignment), taunt loose ones
+    class TbcRaidTankAssignedAction : public AttackAction
+    {
+    public:
+        TbcRaidTankAssignedAction(PlayerbotAI* ai) : AttackAction(ai, "tbc raid tank assigned") {}
+        bool Execute(Event& event) override;
+    };
+
+    // Bring the held creature to the tank spot of the encounter
+    class TbcRaidTankPositionAction : public TbcRaidMovementAction
+    {
+    public:
+        TbcRaidTankPositionAction(PlayerbotAI* ai) : TbcRaidMovementAction(ai, "tbc raid tank position") {}
+        bool Execute(Event& event) override;
+    };
+
+    // Spellsteal the aura of the held creature (Krosh Firehand - Spell Shield)
+    class TbcRaidStealAuraAction : public Action
+    {
+    public:
+        TbcRaidStealAuraAction(PlayerbotAI* ai) : Action(ai, "tbc raid steal aura") {}
+        bool Execute(Event& event) override;
+    };
+
+    // Fixed interrupter: interrupt the cast of the encounter creature
+    class TbcRaidInterruptAction : public Action
+    {
+    public:
+        TbcRaidInterruptAction(PlayerbotAI* ai) : Action(ai, "tbc raid interrupt") {}
+        bool Execute(Event& event) override;
+        bool isUsefulWhenStunned() override { return false; }
+    };
+
+    // Set the raid icons of the encounter (kill order for the players)
+    class TbcRaidMarkTargetsAction : public Action
+    {
+    public:
+        TbcRaidMarkTargetsAction(PlayerbotAI* ai) : Action(ai, "tbc raid mark targets") {}
+        bool Execute(Event& event) override;
+    };
+
+    // Chat: "tactic" (tactic of the boss nearby, said by one bot) / "tactic ?" (every bot tells its own task)
+    class TbcRaidInfoAction : public ChatCommandAction
+    {
+    public:
+        TbcRaidInfoAction(PlayerbotAI* ai) : ChatCommandAction(ai, "tactic") {}
+        bool Execute(Event& event) override;
+        bool isUsefulWhenStunned() override { return true; }
     };
 
     // Taunt the boss (tank swap)

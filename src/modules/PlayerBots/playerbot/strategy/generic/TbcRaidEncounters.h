@@ -151,6 +151,49 @@ namespace ai
             uint8 roles;
         };
 
+        // Raid target icons
+        enum RaidIcon : uint8
+        {
+            ICON_STAR     = 0,
+            ICON_CIRCLE   = 1,
+            ICON_DIAMOND  = 2,
+            ICON_TRIANGLE = 3,
+            ICON_MOON     = 4,
+            ICON_SQUARE   = 5,
+            ICON_CROSS    = 6,
+            ICON_SKULL    = 7,
+        };
+
+        // A creature held by a fixed tank at a fixed spot.
+        // slot: 0 = main tank, 1 = first off tank, ... (with fewer tanks the last off tank takes the rest)
+        // playerClass: held by a player of that class instead of a tank (mage on Krosh Firehand)
+        // forward / side: spot of the tank relative to the spawn point and facing of the creature
+        //                 (forward = direction the creature faces at spawn, side = to its left)
+        struct TankAssignment
+        {
+            uint32 entry;
+            uint8 slot;
+            float forward;
+            float side;
+            uint8 playerClass = 0;
+            uint32 stealAura = 0;           // aura the class tank spellsteals from the creature
+        };
+
+        // Fixed interrupters on spells of a creature
+        struct InterruptRule
+        {
+            uint32 entry;
+            std::vector<uint32> spells;
+            uint8 count;
+        };
+
+        // Raid target icon on a creature, set by one bot so players can follow the kill order
+        struct MarkRule
+        {
+            uint32 entry;
+            uint8 icon;
+        };
+
         struct Encounter
         {
             std::string name;
@@ -170,6 +213,9 @@ namespace ai
             std::vector<FrontSoakRule> frontSoak;
             uint32 special = SPECIAL_NONE;
             float lustBelowHealthPct = 100.0f;  // Bloodlust / Heroism once the boss is at or below this health (100 = on pull)
+            std::vector<TankAssignment> tankAssignments;
+            std::vector<InterruptRule> interrupts;
+            std::vector<MarkRule> marks;
             std::string resistanceAura;         // paladin aura one paladin per group switches to ("shadow resistance aura", ...)
 
             // Builder helpers to keep the encounter table readable
@@ -195,6 +241,10 @@ namespace ai
             Encounter& AvoidFront(uint32 bossEntry, float range = 15.0f, uint8 roles = ROLE_NON_TANK) { avoidFront.push_back({ bossEntry, range, roles }); return *this; }
             Encounter& Special(uint32 mechanic) { special |= mechanic; return *this; }
             Encounter& LustBelow(float bossHealthPct) { lustBelowHealthPct = bossHealthPct; return *this; }
+            Encounter& TankAt(uint32 entry, uint8 slot, float forward = 0.0f, float side = 0.0f) { tankAssignments.push_back({ entry, slot, forward, side }); return *this; }
+            Encounter& ClassTankAt(uint32 entry, uint8 playerClass, float forward, float side, uint32 stealAura = 0) { tankAssignments.push_back({ entry, 0, forward, side, playerClass, stealAura }); return *this; }
+            Encounter& Interrupt(uint32 entry, const std::vector<uint32>& spells, uint8 count = 2) { interrupts.push_back({ entry, spells, count }); return *this; }
+            Encounter& Mark(uint32 entry, uint8 icon) { marks.push_back({ entry, icon }); return *this; }
             Encounter& ResistanceAura(const std::string& aura) { resistanceAura = aura; return *this; }
         };
 

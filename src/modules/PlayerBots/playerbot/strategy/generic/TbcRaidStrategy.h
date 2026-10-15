@@ -16,9 +16,22 @@ namespace ai
             ObjectGuid guid;        // creature / object guid, empty for ground effects
         };
 
+        // A creature of the encounter and the raid member holding it
+        struct Assignment
+        {
+            ObjectGuid creature;
+            ObjectGuid holder;
+            const TankAssignment* rule;
+        };
+
         // Per bot state, cached for a short time to keep the raid triggers cheap
         struct RaidState
         {
+            uint32 assignCheckTime = 0;
+            std::vector<Assignment> assignments;
+            std::vector<ObjectGuid> interrupters;
+            const Encounter* announcedEncounter = nullptr;
+
             uint32 encounterCheckTime = 0;
             const Encounter* encounter = nullptr;
             ObjectGuid bossGuid;
@@ -90,6 +103,24 @@ namespace ai
 
         // Boss in front of which the bot is standing (cleave, breath, ...)
         static Unit* GetFrontDanger(PlayerbotAI* ai);
+
+        // Tank assignments of the encounter (who holds which creature, refreshed every second)
+        static const std::vector<tbcraid::Assignment>& GetAssignments(PlayerbotAI* ai);
+        // Creatures the bot has to hold, in the order of the encounter table
+        static std::vector<std::pair<Unit*, const tbcraid::TankAssignment*>> GetMyAssignments(PlayerbotAI* ai);
+        static bool IsAssignedToMe(PlayerbotAI* ai, Unit* creature);
+        // Spot of the holder of a creature (relative to its spawn point, checked for height and line of sight)
+        static bool GetAssignmentSpot(Unit* creature, const tbcraid::TankAssignment& rule, WorldPosition& spot);
+
+        // Interrupt the bot has to cast right now (fixed interrupters of the encounter)
+        static Unit* GetInterruptTarget(PlayerbotAI* ai, std::string& spellName);
+        static bool IsInterrupter(PlayerbotAI* ai, Player* member);
+
+        // Bot that sets the raid icons and announces the tactic (lowest guid bot of the group)
+        static bool IsRaidLeaderBot(PlayerbotAI* ai);
+        // Short description of the tactic and the assignments, for the raid chat
+        static std::string DescribeTactic(PlayerbotAI* ai, const tbcraid::Encounter* encounter);
+        static std::string DescribeMyTask(PlayerbotAI* ai);
 
         // Magtheridon - Manticron Cube assigned to the bot
         static GameObject* GetAssignedCube(PlayerbotAI* ai, Unit** magtheridon = nullptr);

@@ -19,6 +19,46 @@ namespace ai
         bool IsActive() override;
     };
 
+    // The bot holds a creature of the encounter that is loose or not its current target
+    class TbcRaidTankAssignedTrigger : public Trigger
+    {
+    public:
+        TbcRaidTankAssignedTrigger(PlayerbotAI* ai) : Trigger(ai, "tbc raid tank assigned", 1) {}
+        bool IsActive() override;
+    };
+
+    // The bot holds its creature but is not at its spot
+    class TbcRaidTankPositionTrigger : public Trigger
+    {
+    public:
+        TbcRaidTankPositionTrigger(PlayerbotAI* ai) : Trigger(ai, "tbc raid tank position", 1) {}
+        bool IsActive() override;
+    };
+
+    // A creature the bot holds has the aura the bot has to spellsteal (Krosh Firehand - Spell Shield)
+    class TbcRaidStealAuraTrigger : public Trigger
+    {
+    public:
+        TbcRaidStealAuraTrigger(PlayerbotAI* ai) : Trigger(ai, "tbc raid steal aura", 1) {}
+        bool IsActive() override;
+    };
+
+    // The bot is a fixed interrupter and the creature casts a spell to interrupt
+    class TbcRaidInterruptTrigger : public Trigger
+    {
+    public:
+        TbcRaidInterruptTrigger(PlayerbotAI* ai) : Trigger(ai, "tbc raid interrupt", 1) {}
+        bool IsActive() override;
+    };
+
+    // The bot sets the raid icons and a creature of the encounter is not marked yet
+    class TbcRaidMarkTargetsTrigger : public Trigger
+    {
+    public:
+        TbcRaidMarkTargetsTrigger(PlayerbotAI* ai) : Trigger(ai, "tbc raid mark targets", 2) {}
+        bool IsActive() override;
+    };
+
     // The bot stands in a dangerous zone (fire, void zone, whirlwind, fixating add, ...)
     class TbcRaidInHazardTrigger : public Trigger
     {

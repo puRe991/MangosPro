@@ -72,6 +72,7 @@ ChatCommandHandlerStrategy::ChatCommandHandlerStrategy(PlayerbotAI* ai) : PassTr
     supported.push_back("rti");
     supported.push_back("lust");
     supported.push_back("auras");
+    supported.push_back("tactic");
     supported.push_back("position");
     supported.push_back("summon");
     supported.push_back("who");

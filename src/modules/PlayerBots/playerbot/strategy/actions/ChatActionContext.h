@@ -2,6 +2,7 @@
 
 #include "ListQuestsActions.h"
 #include "RaidBuffActions.h"
+#include "TbcRaidActions.h"
 #include "StatsAction.h"
 #include "LeaveGroupAction.h"
 #include "TellReputationAction.h"
@@ -169,6 +170,7 @@ namespace ai
             creators["rti"] = [](PlayerbotAI* ai) { return new RtiAction(ai); };
             creators["lust"] = [](PlayerbotAI* ai) { return new LustAction(ai); };
             creators["auras"] = [](PlayerbotAI* ai) { return new AurasAction(ai); };
+            creators["tactic"] = [](PlayerbotAI* ai) { return new TbcRaidInfoAction(ai); };
             creators["spirit healer"] = [](PlayerbotAI* ai) { return new SpiritHealerAction(ai); };
             creators["position"] = [](PlayerbotAI* ai) { return new PositionAction(ai); };
             creators["tell target"] = [](PlayerbotAI* ai) { return new TellTargetAction(ai); };

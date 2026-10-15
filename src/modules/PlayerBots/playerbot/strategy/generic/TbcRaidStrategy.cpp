@@ -155,6 +155,26 @@ void TbcRaidStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
         NextAction::array(0, new NextAction("tbc raid taunt", ACTION_EMERGENCY + 2), NULL)));
 
     triggers.push_back(new TriggerNode(
+        "tbc raid interrupt",
+        NextAction::array(0, new NextAction("tbc raid interrupt", ACTION_EMERGENCY + 1), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "tbc raid mark targets",
+        NextAction::array(0, new NextAction("tbc raid mark targets", ACTION_EMERGENCY), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "tbc raid tank assigned",
+        NextAction::array(0, new NextAction("tbc raid tank assigned", ACTION_CRITICAL_HEAL + 5), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "tbc raid steal aura",
+        NextAction::array(0, new NextAction("tbc raid steal aura", ACTION_CRITICAL_HEAL + 4), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "tbc raid tank position",
+        NextAction::array(0, new NextAction("tbc raid tank position", ACTION_MEDIUM_HEAL + 4), NULL)));
+
+    triggers.push_back(new TriggerNode(
         "tbc raid use spine",
         NextAction::array(0,
             new NextAction("tbc raid use spine", ACTION_CRITICAL_HEAL + 2),
@@ -252,6 +272,14 @@ float TbcRaidMultiplier::GetValue(Action* action)
 
     if (!TbcRaidHelper::GetEncounter(ai))
         return 1.0f;
+
+    // A bot with a fixed assignment keeps its creature, no other target selection
+    if (name == "tank assist" || name == "dps assist" || name == "dps aoe" || name == "attack least hp target" ||
+        name == "tbc raid attack priority target" || name == "tank aoe" || name == "attack anything")
+    {
+        if (!TbcRaidHelper::GetMyAssignments(ai).empty())
+            return 0.0f;
+    }
 
     // Keep attacking the priority target instead of switching to the lowest health enemy
     if (name == "dps assist" || name == "dps aoe" || name == "attack least hp target")
@@ -419,6 +447,19 @@ const Encounter* TbcRaidHelper::GetEncounter(PlayerbotAI* ai, Unit** boss)
         // Force the other caches to be refreshed for the new state
         state.hazardCheckTime = 0;
         state.priorityCheckTime = 0;
+        state.assignCheckTime = 0;
+
+        // Announce the tactic once per pull in the raid chat (one bot of the group)
+        if (state.encounter && state.encounter != state.announcedEncounter)
+        {
+            state.announcedEncounter = state.encounter;
+            if (IsRaidLeaderBot(ai))
+                ai->TellPlayerNoFacing(bot, DescribeTactic(ai, state.encounter), PlayerbotSecurityLevel::PLAYERBOT_SECURITY_ALLOW_ALL, false);
+        }
+        else if (!state.encounter && !bot->IsInCombat())
+        {
+            state.announcedEncounter = nullptr;
+        }
     }
 
     if (boss && state.bossGuid)
@@ -995,4 +1036,393 @@ Unit* TbcRaidHelper::GetShieldedNajentus(PlayerbotAI* ai)
     }
 
     return nullptr;
+}
+
+// ---------------------------------------------------------------------------
+// Tank assignments, interrupters, raid icons, tactic announcement
+// ---------------------------------------------------------------------------
+
+namespace
+{
+    const uint32 ASSIGN_CACHE_MS = 1000;
+
+    // Interrupts by class (first known spell is used)
+    const std::vector<std::string> interruptSpells = { "kick", "pummel", "shield bash", "earth shock", "counterspell", "silencing shot", "silence" };
+
+    bool KnowsSpell(Player* player, const std::string& name)
+    {
+        for (uint32 spellId : ChatHelper::SpellIds(name))
+        {
+            if (player->HasSpell(spellId))
+                return true;
+        }
+
+        return false;
+    }
+
+    bool KnowsInterrupt(Player* player)
+    {
+        for (const std::string& name : interruptSpells)
+        {
+            if (KnowsSpell(player, name))
+                return true;
+        }
+
+        return false;
+    }
+
+    bool LowerGuid(Player* a, Player* b)
+    {
+        return a->GetObjectGuid().GetCounter() < b->GetObjectGuid().GetCounter();
+    }
+
+    std::string CreatureName(uint32 entry)
+    {
+        CreatureInfo const* info = sObjectMgr.GetCreatureTemplate(entry);
+        return info ? info->Name : std::to_string(entry);
+    }
+
+    const char* IconName(uint8 icon)
+    {
+        static const char* names[] = { "Stern", "Kreis", "Diamant", "Dreieck", "Mond", "Viereck", "Kreuz", "Totenkopf" };
+        return icon < 8 ? names[icon] : "?";
+    }
+
+    // Who holds which creature: computed the same way by every bot (sorted by guid)
+    void ComputeAssignments(Player* bot, const Encounter* encounter, std::vector<Assignment>& assignments, std::vector<ObjectGuid>& interrupters)
+    {
+        assignments.clear();
+        interrupters.clear();
+        if (!encounter)
+            return;
+
+        std::vector<Player*> members = TbcRaidHelper::GetRaidMembers(bot, 150.0f, true);
+        std::sort(members.begin(), members.end(), LowerGuid);
+
+        std::vector<Player*> tanks;
+        for (Player* member : members)
+        {
+            if (PlayerbotAI::IsTank(member))
+                tanks.push_back(member);
+        }
+
+        std::vector<Player*> classHolders;
+        for (const TankAssignment& rule : encounter->tankAssignments)
+        {
+            Unit* creature = nullptr;
+            for (Unit* unit : TbcRaidHelper::FindCreatures(bot, rule.entry, 150.0f))
+            {
+                if (unit->IsAlive())
+                {
+                    creature = unit;
+                    break;
+                }
+            }
+
+            if (!creature)
+                continue;
+
+            Player* holder = nullptr;
+            if (rule.playerClass)
+            {
+                for (Player* member : members)
+                {
+                    if (member->getClass() == rule.playerClass && !PlayerbotAI::IsTank(member) &&
+                        std::find(classHolders.begin(), classHolders.end(), member) == classHolders.end())
+                    {
+                        holder = member;
+                        classHolders.push_back(member);
+                        break;
+                    }
+                }
+            }
+
+            // Fewer tanks than slots: the last off tank takes the rest, a class tank falls back to it too
+            if (!holder && !tanks.empty())
+            {
+                const uint8 slot = rule.playerClass ? uint8(tanks.size() - 1) : rule.slot;
+                holder = tanks[std::min<size_t>(slot, tanks.size() - 1)];
+            }
+
+            if (holder)
+                assignments.push_back({ creature->GetObjectGuid(), holder->GetObjectGuid(), &rule });
+        }
+
+        for (const InterruptRule& rule : encounter->interrupts)
+        {
+            uint8 count = 0;
+            for (Player* member : members)
+            {
+                if (count >= rule.count)
+                    break;
+
+                if (KnowsInterrupt(member) && std::find(interrupters.begin(), interrupters.end(), member->GetObjectGuid()) == interrupters.end())
+                {
+                    interrupters.push_back(member->GetObjectGuid());
+                    count++;
+                }
+            }
+        }
+    }
+}
+
+const std::vector<Assignment>& TbcRaidHelper::GetAssignments(PlayerbotAI* ai)
+{
+    static const std::vector<Assignment> none;
+    TbcRaidStrategy* strategy = TbcRaidStrategy::Get(ai);
+    if (!strategy)
+        return none;
+
+    const Encounter* encounter = GetEncounter(ai);
+    RaidState& state = strategy->GetState();
+    if (IsExpired(state.assignCheckTime, ASSIGN_CACHE_MS))
+    {
+        state.assignCheckTime = WorldTimer::getMSTime();
+        ComputeAssignments(ai->GetBot(), encounter, state.assignments, state.interrupters);
+    }
+
+    return state.assignments;
+}
+
+std::vector<std::pair<Unit*, const TankAssignment*>> TbcRaidHelper::GetMyAssignments(PlayerbotAI* ai)
+{
+    std::vector<std::pair<Unit*, const TankAssignment*>> mine;
+    for (const Assignment& assignment : GetAssignments(ai))
+    {
+        if (assignment.holder != ai->GetBot()->GetObjectGuid())
+            continue;
+
+        Unit* creature = ai->GetUnit(assignment.creature);
+        if (creature && creature->IsAlive())
+            mine.push_back({ creature, assignment.rule });
+    }
+
+    return mine;
+}
+
+bool TbcRaidHelper::IsAssignedToMe(PlayerbotAI* ai, Unit* creature)
+{
+    if (!creature)
+        return false;
+
+    for (auto& mine : GetMyAssignments(ai))
+    {
+        if (mine.first == creature)
+            return true;
+    }
+
+    return false;
+}
+
+bool TbcRaidHelper::GetAssignmentSpot(Unit* creature, const TankAssignment& rule, WorldPosition& spot)
+{
+    if (!creature || creature->GetTypeId() != TYPEID_UNIT)
+        return false;
+
+    float x, y, z, o;
+    ((Creature*)creature)->GetRespawnCoord(x, y, z, &o);
+    spot = WorldPosition(creature->GetMapId(), x, y, z);
+
+    if (rule.forward == 0.0f && rule.side == 0.0f)
+        return true;
+
+    // Shorten the offset until the spot is on the ground and visible from the spawn point (walls, ledges)
+    Map* map = creature->GetMap();
+    for (float scale : { 1.0f, 0.7f, 0.4f })
+    {
+        const float px = x + scale * (rule.forward * cos(o) + rule.side * cos(o + M_PI_F / 2));
+        const float py = y + scale * (rule.forward * sin(o) + rule.side * sin(o + M_PI_F / 2));
+        const float pz = map->GetHeight(px, py, z + 5.0f);
+        if (pz <= INVALID_HEIGHT || fabs(pz - z) > 6.0f)
+            continue;
+
+        if (!map->IsInLineOfSight(x, y, z + 2.0f, px, py, pz + 2.0f, true))
+            continue;
+
+        spot = WorldPosition(creature->GetMapId(), px, py, pz);
+        return true;
+    }
+
+    return true;
+}
+
+bool TbcRaidHelper::IsInterrupter(PlayerbotAI* ai, Player* member)
+{
+    GetAssignments(ai);
+    TbcRaidStrategy* strategy = TbcRaidStrategy::Get(ai);
+    if (!strategy || !member)
+        return false;
+
+    const std::vector<ObjectGuid>& interrupters = strategy->GetState().interrupters;
+    return std::find(interrupters.begin(), interrupters.end(), member->GetObjectGuid()) != interrupters.end();
+}
+
+Unit* TbcRaidHelper::GetInterruptTarget(PlayerbotAI* ai, std::string& spellName)
+{
+    const Encounter* encounter = GetEncounter(ai);
+    Player* bot = ai->GetBot();
+    if (!encounter || encounter->interrupts.empty() || !IsInterrupter(ai, bot))
+        return nullptr;
+
+    for (const InterruptRule& rule : encounter->interrupts)
+    {
+        for (Unit* creature : FindCreatures(bot, rule.entry, 40.0f))
+        {
+            if (!creature->IsAlive())
+                continue;
+
+            bool casting = false;
+            for (uint32 spellId : rule.spells)
+            {
+                if (IsCreatureCasting(creature, spellId))
+                {
+                    casting = true;
+                    break;
+                }
+            }
+
+            if (!casting)
+                continue;
+
+            for (const std::string& name : interruptSpells)
+            {
+                if (KnowsSpell(bot, name) && ai->CanCastSpell(name, creature, 0))
+                {
+                    spellName = name;
+                    return creature;
+                }
+            }
+        }
+    }
+
+    return nullptr;
+}
+
+bool TbcRaidHelper::IsRaidLeaderBot(PlayerbotAI* ai)
+{
+    Player* bot = ai->GetBot();
+    Group* group = bot->GetGroup();
+    if (!group)
+        return false;
+
+    Player* leader = nullptr;
+    for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
+    {
+        Player* member = ref->getSource();
+        if (!member || !member->IsAlive() || member->GetMapId() != bot->GetMapId() || !member->GetPlayerbotAI() || member->GetPlayerbotAI()->IsRealPlayer())
+            continue;
+
+        if (!leader || LowerGuid(member, leader))
+            leader = member;
+    }
+
+    return leader == bot;
+}
+
+std::string TbcRaidHelper::DescribeTactic(PlayerbotAI* ai, const Encounter* encounter)
+{
+    if (!encounter)
+        return "Keine Boss-Taktik aktiv.";
+
+    std::ostringstream out;
+    out << "[Taktik] " << CreatureName(encounter->entries.front()) << " geladen.";
+
+    std::vector<uint32> order;
+    for (const PriorityTarget& rule : encounter->priority)
+    {
+        if (std::find(order.begin(), order.end(), rule.entry) == order.end())
+            order.push_back(rule.entry);
+    }
+
+    if (!order.empty())
+    {
+        out << " Reihenfolge:";
+        for (size_t i = 0; i < order.size(); ++i)
+        {
+            out << (i ? " >" : "") << " " << CreatureName(order[i]);
+            for (const MarkRule& mark : encounter->marks)
+            {
+                if (mark.entry == order[i])
+                    out << " (" << IconName(mark.icon) << ")";
+            }
+        }
+        out << ".";
+    }
+
+    std::vector<Assignment> assignments;
+    std::vector<ObjectGuid> interrupters;
+    ComputeAssignments(ai->GetBot(), encounter, assignments, interrupters);
+
+    if (!encounter->tankAssignments.empty())
+    {
+        out << " Tanks:";
+        if (assignments.empty())
+            out << " keine Tanks gefunden";
+
+        for (size_t i = 0; i < assignments.size(); ++i)
+        {
+            Player* holder = sObjectMgr.GetPlayer(assignments[i].holder);
+            out << (i ? "," : "") << " " << (holder ? holder->GetName() : "?") << " -> " << CreatureName(assignments[i].rule->entry);
+        }
+        out << ".";
+    }
+
+    if (!encounter->interrupts.empty())
+    {
+        out << " Unterbrecher:";
+        if (interrupters.empty())
+            out << " keine";
+
+        for (size_t i = 0; i < interrupters.size(); ++i)
+        {
+            Player* member = sObjectMgr.GetPlayer(interrupters[i]);
+            out << (i ? "," : "") << " " << (member ? member->GetName() : "?");
+        }
+        out << ".";
+    }
+
+    if (encounter->lustBelowHealthPct < 100.0f)
+        out << " Kampfrausch unter " << uint32(encounter->lustBelowHealthPct) << "%.";
+
+    if (!encounter->resistanceAura.empty())
+        out << " Aura: " << encounter->resistanceAura << ".";
+
+    return out.str();
+}
+
+std::string TbcRaidHelper::DescribeMyTask(PlayerbotAI* ai)
+{
+    const Encounter* encounter = GetEncounter(ai);
+    if (!encounter)
+        encounter = EncounterRegistry::Instance().FindNearby(ai);
+
+    if (!encounter)
+        return std::string("tbc raid ") + (ai->HasStrategy("tbc raid", BotState::BOT_STATE_COMBAT) ? "aktiv" : "AUS") + ", kein Boss in der Naehe.";
+
+    std::vector<Assignment> assignments;
+    std::vector<ObjectGuid> interrupters;
+    ComputeAssignments(ai->GetBot(), encounter, assignments, interrupters);
+
+    static const char* roleNames[] = { "", "Tank", "Heiler", "", "Nahkampf", "", "", "", "Fernkampf" };
+    const uint8 role = GetRole(ai);
+
+    std::ostringstream out;
+    out << CreatureName(encounter->entries.front()) << ": " << (role < 9 ? roleNames[role] : "?");
+
+    for (const Assignment& assignment : assignments)
+    {
+        if (assignment.holder == ai->GetBot()->GetObjectGuid())
+            out << ", halte " << CreatureName(assignment.rule->entry);
+    }
+
+    if (std::find(interrupters.begin(), interrupters.end(), ai->GetBot()->GetObjectGuid()) != interrupters.end())
+        out << ", unterbreche " << CreatureName(encounter->interrupts.front().entry);
+
+    if (Unit* priority = GetPriorityTarget(ai))
+        out << ", Ziel " << priority->GetName();
+
+    if (!ai->HasStrategy("tbc raid", BotState::BOT_STATE_COMBAT))
+        out << " (tbc raid AUS!)";
+
+    return out.str();
 }

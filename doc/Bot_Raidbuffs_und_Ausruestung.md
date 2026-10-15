@@ -17,6 +17,32 @@ Per Flüstern an einen Bot oder im Gruppen-/Schlachtzugschat an alle Bots.
 | `auras off` | Zurück zur Standard-Aura der Skillung |
 | `nc +aura devotion` | Paladin hält fest eine Aura (`devotion`, `retribution`, `concentration`, `sanctity`, `shadow`, `fire`, `frost`, `crusader`) |
 | `roll feedback` | Bot begründet seine Würfe im Chat (inkl. „upgrade too small“ / „X needs it more“) |
+| `tactic` | Ein Bot nennt die Taktik des Bosses in der Nähe: Kill-Reihenfolge mit Markern, Tank-Zuweisung, Unterbrecher, Kampfrausch, Aura (und ob die Strategie `tbc raid` aktiv ist) |
+| `tactic ?` | Jeder Bot nennt seine eigene Aufgabe (Rolle, gehaltener Gegner, Unterbrecher, aktuelles Ziel) |
+
+## Boss-Taktiken: Zuweisungen, Positionen, Marker
+
+Beim Pull eines Bosses aus der Raid-Tabelle schreibt ein Bot (niedrigste GUID) automatisch in den Schlachtzugchat:
+`[Taktik] <Boss> geladen. Reihenfolge: ... Tanks: ... Unterbrecher: ...` – fehlt diese Zeile, ist keine Taktik aktiv.
+
+Bausteine in `TbcRaidEncounters.cpp`:
+
+| Baustein | Wirkung |
+|----------|---------|
+| `.TankAt(entry, slot, vor, seite)` | Fester Tank für einen Gegner (Slot 0 = Haupttank, 1 = erster Offtank …; mit weniger Tanks übernimmt der letzte Offtank den Rest). Der Tank spottet ihn, wenn er loskommt, und zieht ihn an seinen Platz (relativ zum Spawnpunkt und der Blickrichtung, an Wänden automatisch verkürzt) |
+| `.ClassTankAt(entry, Klasse, vor, seite, Aura)` | Gegner wird von einer Klasse gehalten (Magier auf Krosh), optional Zauberraub der Aura |
+| `.Interrupt(entry, {Zauber}, Anzahl)` | Feste Unterbrecher (Tritt, Zuschlagen, Schildhieb, Erdschock, Gegenzauber, Unterdrückungsschuss, Stille) |
+| `.Mark(entry, Symbol)` | Ein Bot setzt die Schlachtzugsymbole, damit Spieler der Reihenfolge folgen können |
+
+### High King Maulgar
+
+| Ogre | Marker | Gehalten von | Platz |
+|------|--------|--------------|-------|
+| Blindeye | Totenkopf (1.) | Offtank 1, 2 feste Unterbrecher auf Heilung / Gebet der Heilung | neben Maulgar, Richtung Rückwand |
+| Olm | Kreuz (2.) | Offtank 1 | wie Blindeye |
+| Kiggler | Viereck (3.) | Offtank 2 (mit 2 Tanks: Offtank 1) | Westende |
+| Krosh | Mond (4.) | Magier (Zauberraub auf Zauberschild), ohne Magier der letzte Offtank | Ostende |
+| Maulgar | Dreieck (5.) | Haupttank | zur Rückwand gedreht |
 
 ### Auren-Verteilung (`auras auto`)
 
