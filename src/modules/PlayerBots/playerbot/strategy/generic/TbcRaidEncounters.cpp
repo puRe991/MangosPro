@@ -160,14 +160,17 @@ EncounterRegistry::EncounterRegistry()
         .AvoidFront(18831, 10.0f)                   // Arcing Smash
         .Spread(6.0f, ROLE_CASTERS);
 
-    // Gruul: ranged spread at all times, after Ground Slam everybody spreads 15 yards
-    // before Shatter, leave Cave In, off tank stays in melee for Hurtful Strike.
+    // Gruul: the main tank holds him where he stands (no drifting into the ranged), the off tank stands on
+    // the main tank and stays second on threat so it takes Hurtful Strike, ranged spread at all times,
+    // after Ground Slam everybody spreads 15 yards before Shatter, leave Cave In.
     Add("gruul", MAP_GRUULS_LAIR, { 19044 })
+        .TankAt(19044, 0)                           // main tank at the spawn point
+        .Mark(19044, ICON_SKULL)
         .Spread(10.0f, ROLE_CASTERS)
         .SpreadWithAura(15.0f, ROLE_ALL, 33572)     // Gronn Lord's Grasp -> Stoned -> Shatter
         .SpreadWithAura(15.0f, ROLE_ALL, 33652)     // Stoned
         .AvoidArea(36240)                           // Cave In
-        .Special(SPECIAL_OFFTANK_NO_TAUNT);         // off tank takes Hurtful Strike
+        .Special(SPECIAL_OFFTANK_NO_TAUNT | SPECIAL_STACK_OFFTANKS); // off tank on the main tank for Hurtful Strike
 
     // ---------------------------------------------------------------------
     // Magtheridon's Lair
@@ -175,7 +178,23 @@ EncounterRegistry::EncounterRegistry()
 
     // Magtheridon: kill the Hellfire Channelers one by one (interrupt Shadow Bolt Volley / Dark Mending),
     // kill the Burning Abyssals, click the 5 Manticron Cubes on Blast Nova, leave the Blaze fires.
+    // Phase 1: the 5 channelers are handed out to the tanks in turn and held where they stand, the raid
+    // kills them one by one in icon order (skull, cross, square, moon, triangle), 3 fixed interrupters on
+    // Dark Mending / Shadow Bolt Volley. Phase 2+: the main tank holds Magtheridon in the middle.
     Add("magtheridon", MAP_MAGTHERIDONS_LAIR, { 17257, 17256, 17454 })
+        .TankAt(17257, 0)                           // Magtheridon (once free): main tank in the middle
+        .TankAt(17256, SLOT_ROUND_ROBIN)            // Hellfire Channelers: tanks in turn
+        .TankAt(17256, SLOT_ROUND_ROBIN)
+        .TankAt(17256, SLOT_ROUND_ROBIN)
+        .TankAt(17256, SLOT_ROUND_ROBIN)
+        .TankAt(17256, SLOT_ROUND_ROBIN)
+        .Interrupt(17256, { 30528, 30510 }, 3)      // Dark Mending, Shadow Bolt Volley
+        .Mark(17256, ICON_SKULL)
+        .Mark(17256, ICON_CROSS)
+        .Mark(17256, ICON_SQUARE)
+        .Mark(17256, ICON_MOON)
+        .Mark(17256, ICON_TRIANGLE)
+        .Mark(17257, ICON_SKULL)                    // phase 2: no channeler left, skull goes to Magtheridon
         .Kill(17256, ROLE_DPS)                      // Hellfire Channeler
         .Kill(17454, ROLE_DPS)                      // Burning Abyssal
         .AvoidObject(181832, 5.0f)                  // Blaze

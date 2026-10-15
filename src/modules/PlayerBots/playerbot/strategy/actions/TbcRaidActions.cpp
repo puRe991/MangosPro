@@ -522,22 +522,22 @@ bool TbcRaidMarkTargetsAction::Execute(Event& event)
     if (!encounter || !group)
         return false;
 
+    // an icon used by several rules goes to the first rule with a living creature
     bool marked = false;
-    for (const MarkRule& mark : encounter->marks)
+    std::vector<uint8> claimed;
+    for (size_t i = 0; i < encounter->marks.size(); ++i)
     {
-        Unit* current = ai->GetUnit(group->GetTargetIcon(mark.icon));
-        if (current && current->IsAlive() && current->GetEntry() == mark.entry)
+        const uint8 icon = encounter->marks[i].icon;
+        Unit* desired = TbcRaidHelper::GetMarkTarget(ai, encounter, i);
+        if (!desired || std::find(claimed.begin(), claimed.end(), icon) != claimed.end())
             continue;
 
-        for (Unit* creature : TbcRaidHelper::FindCreatures(bot, mark.entry, 100.0f))
-        {
-            if (!creature->IsAlive())
-                continue;
+        claimed.push_back(icon);
+        if (group->GetTargetIcon(icon) == desired->GetObjectGuid())
+            continue;
 
-            group->SetTargetIcon(mark.icon, creature->GetObjectGuid());
-            marked = true;
-            break;
-        }
+        group->SetTargetIcon(icon, desired->GetObjectGuid());
+        marked = true;
     }
 
     return marked;

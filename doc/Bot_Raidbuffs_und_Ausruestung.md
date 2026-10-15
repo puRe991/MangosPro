@@ -44,6 +44,21 @@ Bausteine in `TbcRaidEncounters.cpp`:
 | Krosh | Mond (4.) | Magier (Zauberraub auf Zauberschild), ohne Magier der letzte Offtank | Ostende |
 | Maulgar | Dreieck (5.) | Haupttank | zur Rückwand gedreht |
 
+### Gruul
+
+Haupttank hält Gruul an seinem Spawnpunkt (kein Wandern in den Fernkampf), der Offtank steht auf dem Haupttank
+und bleibt Zweiter auf der Bedrohungsliste (fängt Hurtful Strike), Totenkopf auf Gruul. Fernkampf 10 m verteilt,
+nach Ground Slam alle 15 m auseinander (Shatter), raus aus Cave In.
+
+### Magtheridon
+
+| Phase | Ablauf |
+|-------|--------|
+| 1 | Die 5 Kanalisierer werden reihum auf die Tanks verteilt und dort gehalten, wo sie stehen. Marker Totenkopf, Kreuz, Viereck, Mond, Dreieck – der Raid tötet sie in dieser Reihenfolge, der Totenkopf wandert immer auf den nächsten. 3 feste Unterbrecher auf Dark Mending / Shadow Bolt Volley |
+| 2+ | Haupttank hält Magtheridon in der Mitte (Totenkopf), 5 Bots klicken die Manticron-Würfel bei Blast Nova (Fernkampf zuerst, dann Heiler, dann Nahkampf; Bots mit Mind Exhaustion werden ersetzt) |
+
+Einstellung über Regeln mit `SLOT_ROUND_ROBIN` (Tanks reihum) und mehreren `.Mark(...)` für denselben Gegnertyp.
+
 ### Auren-Verteilung (`auras auto`)
 
 Pro Untergruppe, die Paladine in fester Reihenfolge (GUID), jeder bekommt die erste freie Aura, die er kennt:

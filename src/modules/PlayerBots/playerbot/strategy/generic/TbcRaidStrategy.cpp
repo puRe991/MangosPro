@@ -1107,12 +1107,15 @@ namespace
         }
 
         std::vector<Player*> classHolders;
+        std::vector<ObjectGuid> usedCreatures;
+        size_t roundRobin = 0;
         for (const TankAssignment& rule : encounter->tankAssignments)
         {
+            // several rules of the same entry take different creatures (lowest guid first)
             Unit* creature = nullptr;
-            for (Unit* unit : TbcRaidHelper::FindCreatures(bot, rule.entry, 150.0f))
+            for (Unit* unit : TbcRaidHelper::GetSortedCreatures(bot, rule.entry, 150.0f))
             {
-                if (unit->IsAlive())
+                if (std::find(usedCreatures.begin(), usedCreatures.end(), unit->GetObjectGuid()) == usedCreatures.end())
                 {
                     creature = unit;
                     break;
@@ -1121,6 +1124,8 @@ namespace
 
             if (!creature)
                 continue;
+
+            usedCreatures.push_back(creature->GetObjectGuid());
 
             Player* holder = nullptr;
             if (rule.playerClass)
@@ -1140,8 +1145,13 @@ namespace
             // Fewer tanks than slots: the last off tank takes the rest, a class tank falls back to it too
             if (!holder && !tanks.empty())
             {
-                const uint8 slot = rule.playerClass ? uint8(tanks.size() - 1) : rule.slot;
-                holder = tanks[std::min<size_t>(slot, tanks.size() - 1)];
+                if (rule.slot == SLOT_ROUND_ROBIN && !rule.playerClass)
+                    holder = tanks[roundRobin++ % tanks.size()];
+                else
+                {
+                    const uint8 slot = rule.playerClass ? uint8(tanks.size() - 1) : rule.slot;
+                    holder = tanks[std::min<size_t>(slot, tanks.size() - 1)];
+                }
             }
 
             if (holder)
@@ -1296,6 +1306,40 @@ Unit* TbcRaidHelper::GetInterruptTarget(PlayerbotAI* ai, std::string& spellName)
     }
 
     return nullptr;
+}
+
+std::vector<Unit*> TbcRaidHelper::GetSortedCreatures(Player* bot, uint32 entry, float range)
+{
+    std::vector<Unit*> creatures;
+    for (Unit* unit : FindCreatures(bot, entry, range))
+    {
+        // banished / not yet active creatures (Magtheridon in phase 1) are nobody's job
+        if (!unit->IsAlive() || unit->IsImmuneToPlayer() || unit->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_UNINTERACTIBLE))
+            continue;
+
+        creatures.push_back(unit);
+    }
+
+    std::sort(creatures.begin(), creatures.end(), [](Unit* a, Unit* b) { return a->GetObjectGuid().GetCounter() < b->GetObjectGuid().GetCounter(); });
+    return creatures;
+}
+
+Unit* TbcRaidHelper::GetMarkTarget(PlayerbotAI* ai, const Encounter* encounter, size_t markIndex)
+{
+    if (!encounter || markIndex >= encounter->marks.size())
+        return nullptr;
+
+    // n-th mark of this entry -> n-th living creature of this entry
+    const uint32 entry = encounter->marks[markIndex].entry;
+    size_t nth = 0;
+    for (size_t i = 0; i < markIndex; ++i)
+    {
+        if (encounter->marks[i].entry == entry)
+            nth++;
+    }
+
+    std::vector<Unit*> creatures = GetSortedCreatures(ai->GetBot(), entry, 100.0f);
+    return nth < creatures.size() ? creatures[nth] : nullptr;
 }
 
 bool TbcRaidHelper::IsRaidLeaderBot(PlayerbotAI* ai)

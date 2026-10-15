@@ -116,6 +116,11 @@ namespace ai
         static Unit* GetInterruptTarget(PlayerbotAI* ai, std::string& spellName);
         static bool IsInterrupter(PlayerbotAI* ai, Player* member);
 
+        // Creature a raid icon of the encounter belongs on right now (index into encounter->marks)
+        static Unit* GetMarkTarget(PlayerbotAI* ai, const tbcraid::Encounter* encounter, size_t markIndex);
+        // Living, attackable creatures of an entry sorted by guid (same order for every bot)
+        static std::vector<Unit*> GetSortedCreatures(Player* bot, uint32 entry, float range);
+
         // Bot that sets the raid icons and announces the tactic (lowest guid bot of the group)
         static bool IsRaidLeaderBot(PlayerbotAI* ai);
         // Short description of the tactic and the assignments, for the raid chat

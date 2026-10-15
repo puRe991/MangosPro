@@ -164,8 +164,12 @@ namespace ai
             ICON_SKULL    = 7,
         };
 
+        // Tank slot that hands creatures of the same entry out to the tanks in turn (Hellfire Channelers)
+        const uint8 SLOT_ROUND_ROBIN = 255;
+
         // A creature held by a fixed tank at a fixed spot.
-        // slot: 0 = main tank, 1 = first off tank, ... (with fewer tanks the last off tank takes the rest)
+        // slot: 0 = main tank, 1 = first off tank, ... (with fewer tanks the last off tank takes the rest),
+        //       SLOT_ROUND_ROBIN = the tanks in turn. Several rules of the same entry take different creatures.
         // playerClass: held by a player of that class instead of a tank (mage on Krosh Firehand)
         // forward / side: spot of the tank relative to the spawn point and facing of the creature
         //                 (forward = direction the creature faces at spawn, side = to its left)
@@ -187,7 +191,8 @@ namespace ai
             uint8 count;
         };
 
-        // Raid target icon on a creature, set by one bot so players can follow the kill order
+        // Raid target icon on a creature, set by one bot so players can follow the kill order.
+        // Several marks of the same entry go to the living creatures of that entry in guid order.
         struct MarkRule
         {
             uint32 entry;

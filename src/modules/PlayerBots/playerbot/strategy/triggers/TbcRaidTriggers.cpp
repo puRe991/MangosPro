@@ -100,18 +100,18 @@ bool TbcRaidMarkTargetsTrigger::IsActive()
     if (!encounter || encounter->marks.empty() || !group || !TbcRaidHelper::IsRaidLeaderBot(ai))
         return false;
 
-    for (const MarkRule& mark : encounter->marks)
+    // an icon used by several rules goes to the first rule with a living creature
+    std::vector<uint8> claimed;
+    for (size_t i = 0; i < encounter->marks.size(); ++i)
     {
-        // one icon per entry: fine while it sits on a living creature of that entry
-        Unit* marked = ai->GetUnit(group->GetTargetIcon(mark.icon));
-        if (marked && marked->IsAlive() && marked->GetEntry() == mark.entry)
+        const uint8 icon = encounter->marks[i].icon;
+        Unit* desired = TbcRaidHelper::GetMarkTarget(ai, encounter, i);
+        if (!desired || std::find(claimed.begin(), claimed.end(), icon) != claimed.end())
             continue;
 
-        for (Unit* creature : TbcRaidHelper::FindCreatures(bot, mark.entry, 100.0f))
-        {
-            if (creature->IsAlive())
-                return true;
-        }
+        claimed.push_back(icon);
+        if (group->GetTargetIcon(icon) != desired->GetObjectGuid())
+            return true;
     }
 
     return false;
