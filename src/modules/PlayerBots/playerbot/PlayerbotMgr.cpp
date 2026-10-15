@@ -668,11 +668,12 @@ std::list<std::string> PlayerbotHolder::HandlePlayerbotCommand(const std::string
         {
             bots.insert(master->GetTarget()->GetName());
         }
-        if (args == "always")
+        if (args == "always" && master)
         {
             bots.insert(master->GetName());
         }
-        else
+        // no name and no targeted bot: show the help
+        if (bots.empty())
         {
             std::string helpText = GetCommandTexts("help");
             messages.push_back(helpText);

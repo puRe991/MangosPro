@@ -16,8 +16,13 @@ static int32 GetOwnDeadlyPoisonDuration(Player* bot, Unit* target)
         if (!aura || !aura->GetHolder() || aura->GetHolder()->GetCasterGuid() != bot->GetObjectGuid())
             continue;
 
-        const std::string name = aura->GetSpellProto()->SpellName[0];
-        if (name.rfind("Deadly Poison", 0) == 0)
+        SpellEntry const* spellInfo = aura->GetSpellProto();
+        if (!spellInfo || spellInfo->SpellFamilyName != SPELLFAMILY_ROGUE)
+            continue;
+
+        // some spells have no name in the spell data (boss spells), never build a string from a null pointer
+        const char* name = spellInfo->SpellName[0];
+        if (name && strncmp(name, "Deadly Poison", 13) == 0)
             return aura->GetHolder()->GetAuraDuration();
     }
 
@@ -26,8 +31,11 @@ static int32 GetOwnDeadlyPoisonDuration(Player* bot, Unit* target)
 
 bool EnvenomTrigger::IsActive()
 {
-    return ComboPointsAvailableTrigger::IsActive() &&
-           GetOwnDeadlyPoisonDuration(bot, AI_VALUE(Unit*, "current target")) >= 0;
+    if (!ComboPointsAvailableTrigger::IsActive())
+        return false;
+
+    Unit* target = ai->GetUnit(AI_VALUE(ObjectGuid, "current target"));
+    return target && target->IsInWorld() && GetOwnDeadlyPoisonDuration(bot, target) >= 0;
 }
 
 bool ShivTrigger::IsActive()

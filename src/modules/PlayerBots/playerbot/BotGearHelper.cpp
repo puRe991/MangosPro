@@ -38,7 +38,7 @@ namespace
             if (proto->Quality > ITEM_QUALITY_EPIC || (proto->Flags & ITEM_FLAG_UNIQUE_EQUIPPABLE))
                 continue;
 
-            const std::string name = proto->Name1;
+            const std::string name = proto->Name1 ? proto->Name1 : "";
             if (name.find("Test") != std::string::npos || name.find("Deprecated") != std::string::npos || name.find("QA") == 0)
                 continue;
 
