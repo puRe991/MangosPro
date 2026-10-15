@@ -42,12 +42,13 @@ Ausführliche Anleitung: https://github.com/cmangos/issues/wiki/Installation-Ins
 > `tbc-db` neu aufsetzen (Charakter-DB vorher sichern).
 
 ## Stand der Raid-Strategien (Playerbots)
-Vorhanden für TBC: **Karazhan** (Netherspite, Shade of Aran, Big Bad Wolf, Prince Malchezaar)
-sowie die Instanz Mechanar. Dazu Classic-Raids (MC, BWL, Onyxia, Naxx).
-Noch **nicht** vorhanden: Gruul, Magtheridon, SSC, Festung der Stürme, Hyjal, Black Temple, Zul'Aman, Sunwell.
+Alle TBC-Raids haben Boss-Taktiken: Karazhan, Gruul, Magtheridon, SSC, Festung der Stürme,
+Hyjal, Black Temple, Zul'Aman, Sunwell (Strategie `tbc raid`, wird im Raid automatisch aktiv).
+Details, Kill-Reihenfolgen und bekannte Grenzen: **[doc/TBC_Raid_Taktiken.md](doc/TBC_Raid_Taktiken.md)**.
 
 Relevanter Code:
-- `src/modules/PlayerBots/playerbot/strategy/generic/*DungeonStrategies.*` – Boss-Strategien
+- `src/modules/PlayerBots/playerbot/strategy/generic/TbcRaidEncounters.cpp` – Boss-Tabelle der TBC-Raids
+- `src/modules/PlayerBots/playerbot/strategy/generic/*DungeonStrategies.*` – ältere Boss-Strategien
 - `src/modules/PlayerBots/playerbot/strategy/actions/*DungeonActions.*` – Boss-spezifische Aktionen
 - `src/modules/PlayerBots/playerbot/strategy/generic/DungeonStrategy.*` – Aktivierung je Instanz/Boss
 
