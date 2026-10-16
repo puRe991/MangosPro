@@ -152,16 +152,14 @@ EncounterRegistry::EncounterRegistry()
     // Serpentshrine Cavern
     // ---------------------------------------------------------------------
 
-    // Hydross the Unstable: the frost tank holds him inside the purification circle, at 100% Mark of Hydross
-    // he is dragged out and the nature tank takes him (and back in at 100% Mark of Corruption).
-    // The elementals spawned on every phase change die first.
+    // Serpentshrine Cavern: tank spots, kill orders, the Tainted Core chain and the other mechanics are
+    // handled by the "boss ssc" strategy (strategy/raids/ssc). Only the complementing rules stay here.
+
+    // Hydross the Unstable: the elementals spawned on every phase change die first.
     Add("hydross the unstable", MAP_SERPENTSHRINE, { 21216, 22035, 22036 })
         .ResistanceAura("frost resistance aura")
-        .FormTank(21216, 37961)                     // tank 1: clean form, tank 2: corrupted form
-        .Special(SPECIAL_HYDROSS_TANKING)
         .Kill(22035, ROLE_DPS)                      // Pure Spawn of Hydross
-        .Kill(22036, ROLE_DPS)                      // Tainted Spawn of Hydross
-        .Spread(6.0f, ROLE_CASTERS);                // Water Tomb / Vile Sludge
+        .Kill(22036, ROLE_DPS);                     // Tainted Spawn of Hydross
 
     // The Lurker Below: stay out of Whirl, kill the Ambushers (ranged) during submerge.
     Add("the lurker below", MAP_SERPENTSHRINE, { 21217, 21865, 21873 })
@@ -169,46 +167,31 @@ EncounterRegistry::EncounterRegistry()
         .Kill(21873, ROLE_MELEE)                    // Coilfang Guardian
         .AvoidWhileCasting(21217, 37660, 14.0f, ROLE_NON_TANK) // Whirl
         .AvoidArea(37478)                           // Geyser
-        .Spread(8.0f, ROLE_CASTERS)
         .Special(SPECIAL_LURKER_SPOUT);
 
     // Leotheras the Blind: everybody kills their own Inner Demon, nobody stands in the Whirlwind,
     // melee leave the demon form (Chaos Blast) to the warlock tank.
     Add("leotheras the blind", MAP_SERPENTSHRINE, { 21215, 21857, 21875 })
         .KillMine(21857)                            // Inner Demon
-        .Kill(21875, ROLE_DPS)                      // Shadow of Leotheras
         .AvoidWhileAura(21215, 37640, 12.0f, ROLE_ALL)   // Whirlwind
         .AvoidWhileAura(21215, 37673, 12.0f, ROLE_MELEE) // demon form
         .Spread(6.0f, ROLE_CASTERS);
 
     // Fathom-Lord Karathress: Spitfire Totem on sight, then Tidalvess -> Sharkkis -> Caribdis -> Karathress.
     Add("fathom-lord karathress", MAP_SERPENTSHRINE, { 21214, 21964, 21965, 21966 })
-        .Kill(22091, ROLE_DPS)                      // Spitfire Totem
-        .Kill(21965, ROLE_DPS)                      // Fathom-Guard Tidalvess
-        .Kill(21966, ROLE_DPS)                      // Fathom-Guard Sharkkis
-        .Kill(21964, ROLE_DPS)                      // Fathom-Guard Caribdis
         .Avoid(22104, 8.0f, ROLE_NON_TANK)          // Cyclone
         .Spread(6.0f, ROLE_CASTERS);
 
     // Morogrim Tidewalker: stay away from the Water Globules, murlocs are AoE tanked.
     Add("morogrim tidewalker", MAP_SERPENTSHRINE, { 21213 })
         .Avoid(21913, 10.0f)                        // Water Globule
-        .AvoidFront(21213, 12.0f)                   // Tidal Wave
-        .Spread(6.0f, ROLE_CASTERS);
+        .AvoidFront(21213, 12.0f);                  // Tidal Wave
 
     // Lady Vashj: Static Charge runs out, phase 2 Tainted Elementals and Enchanted Elementals
     // die first (before they reach Vashj), stay out of the Striders fear and the Toxic Spores.
     Add("lady vashj", MAP_SERPENTSHRINE, { 21212, 22009, 21958, 22056, 22055, 22140 })
         .LustBelow(49.0f)
-        .RunWithDebuff(38280, 12.0f)                // Static Charge
-        .Kill(22009, ROLE_DPS)                      // Tainted Elemental
-        .Kill(21958, ROLE_DPS)                      // Enchanted Elemental
-        .Kill(22055, ROLE_MELEE)                    // Coilfang Elite
-        .Kill(22140, ROLE_RANGED)                   // Toxic Sporebat
-        .Avoid(22056, 14.0f, ROLE_NON_TANK)         // Coilfang Strider (Panic)
-        .Avoid(22207, 8.0f)                         // Toxic Spores
-        .Spread(8.0f, ROLE_CASTERS)
-        .Special(SPECIAL_TAINTED_CORES);
+        .Avoid(22056, 14.0f, ROLE_NON_TANK);        // Coilfang Strider (Panic)
 
     // ---------------------------------------------------------------------
     // Tempest Keep: The Eye
