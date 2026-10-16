@@ -101,15 +101,9 @@ EncounterRegistry::EncounterRegistry()
     // Karazhan (bosses without a dedicated strategy)
     // ---------------------------------------------------------------------
 
-    // Maiden of Virtue: Holy Ground silences everyone near her, casters stay at range.
-    Add("maiden of virtue", MAP_KARAZHAN, { 16457 })
-        .Avoid(16457, 13.0f, ROLE_CASTERS)
-        .Spread(6.0f, ROLE_CASTERS);                // Holy Fire / Holy Wrath chains
-
     // The Curator: kill every Astral Flare, ranged spread for Arcing Sear.
     Add("the curator", MAP_KARAZHAN, { 15691, 17096 })
-        .Kill(17096, ROLE_DPS)
-        .Spread(6.0f, ROLE_CASTERS);
+        .Kill(17096, ROLE_DPS);
 
     // Terestian Illhoof: free the sacrificed player (Demon Chains), kill Kil'rek.
     Add("terestian illhoof", MAP_KARAZHAN, { 15688, 17248, 17229 })
@@ -122,8 +116,7 @@ EncounterRegistry::EncounterRegistry()
         .ResistanceAura("fire resistance aura")
         .AvoidArea(30129)
         .Kill(17261, ROLE_DPS)
-        .AvoidFront(17225, 25.0f)                   // Bellowing Roar / Cleave / Smoldering Breath
-        .Spread(8.0f, ROLE_CASTERS);
+        .AvoidFront(17225, 25.0f, ROLE_MELEE);      // Cleave / Smoldering Breath (ranged stack, see "boss karazhan")
 
     // Opera - The Crone: never touch the Cyclone.
     Add("the crone", MAP_KARAZHAN, { 18168, 18412 })
@@ -133,27 +126,16 @@ EncounterRegistry::EncounterRegistry()
     // Gruul's Lair
     // ---------------------------------------------------------------------
 
-    // High King Maulgar: kill order Blindeye -> Olm (and his felhunters) -> Kiggler -> Krosh -> Maulgar.
-    // Krosh is only fought from range (Blast Wave), nobody stands in Maulgar's Whirlwind.
+    // High King Maulgar / Gruul / Magtheridon: kill order, positions, spreading and the Manticron
+    // Cubes are handled by the "boss gruul" and "boss magtheridon" strategies (strategy/raids).
     Add("high king maulgar", MAP_GRUULS_LAIR, { 18831, 18832, 18834, 18835, 18836 })
-        .Kill(18836, ROLE_DPS)                      // Blindeye the Seer (healer)
-        .Kill(18834, ROLE_DPS)                      // Olm the Summoner
-        .Kill(18847, ROLE_DPS)                      // Wild Fel Stalker
-        .Kill(18835, ROLE_DPS)                      // Kiggler the Crazed
-        .Kill(18832, ROLE_RANGED)                   // Krosh Firehand
-        .AvoidWhileAura(18831, 33238, 12.0f, ROLE_NON_TANK) // Whirlwind
-        .Avoid(18832, 16.0f, ROLE_NON_TANK)         // Blast Wave
         .AvoidFront(18831, 10.0f)                   // Arcing Smash
         .Spread(6.0f, ROLE_CASTERS);
 
     // Gruul: ranged spread at all times, after Ground Slam everybody spreads 15 yards
     // before Shatter, leave Cave In, off tank stays in melee for Hurtful Strike.
     Add("gruul", MAP_GRUULS_LAIR, { 19044 })
-        .Spread(10.0f, ROLE_CASTERS)
-        .SpreadWithAura(15.0f, ROLE_ALL, 33572)     // Gronn Lord's Grasp -> Stoned -> Shatter
-        .SpreadWithAura(15.0f, ROLE_ALL, 33652)     // Stoned
-        .AvoidArea(36240)                           // Cave In
-        .Special(SPECIAL_OFFTANK_NO_TAUNT);         // off tank takes Hurtful Strike
+        .Special(SPECIAL_OFFTANK_NO_TAUNT);         // off tank takes Hurtful Strike         // off tank takes Hurtful Strike
 
     // ---------------------------------------------------------------------
     // Magtheridon's Lair
@@ -162,13 +144,9 @@ EncounterRegistry::EncounterRegistry()
     // Magtheridon: kill the Hellfire Channelers one by one (interrupt Shadow Bolt Volley / Dark Mending),
     // kill the Burning Abyssals, click the 5 Manticron Cubes on Blast Nova, leave the Blaze fires.
     Add("magtheridon", MAP_MAGTHERIDONS_LAIR, { 17257, 17256, 17454 })
-        .Kill(17256, ROLE_DPS)                      // Hellfire Channeler
-        .Kill(17454, ROLE_DPS)                      // Burning Abyssal
         .AvoidObject(181832, 5.0f)                  // Blaze
         .AvoidArea(30757)                           // Conflagration
-        .AvoidFront(17257, 12.0f)                   // Cleave
-        .Spread(6.0f, ROLE_CASTERS)
-        .Special(SPECIAL_MANTICRON_CUBES);
+        .AvoidFront(17257, 12.0f);                  // Cleave
 
     // ---------------------------------------------------------------------
     // Serpentshrine Cavern

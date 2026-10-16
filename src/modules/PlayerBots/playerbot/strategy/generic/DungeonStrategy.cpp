@@ -19,9 +19,6 @@ void DungeonStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
         "enter blackwing lair",
         NextAction::array(0, new NextAction("enable blackwing lair strategy", 100.0f), NULL)));
 
-    triggers.push_back(new TriggerNode(
-        "enter karazhan",
-        NextAction::array(0, new NextAction("enable karazhan strategy", 100.0f), NULL)));
     
     triggers.push_back(new TriggerNode(
         "enter mechanar",
@@ -30,6 +27,10 @@ void DungeonStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
     triggers.push_back(new TriggerNode(
         "enter tbc raid",
         NextAction::array(0, new NextAction("enable tbc raid strategy", 100.0f), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "raid boss map strategy",
+        NextAction::array(0, new NextAction("update raid boss map strategy", 100.0f), NULL)));
 }
 
 void DungeonStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
@@ -59,14 +60,6 @@ void DungeonStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
         NextAction::array(0, new NextAction("disable blackwing lair strategy", 100.0f), NULL)));
 
     triggers.push_back(new TriggerNode(
-        "enter karazhan",
-        NextAction::array(0, new NextAction("enable karazhan strategy", 100.0f), NULL)));
-
-    triggers.push_back(new TriggerNode(
-        "leave karazhan",
-        NextAction::array(0, new NextAction("disable karazhan strategy", 100.0f), NULL)));
-
-    triggers.push_back(new TriggerNode(
         "enter mechanar",
         NextAction::array(0, new NextAction("enable mechanar strategy", 100.0f), NULL)));
 
@@ -81,4 +74,8 @@ void DungeonStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
     triggers.push_back(new TriggerNode(
         "leave tbc raid",
         NextAction::array(0, new NextAction("disable tbc raid strategy", 100.0f), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "raid boss map strategy",
+        NextAction::array(0, new NextAction("update raid boss map strategy", 100.0f), NULL)));
 }

@@ -13,6 +13,7 @@
 #include "values/ValueContext.h"
 #include "values/SharedValueContext.h"
 #include "TbcRaidContext.h"
+#include "raids/RaidBossContexts.h"
 
 
 using namespace ai;
@@ -37,6 +38,9 @@ AiObjectContext::AiObjectContext(PlayerbotAI* ai) : PlayerbotAIAware(ai)
     triggerContexts.Add(new TbcRaidTriggerContext());
 
     valueContexts.Add(new ValueContext());
+
+    // Dedicated boss strategies of the raids and dungeons (strategy/raids)
+    AddRaidBossContexts(strategyContexts, actionContexts, triggerContexts, valueContexts);
 
     //valueContexts.Add(&sSharedValueContext);
 }

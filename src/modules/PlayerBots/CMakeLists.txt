@@ -61,6 +61,11 @@ file(GLOB Playerbot_Values ${CMAKE_CURRENT_SOURCE_DIR}/playerbot/strategy/values
     source_group("Player Bot\\Strategies\\Values" FILES ${Playerbot_Values})
     LIST(APPEND LIBRARY_SRCS ${Playerbot_Values})
 
+#Raid and dungeon boss strategies
+file(GLOB_RECURSE Playerbot_Raids ${CMAKE_CURRENT_SOURCE_DIR}/playerbot/strategy/raids/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/playerbot/strategy/raids/*.h)
+    source_group("Player Bot\\Strategies\\Raids" FILES ${Playerbot_Raids})
+    LIST(APPEND LIBRARY_SRCS ${Playerbot_Raids})
+
 ## Class files
 
 #Druid AI
