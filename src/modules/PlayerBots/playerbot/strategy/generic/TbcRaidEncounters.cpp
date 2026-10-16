@@ -101,15 +101,9 @@ EncounterRegistry::EncounterRegistry()
     // Karazhan (bosses without a dedicated strategy)
     // ---------------------------------------------------------------------
 
-    // Maiden of Virtue: Holy Ground silences everyone near her, casters stay at range.
-    Add("maiden of virtue", MAP_KARAZHAN, { 16457 })
-        .Avoid(16457, 13.0f, ROLE_CASTERS)
-        .Spread(6.0f, ROLE_CASTERS);                // Holy Fire / Holy Wrath chains
-
     // The Curator: kill every Astral Flare, ranged spread for Arcing Sear.
     Add("the curator", MAP_KARAZHAN, { 15691, 17096 })
-        .Kill(17096, ROLE_DPS)
-        .Spread(6.0f, ROLE_CASTERS);
+        .Kill(17096, ROLE_DPS);
 
     // Terestian Illhoof: free the sacrificed player (Demon Chains), kill Kil'rek.
     Add("terestian illhoof", MAP_KARAZHAN, { 15688, 17248, 17229 })
@@ -122,8 +116,7 @@ EncounterRegistry::EncounterRegistry()
         .ResistanceAura("fire resistance aura")
         .AvoidArea(30129)
         .Kill(17261, ROLE_DPS)
-        .AvoidFront(17225, 25.0f)                   // Bellowing Roar / Cleave / Smoldering Breath
-        .Spread(8.0f, ROLE_CASTERS);
+        .AvoidFront(17225, 25.0f, ROLE_MELEE);      // Cleave / Smoldering Breath (ranged stack, see "boss karazhan")
 
     // Opera - The Crone: never touch the Cyclone.
     Add("the crone", MAP_KARAZHAN, { 18168, 18412 })
