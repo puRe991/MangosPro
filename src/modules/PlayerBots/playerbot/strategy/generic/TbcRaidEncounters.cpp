@@ -197,46 +197,26 @@ EncounterRegistry::EncounterRegistry()
     // Tempest Keep: The Eye
     // ---------------------------------------------------------------------
 
-    // Al'ar: kill the Embers, get out of Flame Patches, swap tanks on Melt Armor, ranged spread for Dive Bomb.
+    // Tempest Keep: platforms, embers, Arcane Orbs, priests, advisors, weapons, phoenixes and Gravity Lapse
+    // are handled by the "boss tempest keep" strategy (strategy/raids/tk). Only the complementing rules stay here.
+
+    // Al'ar
     Add("al'ar", MAP_THE_EYE, { 19514, 19551 })
-        .ResistanceAura("fire resistance aura")
-        .Kill(19551, ROLE_DPS)                      // Ember of Al'ar
-        .Avoid(20602, 7.0f)                         // Flame Patch
-        .TankSwap(19514, 35410, 1)                  // Melt Armor
-        .Spread(10.0f, ROLE_CASTERS);
+        .ResistanceAura("fire resistance aura");
 
-    // Void Reaver: ranged spread out at range and move away from Arcane Orbs.
-    Add("void reaver", MAP_THE_EYE, { 19516 })
-        .Spread(12.0f, ROLE_CASTERS);
+    // Void Reaver (registered to identify the encounter)
+    Add("void reaver", MAP_THE_EYE, { 19516 });
 
-    // High Astromancer Solarian: Wrath of the Astromancer runs out of the raid, kill the priests first.
+    // High Astromancer Solarian: Wrath of the Astromancer runs out of the raid, kill the agents.
     Add("high astromancer solarian", MAP_THE_EYE, { 18805, 18806, 18925 })
-        .RunWithDebuff(42783, 22.0f)                // Wrath of the Astromancer
         .RunWithDebuff(33044, 22.0f)
-        .Kill(18806, ROLE_DPS)                      // Solarium Priest
         .Kill(18925, ROLE_DPS)                      // Solarium Agent
         .Spread(8.0f, ROLE_CASTERS);
 
-    // Kael'thas Sunstrider: kite Thaladred, melee away from Capernian, weapons kill order
-    // (Mace -> Staff -> Dagger -> Sword -> Axe -> Bow -> Shield), kill the Phoenix Eggs,
-    // stay out of Flame Strikes and Nether Vapor, spread in Gravity Lapse.
+    // Kael'thas Sunstrider: stay out of Nether Vapor.
     Add("kael'thas sunstrider", MAP_THE_EYE, { 19622, 20060, 20062, 20063, 20064,
         21268, 21269, 21270, 21271, 21272, 21273, 21274, 21362, 21364 })
-        .LustBelow(50.0f)                           // Kael'thas himself, phase 4/5
-        .Kite(20064, 18.0f, ROLE_ALL)               // Thaladred the Darkener gaze
-        .Avoid(20062, 12.0f, ROLE_MELEE)            // Capernian Arcane Burst
-        .Kill(21364, ROLE_DPS)                      // Phoenix Egg
-        .Kill(21270, ROLE_DPS)                      // Cosmic Infuser
-        .Kill(21274, ROLE_DPS)                      // Staff of Disintegration
-        .Kill(21271, ROLE_DPS)                      // Infinity Blades
-        .Kill(21272, ROLE_DPS)                      // Warp Slicer
-        .Kill(21269, ROLE_DPS)                      // Devastation
-        .Kill(21268, ROLE_DPS)                      // Netherstrand Longbow
-        .Kill(21273, ROLE_DPS)                      // Phaseshift Bulwark
-        .Avoid(21369, 10.0f)                        // Flame Strike
-        .Avoid(21002, 7.0f)                         // Nether Vapor
-        .SpreadWithAura(12.0f, ROLE_ALL, 39432)     // Gravity Lapse
-        .Spread(10.0f, ROLE_CASTERS);               // Conflagration / Flame Strike
+        .Avoid(21002, 7.0f);                        // Nether Vapor
 
     // ---------------------------------------------------------------------
     // Hyjal Summit
