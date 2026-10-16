@@ -309,23 +309,19 @@ EncounterRegistry::EncounterRegistry()
     // Zul'Aman
     // ---------------------------------------------------------------------
 
+    // Zul'Aman: tank swaps, Electrical Storm, Fire Bombs, kill orders and the Zul'jin phases are handled by
+    // the "boss zul'aman" strategy (strategy/raids/za). Only the complementing rules stay here.
+
     // Nalorakk: one tank for the troll form, the other one taunts on every bear form change.
-    Add("nalorakk", MAP_ZULAMAN, { 23576 })
-        .FormTank(23576, 42377)
-        .Spread(6.0f, ROLE_CASTERS);
+    Add("nalorakk", MAP_ZULAMAN, { 23576 });
 
     // Akil'zon: stack under the Electrical Storm target, otherwise spread for Static Disruption.
-    Add("akil'zon", MAP_ZULAMAN, { 23574 })
-        .GatherOn(43648, 5.0f)
-        .Spread(8.0f, ROLE_CASTERS);
+    Add("akil'zon", MAP_ZULAMAN, { 23574 });
 
     // Jan'alai: get out of the Fire Bombs, kill the Amani'shi Hatchers before they reach the eggs.
     Add("jan'alai", MAP_ZULAMAN, { 23578, 23818, 24504 })
         .Kill(23818, ROLE_DPS)
-        .Kill(24504, ROLE_DPS)
-        .Avoid(23920, 6.0f)                         // Fire Bomb
-        .AvoidFront(23578, 25.0f)                   // Flame Breath
-        .Spread(6.0f, ROLE_CASTERS);
+        .Kill(24504, ROLE_DPS);
 
     // Halazzi: kill the Corrupted Lightning Totem immediately.
     Add("halazzi", MAP_ZULAMAN, { 23577, 24143 })
@@ -334,15 +330,11 @@ EncounterRegistry::EncounterRegistry()
 
     // Hex Lord Malacrass: Alyson Antille (healer) dies first, spread vs. Spirit Bolts splash.
     Add("hex lord malacrass", MAP_ZULAMAN, { 24239 })
-        .Kill(24240, ROLE_DPS)
         .Spread(6.0f, ROLE_CASTERS);
 
     // Zul'jin: out of Whirlwind, Feather Vortexes and Columns of Fire.
     Add("zul'jin", MAP_ZULAMAN, { 23863 })
-        .AvoidWhileAura(23863, 17207, 10.0f, ROLE_NON_TANK)
-        .Avoid(24136, 7.0f)                         // Feather Vortex
-        .Avoid(24187, 7.0f)                         // Column of Fire
-        .Spread(8.0f, ROLE_CASTERS);
+        .Avoid(24187, 7.0f);                        // Column of Fire
 
     // ---------------------------------------------------------------------
     // Sunwell Plateau
