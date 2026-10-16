@@ -598,6 +598,26 @@ bool MotionMaster::MoveFall(ObjectGuid guid/* = ObjectGuid()*/, uint32 relayId/*
     return true;
 }
 
+void MotionMaster::MoveJump(float x, float y, float z, float horizontalSpeed, float /*max_height*/, uint32 id/* = EVENT_JUMP*/)
+{
+    // Parabolic splines are not supported (see MoveSpline.cpp), so a jump down is sent as a fall
+    // that also covers the horizontal distance, any other jump as a straight move at horizontalSpeed
+    Movement::MoveSplineInit init(*m_owner);
+    init.MoveTo(x, y, z);
+
+    if (m_owner->GetPositionZ() - z >= g_moveFallMinFallDistance)
+    {
+        init.SetFall();
+        Mutate(new FallMovementGenerator(init, id, false));
+    }
+    else
+    {
+        init.SetWalk(false);
+        init.SetVelocity(horizontalSpeed);
+        Mutate(new EffectMovementGenerator(init, id, false));
+    }
+}
+
 void MotionMaster::Mutate(MovementGenerator* m)
 {
     if (!empty())
