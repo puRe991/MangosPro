@@ -222,34 +222,25 @@ EncounterRegistry::EncounterRegistry()
     // Hyjal Summit
     // ---------------------------------------------------------------------
 
-    // Rage Winterchill: get out of Death and Decay.
-    Add("rage winterchill", MAP_HYJAL, { 17767 })
-        .AvoidArea(31258)
-        .Spread(6.0f, ROLE_CASTERS);
+    // Hyjal Summit: positions, Death and Decay, Infernals, Mark of Kaz'rogal, Doom, Doomfire and Air Burst
+    // are handled by the "boss hyjal" strategy (strategy/raids/hyjal). Only the complementing rules stay here.
 
-    // Anetheron: Infernals are tanked away, nobody else stands in their Immolation.
+    // Rage Winterchill (registered to identify the encounter)
+    Add("rage winterchill", MAP_HYJAL, { 17767 });
+
+    // Anetheron: nobody but the tank in front of him (Carrion Swarm).
     Add("anetheron", MAP_HYJAL, { 17808, 17818 })
-        .Avoid(17818, 10.0f, ROLE_NON_TANK)         // Towering Infernal
-        .AvoidFront(17808, 30.0f)                   // Carrion Swarm
-        .Spread(6.0f, ROLE_CASTERS);
+        .AvoidFront(17808, 30.0f);                  // Carrion Swarm
 
-    // Kaz'rogal: a mana user with Mark of Kaz'rogal and low mana leaves the raid before exploding.
-    Add("kaz'rogal", MAP_HYJAL, { 17888 })
-        .RunWithDebuff(31447, 15.0f, 20.0f)
-        .AvoidFront(17888, 10.0f);                  // Malevolent Cleave
+    // Kaz'rogal (registered to identify the encounter)
+    Add("kaz'rogal", MAP_HYJAL, { 17888 });
 
-    // Azgalor: leave Rain of Fire, Doomed players leave the raid before the Doomguard spawns.
-    Add("azgalor", MAP_HYJAL, { 17842 })
-        .AvoidArea(31340)
-        .RunWithDebuff(31347, 25.0f)
-        .AvoidFront(17842, 10.0f);                  // Cleave
+    // Azgalor (registered to identify the encounter)
+    Add("azgalor", MAP_HYJAL, { 17842 });
 
-    // Archimonde: never touch Doomfire, ranged spread for Air Burst.
+    // Archimonde: fire resistance aura.
     Add("archimonde", MAP_HYJAL, { 17968 })
-        .ResistanceAura("fire resistance aura")
-        .Avoid(18095, 7.0f)                         // Doomfire
-        .Avoid(18104, 7.0f)                         // Doomfire Spirit
-        .Spread(10.0f, ROLE_CASTERS);
+        .ResistanceAura("fire resistance aura");
 
     // ---------------------------------------------------------------------
     // Black Temple
