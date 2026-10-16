@@ -80,14 +80,14 @@ bool UpdateRaidBossMapStrategyAction::Execute(Event& event)
         const bool active = ai->HasStrategy(entry.second, BotState::BOT_STATE_COMBAT);
         if (entry.second == wanted && !active)
         {
-            ai->ChangeStrategy("+" + entry.second, BotState::BOT_STATE_COMBAT);
-            ai->ChangeStrategy("+" + entry.second, BotState::BOT_STATE_NON_COMBAT);
+            // All engines, so the reaction triggers also fire while the bot is casting
+            ai->ChangeStrategy("+" + entry.second, BotState::BOT_STATE_ALL);
             changed = true;
         }
         else if (entry.second != wanted && active)
         {
-            ai->ChangeStrategy("-" + entry.second, BotState::BOT_STATE_COMBAT);
-            ai->ChangeStrategy("-" + entry.second, BotState::BOT_STATE_NON_COMBAT);
+            // All engines, so the reaction triggers also fire while the bot is casting
+            ai->ChangeStrategy("-" + entry.second, BotState::BOT_STATE_ALL);
             changed = true;
         }
     }

@@ -152,16 +152,14 @@ EncounterRegistry::EncounterRegistry()
     // Serpentshrine Cavern
     // ---------------------------------------------------------------------
 
-    // Hydross the Unstable: the frost tank holds him inside the purification circle, at 100% Mark of Hydross
-    // he is dragged out and the nature tank takes him (and back in at 100% Mark of Corruption).
-    // The elementals spawned on every phase change die first.
+    // Serpentshrine Cavern: tank spots, kill orders, the Tainted Core chain and the other mechanics are
+    // handled by the "boss ssc" strategy (strategy/raids/ssc). Only the complementing rules stay here.
+
+    // Hydross the Unstable: the elementals spawned on every phase change die first.
     Add("hydross the unstable", MAP_SERPENTSHRINE, { 21216, 22035, 22036 })
         .ResistanceAura("frost resistance aura")
-        .FormTank(21216, 37961)                     // tank 1: clean form, tank 2: corrupted form
-        .Special(SPECIAL_HYDROSS_TANKING)
         .Kill(22035, ROLE_DPS)                      // Pure Spawn of Hydross
-        .Kill(22036, ROLE_DPS)                      // Tainted Spawn of Hydross
-        .Spread(6.0f, ROLE_CASTERS);                // Water Tomb / Vile Sludge
+        .Kill(22036, ROLE_DPS);                     // Tainted Spawn of Hydross
 
     // The Lurker Below: stay out of Whirl, kill the Ambushers (ranged) during submerge.
     Add("the lurker below", MAP_SERPENTSHRINE, { 21217, 21865, 21873 })
@@ -169,146 +167,101 @@ EncounterRegistry::EncounterRegistry()
         .Kill(21873, ROLE_MELEE)                    // Coilfang Guardian
         .AvoidWhileCasting(21217, 37660, 14.0f, ROLE_NON_TANK) // Whirl
         .AvoidArea(37478)                           // Geyser
-        .Spread(8.0f, ROLE_CASTERS)
         .Special(SPECIAL_LURKER_SPOUT);
 
     // Leotheras the Blind: everybody kills their own Inner Demon, nobody stands in the Whirlwind,
     // melee leave the demon form (Chaos Blast) to the warlock tank.
     Add("leotheras the blind", MAP_SERPENTSHRINE, { 21215, 21857, 21875 })
         .KillMine(21857)                            // Inner Demon
-        .Kill(21875, ROLE_DPS)                      // Shadow of Leotheras
         .AvoidWhileAura(21215, 37640, 12.0f, ROLE_ALL)   // Whirlwind
         .AvoidWhileAura(21215, 37673, 12.0f, ROLE_MELEE) // demon form
         .Spread(6.0f, ROLE_CASTERS);
 
     // Fathom-Lord Karathress: Spitfire Totem on sight, then Tidalvess -> Sharkkis -> Caribdis -> Karathress.
     Add("fathom-lord karathress", MAP_SERPENTSHRINE, { 21214, 21964, 21965, 21966 })
-        .Kill(22091, ROLE_DPS)                      // Spitfire Totem
-        .Kill(21965, ROLE_DPS)                      // Fathom-Guard Tidalvess
-        .Kill(21966, ROLE_DPS)                      // Fathom-Guard Sharkkis
-        .Kill(21964, ROLE_DPS)                      // Fathom-Guard Caribdis
         .Avoid(22104, 8.0f, ROLE_NON_TANK)          // Cyclone
         .Spread(6.0f, ROLE_CASTERS);
 
     // Morogrim Tidewalker: stay away from the Water Globules, murlocs are AoE tanked.
     Add("morogrim tidewalker", MAP_SERPENTSHRINE, { 21213 })
         .Avoid(21913, 10.0f)                        // Water Globule
-        .AvoidFront(21213, 12.0f)                   // Tidal Wave
-        .Spread(6.0f, ROLE_CASTERS);
+        .AvoidFront(21213, 12.0f);                  // Tidal Wave
 
     // Lady Vashj: Static Charge runs out, phase 2 Tainted Elementals and Enchanted Elementals
     // die first (before they reach Vashj), stay out of the Striders fear and the Toxic Spores.
     Add("lady vashj", MAP_SERPENTSHRINE, { 21212, 22009, 21958, 22056, 22055, 22140 })
         .LustBelow(49.0f)
-        .RunWithDebuff(38280, 12.0f)                // Static Charge
-        .Kill(22009, ROLE_DPS)                      // Tainted Elemental
-        .Kill(21958, ROLE_DPS)                      // Enchanted Elemental
-        .Kill(22055, ROLE_MELEE)                    // Coilfang Elite
-        .Kill(22140, ROLE_RANGED)                   // Toxic Sporebat
-        .Avoid(22056, 14.0f, ROLE_NON_TANK)         // Coilfang Strider (Panic)
-        .Avoid(22207, 8.0f)                         // Toxic Spores
-        .Spread(8.0f, ROLE_CASTERS)
-        .Special(SPECIAL_TAINTED_CORES);
+        .Avoid(22056, 14.0f, ROLE_NON_TANK);        // Coilfang Strider (Panic)
 
     // ---------------------------------------------------------------------
     // Tempest Keep: The Eye
     // ---------------------------------------------------------------------
 
-    // Al'ar: kill the Embers, get out of Flame Patches, swap tanks on Melt Armor, ranged spread for Dive Bomb.
+    // Tempest Keep: platforms, embers, Arcane Orbs, priests, advisors, weapons, phoenixes and Gravity Lapse
+    // are handled by the "boss tempest keep" strategy (strategy/raids/tk). Only the complementing rules stay here.
+
+    // Al'ar
     Add("al'ar", MAP_THE_EYE, { 19514, 19551 })
-        .ResistanceAura("fire resistance aura")
-        .Kill(19551, ROLE_DPS)                      // Ember of Al'ar
-        .Avoid(20602, 7.0f)                         // Flame Patch
-        .TankSwap(19514, 35410, 1)                  // Melt Armor
-        .Spread(10.0f, ROLE_CASTERS);
+        .ResistanceAura("fire resistance aura");
 
-    // Void Reaver: ranged spread out at range and move away from Arcane Orbs.
-    Add("void reaver", MAP_THE_EYE, { 19516 })
-        .Spread(12.0f, ROLE_CASTERS);
+    // Void Reaver (registered to identify the encounter)
+    Add("void reaver", MAP_THE_EYE, { 19516 });
 
-    // High Astromancer Solarian: Wrath of the Astromancer runs out of the raid, kill the priests first.
+    // High Astromancer Solarian: Wrath of the Astromancer runs out of the raid, kill the agents.
     Add("high astromancer solarian", MAP_THE_EYE, { 18805, 18806, 18925 })
-        .RunWithDebuff(42783, 22.0f)                // Wrath of the Astromancer
         .RunWithDebuff(33044, 22.0f)
-        .Kill(18806, ROLE_DPS)                      // Solarium Priest
         .Kill(18925, ROLE_DPS)                      // Solarium Agent
         .Spread(8.0f, ROLE_CASTERS);
 
-    // Kael'thas Sunstrider: kite Thaladred, melee away from Capernian, weapons kill order
-    // (Mace -> Staff -> Dagger -> Sword -> Axe -> Bow -> Shield), kill the Phoenix Eggs,
-    // stay out of Flame Strikes and Nether Vapor, spread in Gravity Lapse.
+    // Kael'thas Sunstrider: stay out of Nether Vapor.
     Add("kael'thas sunstrider", MAP_THE_EYE, { 19622, 20060, 20062, 20063, 20064,
         21268, 21269, 21270, 21271, 21272, 21273, 21274, 21362, 21364 })
-        .LustBelow(50.0f)                           // Kael'thas himself, phase 4/5
-        .Kite(20064, 18.0f, ROLE_ALL)               // Thaladred the Darkener gaze
-        .Avoid(20062, 12.0f, ROLE_MELEE)            // Capernian Arcane Burst
-        .Kill(21364, ROLE_DPS)                      // Phoenix Egg
-        .Kill(21270, ROLE_DPS)                      // Cosmic Infuser
-        .Kill(21274, ROLE_DPS)                      // Staff of Disintegration
-        .Kill(21271, ROLE_DPS)                      // Infinity Blades
-        .Kill(21272, ROLE_DPS)                      // Warp Slicer
-        .Kill(21269, ROLE_DPS)                      // Devastation
-        .Kill(21268, ROLE_DPS)                      // Netherstrand Longbow
-        .Kill(21273, ROLE_DPS)                      // Phaseshift Bulwark
-        .Avoid(21369, 10.0f)                        // Flame Strike
-        .Avoid(21002, 7.0f)                         // Nether Vapor
-        .SpreadWithAura(12.0f, ROLE_ALL, 39432)     // Gravity Lapse
-        .Spread(10.0f, ROLE_CASTERS);               // Conflagration / Flame Strike
+        .Avoid(21002, 7.0f);                        // Nether Vapor
 
     // ---------------------------------------------------------------------
     // Hyjal Summit
     // ---------------------------------------------------------------------
 
-    // Rage Winterchill: get out of Death and Decay.
-    Add("rage winterchill", MAP_HYJAL, { 17767 })
-        .AvoidArea(31258)
-        .Spread(6.0f, ROLE_CASTERS);
+    // Hyjal Summit: positions, Death and Decay, Infernals, Mark of Kaz'rogal, Doom, Doomfire and Air Burst
+    // are handled by the "boss hyjal" strategy (strategy/raids/hyjal). Only the complementing rules stay here.
 
-    // Anetheron: Infernals are tanked away, nobody else stands in their Immolation.
+    // Rage Winterchill (registered to identify the encounter)
+    Add("rage winterchill", MAP_HYJAL, { 17767 });
+
+    // Anetheron: nobody but the tank in front of him (Carrion Swarm).
     Add("anetheron", MAP_HYJAL, { 17808, 17818 })
-        .Avoid(17818, 10.0f, ROLE_NON_TANK)         // Towering Infernal
-        .AvoidFront(17808, 30.0f)                   // Carrion Swarm
-        .Spread(6.0f, ROLE_CASTERS);
+        .AvoidFront(17808, 30.0f);                  // Carrion Swarm
 
-    // Kaz'rogal: a mana user with Mark of Kaz'rogal and low mana leaves the raid before exploding.
-    Add("kaz'rogal", MAP_HYJAL, { 17888 })
-        .RunWithDebuff(31447, 15.0f, 20.0f)
-        .AvoidFront(17888, 10.0f);                  // Malevolent Cleave
+    // Kaz'rogal (registered to identify the encounter)
+    Add("kaz'rogal", MAP_HYJAL, { 17888 });
 
-    // Azgalor: leave Rain of Fire, Doomed players leave the raid before the Doomguard spawns.
-    Add("azgalor", MAP_HYJAL, { 17842 })
-        .AvoidArea(31340)
-        .RunWithDebuff(31347, 25.0f)
-        .AvoidFront(17842, 10.0f);                  // Cleave
+    // Azgalor (registered to identify the encounter)
+    Add("azgalor", MAP_HYJAL, { 17842 });
 
-    // Archimonde: never touch Doomfire, ranged spread for Air Burst.
+    // Archimonde: fire resistance aura.
     Add("archimonde", MAP_HYJAL, { 17968 })
-        .ResistanceAura("fire resistance aura")
-        .Avoid(18095, 7.0f)                         // Doomfire
-        .Avoid(18104, 7.0f)                         // Doomfire Spirit
-        .Spread(10.0f, ROLE_CASTERS);
+        .ResistanceAura("fire resistance aura");
 
     // ---------------------------------------------------------------------
     // Black Temple
     // ---------------------------------------------------------------------
 
+    // Black Temple: spines, gaze kiting, channelers, Vengeful Spirits, Bloodboil groups, Fatal Attraction,
+    // council tanking and the Illidan phases are handled by the "boss black temple" strategy
+    // (strategy/raids/bt). Only the complementing rules stay here.
+
     // High Warlord Naj'entus: spread for Needle Spine, free impaled players, break Tidal Shield with a spine.
-    Add("high warlord naj'entus", MAP_BLACK_TEMPLE, { 22887 })
-        .Spread(10.0f, ROLE_CASTERS)
-        .Special(SPECIAL_NAJENTUS_SPINES);
+    Add("high warlord naj'entus", MAP_BLACK_TEMPLE, { 22887 });
 
     // Supremus: Gaze target kites the boss, nobody stands in Volcanoes or the Molten Flame trail.
     Add("supremus", MAP_BLACK_TEMPLE, { 22898 })
         .ResistanceAura("fire resistance aura")
-        .Kite(22898, 22.0f, ROLE_NON_TANK)
-        .Avoid(23085, 12.0f)                        // Volcano
-        .Avoid(23095, 5.0f)                         // Molten Flame
-        .Spread(6.0f, ROLE_CASTERS);
+        .Avoid(23095, 5.0f);                        // Molten Flame
 
     // Shade of Akama: Sorcerers and Channelers die first, then the other Ashtongue adds.
     Add("shade of akama", MAP_BLACK_TEMPLE, { 22841, 23421, 23215, 23216 })
-        .Kill(23215, ROLE_DPS)                      // Ashtongue Sorcerer
-        .Kill(23421, ROLE_DPS)                      // Ashtongue Channeler
+        .Kill(23215, ROLE_RANGED)                   // Ashtongue Sorcerer
+        .Kill(23421, ROLE_RANGED)                   // Ashtongue Channeler
         .Kill(23524, ROLE_DPS)                      // Ashtongue Spiritbinder
         .Kill(23523, ROLE_DPS)                      // Ashtongue Elementalist
         .Kill(23318, ROLE_DPS)                      // Ashtongue Rogue
@@ -317,16 +270,12 @@ EncounterRegistry::EncounterRegistry()
     // Teron Gorefiend: the Shadowy Constructs can only be damaged by the Vengeful Spirits,
     // a player with Shadow of Death controls his spirit and kills them.
     Add("teron gorefiend", MAP_BLACK_TEMPLE, { 22871, 23111 })
-        .ResistanceAura("shadow resistance aura")
-        .Spread(6.0f, ROLE_CASTERS)
-        .Special(SPECIAL_TERON_SPIRITS);
+        .ResistanceAura("shadow resistance aura");
 
     // Gurtogg Bloodboil: nobody but the tanks in front (Arcing Smash), ranged spread for Fel Geyser.
     // Bloodboil hits the 5 players furthest away: players with 2+ stacks move in, fresh players take the next ones.
     Add("gurtogg bloodboil", MAP_BLACK_TEMPLE, { 22948 })
-        .AvoidFront(22948, 15.0f)
-        .ApproachWithDebuff(42005, 2, 14.0f)
-        .Spread(6.0f, ROLE_CASTERS);
+        .AvoidFront(22948, 15.0f);
 
     // Reliquary of Souls: kill the Enslaved Souls, stay out of the Soul Scream cone.
     Add("reliquary of souls", MAP_BLACK_TEMPLE, { 22856, 23418, 23419, 23420, 23469 })
@@ -338,55 +287,41 @@ EncounterRegistry::EncounterRegistry()
     // Mother Shahraz: Fatal Attraction targets run away from each other immediately.
     Add("mother shahraz", MAP_BLACK_TEMPLE, { 22947 })
         .ResistanceAura("shadow resistance aura")
-        .RunWithDebuff(41001, 18.0f)
         .AvoidFront(22947, 10.0f)
-        .Special(SPECIAL_OFFTANK_NO_TAUNT | SPECIAL_STACK_OFFTANKS); // Saber Lash is split between the tanks
+        .Special(SPECIAL_OFFTANK_NO_TAUNT);          // off tanks stay second on threat (Saber Lash)
 
     // Illidari Council: leave Consecration, Flamestrike and Blizzard, stay away from Zerevor's Arcane Explosion.
     Add("illidari council", MAP_BLACK_TEMPLE, { 23426, 22949, 22950, 22951, 22952 })
         .AvoidArea(41481)                           // Flamestrike
         .AvoidArea(41482)                           // Blizzard
-        .AvoidArea(41541, 0.0f, ROLE_NON_TANK)      // Consecration
-        .Avoid(22950, 12.0f, ROLE_MELEE | ROLE_HEAL)// High Nethermancer Zerevor
-        .Spread(8.0f, ROLE_CASTERS);
+        .AvoidArea(41541, 0.0f, ROLE_NON_TANK);     // Consecration
 
     // Illidan Stormrage: leave Flame Crash and Blaze, dodge the Eye Blast, only tanks near the Flames
     // of Azzinoth, kill Parasitic Shadowfiends and Shadow Demons on sight, spread in demon form.
     Add("illidan stormrage", MAP_BLACK_TEMPLE, { 22917, 22997, 23498, 23375 })
         .LustBelow(30.0f)
-        .Kill(23375, ROLE_DPS)                      // Shadow Demon
-        .Kill(23498, ROLE_DPS)                      // Parasitic Shadowfiend
         .Avoid(23336, 9.0f)                         // Flame Crash
         .Avoid(23259, 7.0f)                         // Blaze
         .Avoid(23070, 12.0f)                        // Eye Blast target
-        .Avoid(23069, 5.0f)                         // Demon Fire
-        .Avoid(22997, 15.0f, ROLE_NON_TANK)         // Flame of Azzinoth
-        .RunWithDebuff(41917, 12.0f)                // Parasitic Shadowfiend
-        .RunWithDebuff(41914, 12.0f)
-        .SpreadWhileBossAura(8.0f, ROLE_NON_TANK, 40506) // demon form - Flame Burst
-        .Spread(6.0f, ROLE_CASTERS);
+        .Avoid(23069, 5.0f);                        // Demon Fire
 
     // ---------------------------------------------------------------------
     // Zul'Aman
     // ---------------------------------------------------------------------
 
+    // Zul'Aman: tank swaps, Electrical Storm, Fire Bombs, kill orders and the Zul'jin phases are handled by
+    // the "boss zul'aman" strategy (strategy/raids/za). Only the complementing rules stay here.
+
     // Nalorakk: one tank for the troll form, the other one taunts on every bear form change.
-    Add("nalorakk", MAP_ZULAMAN, { 23576 })
-        .FormTank(23576, 42377)
-        .Spread(6.0f, ROLE_CASTERS);
+    Add("nalorakk", MAP_ZULAMAN, { 23576 });
 
     // Akil'zon: stack under the Electrical Storm target, otherwise spread for Static Disruption.
-    Add("akil'zon", MAP_ZULAMAN, { 23574 })
-        .GatherOn(43648, 5.0f)
-        .Spread(8.0f, ROLE_CASTERS);
+    Add("akil'zon", MAP_ZULAMAN, { 23574 });
 
     // Jan'alai: get out of the Fire Bombs, kill the Amani'shi Hatchers before they reach the eggs.
     Add("jan'alai", MAP_ZULAMAN, { 23578, 23818, 24504 })
         .Kill(23818, ROLE_DPS)
-        .Kill(24504, ROLE_DPS)
-        .Avoid(23920, 6.0f)                         // Fire Bomb
-        .AvoidFront(23578, 25.0f)                   // Flame Breath
-        .Spread(6.0f, ROLE_CASTERS);
+        .Kill(24504, ROLE_DPS);
 
     // Halazzi: kill the Corrupted Lightning Totem immediately.
     Add("halazzi", MAP_ZULAMAN, { 23577, 24143 })
@@ -395,15 +330,11 @@ EncounterRegistry::EncounterRegistry()
 
     // Hex Lord Malacrass: Alyson Antille (healer) dies first, spread vs. Spirit Bolts splash.
     Add("hex lord malacrass", MAP_ZULAMAN, { 24239 })
-        .Kill(24240, ROLE_DPS)
         .Spread(6.0f, ROLE_CASTERS);
 
     // Zul'jin: out of Whirlwind, Feather Vortexes and Columns of Fire.
     Add("zul'jin", MAP_ZULAMAN, { 23863 })
-        .AvoidWhileAura(23863, 17207, 10.0f, ROLE_NON_TANK)
-        .Avoid(24136, 7.0f)                         // Feather Vortex
-        .Avoid(24187, 7.0f)                         // Column of Fire
-        .Spread(8.0f, ROLE_CASTERS);
+        .Avoid(24187, 7.0f);                        // Column of Fire
 
     // ---------------------------------------------------------------------
     // Sunwell Plateau
