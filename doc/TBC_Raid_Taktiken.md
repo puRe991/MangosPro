@@ -88,6 +88,28 @@ Code:
 - **M'uru / Entropius** – Void Sentinels → Fury Mages → Berserker; Dark Fiends meiden/aus der Ferne töten; Darkness und Singularity meiden.
 - **Kil'jaeden** – Shield Orbs (Fernkampf) und Sinister Reflections töten, Armageddon meiden, Fire Bloom → raus. **Blaue Drachen:** Wird eine Drachenkugel aktiv, benutzt der nächste freie DD-Bot sie. Er fliegt den Drachen über dem Raid, heilt mit Breath: Revitalize und wirkt bei **Darkness of a Thousand Souls** Shield of the Blue. Alle anderen stellen sich unter den Drachen.
 
+## Boss-Strategien aus mod-playerbots
+
+Für die TBC-Raids gibt es zusätzlich eigene Boss-Strategien, portiert aus
+[mod-playerbots](https://github.com/mod-playerbots/mod-playerbots) (GPL v2+) und an diesen Core angepasst.
+Sie liegen in `src/modules/PlayerBots/playerbot/strategy/raids/<raid>/` und werden auf der Karte
+automatisch aktiviert (über die Strategie `dungeon`) und beim Verlassen wieder entfernt.
+
+| Raid | Strategie | Inhalt |
+|---|---|---|
+| Karazhan | `boss karazhan` | Attumen, Moroes, Maiden (Säulenplätze), Opera, Curator, Illhoof, Aran, Netherspite (Strahlen blocken), Malchezaar, Nightbane |
+| Gruul's Lair | `boss gruul` | Maulgar-Rat (Tankzuteilung, Kill-Order, Banish, Misdirection), Gruul (Position, Verteilen, Shatter) |
+| Magtheridon's Lair | `boss magtheridon` | Channeler, Abyssals, Manticron-Würfel pro Blast Nova, Debris |
+| Serpentshrine Cavern | `boss ssc` | Hydross, Lurker, Leotheras, Karathress, Morogrim, Vashj inkl. Tainted-Core-Kette |
+| Tempest Keep | `boss tempest keep` | Al'ar, Void Reaver, Solarian, Kael'thas (Berater, Waffen, Phönixe, Gravity Lapse) |
+| Hyjal | `boss hyjal` | Winterchill, Anetheron, Kaz'rogal, Azgalor, Archimonde |
+| Black Temple | `boss black temple` | Naj'entus, Supremus, Akama, Teron, Bloodboil, Reliquary, Shahraz, Council, Illidan |
+| Zul'Aman | `boss zul'aman` | Akil'zon, Nalorakk, Jan'alai, Halazzi, Malacrass, Zul'jin |
+
+Die Tabelle `TbcRaidEncounters.cpp` enthält für diese Bosse nur noch die Regeln, die die Boss-Strategien
+ergänzen. Für Sunwell Plateau gibt es in mod-playerbots keine Strategie, dort gilt weiter nur die Tabelle.
+Die alten Karazhan-Strategien (`generic/KarazhanDungeonStrategies.*`) werden nicht mehr aktiviert.
+
 ## Hinweise
 
 - **Hydross**: Bots ziehen keine Resistenz-Ausrüstung an. Sie tanken mit dem, was sie tragen. Den Positionswechsel machen sie selbst.
