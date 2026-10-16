@@ -242,8 +242,9 @@ float TbcRaidMultiplier::GetValue(Action* action)
     if (name.rfind("tbc raid", 0) == 0)
         return 1.0f;
 
-    // The bot controls a Vengeful Spirit / Blue Dragon, its own body does nothing
-    if (TbcRaidHelper::IsPossessingBossCreature(bot))
+    // The bot controls a Blue Dragon, its own body does nothing
+    // (the Vengeful Spirit of Teron Gorefiend is controlled by the "boss black temple" strategy)
+    if (TbcRaidHelper::IsPossessingBossCreature(bot) && !bot->HasAura(40268))
         return 0.0f;
 
     // Paralyzed by a Tainted Core: only pass the core

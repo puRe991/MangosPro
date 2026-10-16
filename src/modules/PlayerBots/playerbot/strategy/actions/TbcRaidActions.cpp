@@ -700,8 +700,9 @@ bool TbcRaidControlPossessedAction::Execute(Event& event)
     if (charm->IsNonMeleeSpellCasted(false))
         return true;
 
+    // The Vengeful Spirit is controlled by the "boss black temple" strategy
     if (bot->HasAura(40268))
-        return ControlSpirit(charm);
+        return false;
 
     return ControlBlueDragon(charm);
 }

@@ -246,23 +246,22 @@ EncounterRegistry::EncounterRegistry()
     // Black Temple
     // ---------------------------------------------------------------------
 
+    // Black Temple: spines, gaze kiting, channelers, Vengeful Spirits, Bloodboil groups, Fatal Attraction,
+    // council tanking and the Illidan phases are handled by the "boss black temple" strategy
+    // (strategy/raids/bt). Only the complementing rules stay here.
+
     // High Warlord Naj'entus: spread for Needle Spine, free impaled players, break Tidal Shield with a spine.
-    Add("high warlord naj'entus", MAP_BLACK_TEMPLE, { 22887 })
-        .Spread(10.0f, ROLE_CASTERS)
-        .Special(SPECIAL_NAJENTUS_SPINES);
+    Add("high warlord naj'entus", MAP_BLACK_TEMPLE, { 22887 });
 
     // Supremus: Gaze target kites the boss, nobody stands in Volcanoes or the Molten Flame trail.
     Add("supremus", MAP_BLACK_TEMPLE, { 22898 })
         .ResistanceAura("fire resistance aura")
-        .Kite(22898, 22.0f, ROLE_NON_TANK)
-        .Avoid(23085, 12.0f)                        // Volcano
-        .Avoid(23095, 5.0f)                         // Molten Flame
-        .Spread(6.0f, ROLE_CASTERS);
+        .Avoid(23095, 5.0f);                        // Molten Flame
 
     // Shade of Akama: Sorcerers and Channelers die first, then the other Ashtongue adds.
     Add("shade of akama", MAP_BLACK_TEMPLE, { 22841, 23421, 23215, 23216 })
-        .Kill(23215, ROLE_DPS)                      // Ashtongue Sorcerer
-        .Kill(23421, ROLE_DPS)                      // Ashtongue Channeler
+        .Kill(23215, ROLE_RANGED)                   // Ashtongue Sorcerer
+        .Kill(23421, ROLE_RANGED)                   // Ashtongue Channeler
         .Kill(23524, ROLE_DPS)                      // Ashtongue Spiritbinder
         .Kill(23523, ROLE_DPS)                      // Ashtongue Elementalist
         .Kill(23318, ROLE_DPS)                      // Ashtongue Rogue
@@ -271,16 +270,12 @@ EncounterRegistry::EncounterRegistry()
     // Teron Gorefiend: the Shadowy Constructs can only be damaged by the Vengeful Spirits,
     // a player with Shadow of Death controls his spirit and kills them.
     Add("teron gorefiend", MAP_BLACK_TEMPLE, { 22871, 23111 })
-        .ResistanceAura("shadow resistance aura")
-        .Spread(6.0f, ROLE_CASTERS)
-        .Special(SPECIAL_TERON_SPIRITS);
+        .ResistanceAura("shadow resistance aura");
 
     // Gurtogg Bloodboil: nobody but the tanks in front (Arcing Smash), ranged spread for Fel Geyser.
     // Bloodboil hits the 5 players furthest away: players with 2+ stacks move in, fresh players take the next ones.
     Add("gurtogg bloodboil", MAP_BLACK_TEMPLE, { 22948 })
-        .AvoidFront(22948, 15.0f)
-        .ApproachWithDebuff(42005, 2, 14.0f)
-        .Spread(6.0f, ROLE_CASTERS);
+        .AvoidFront(22948, 15.0f);
 
     // Reliquary of Souls: kill the Enslaved Souls, stay out of the Soul Scream cone.
     Add("reliquary of souls", MAP_BLACK_TEMPLE, { 22856, 23418, 23419, 23420, 23469 })
@@ -292,33 +287,23 @@ EncounterRegistry::EncounterRegistry()
     // Mother Shahraz: Fatal Attraction targets run away from each other immediately.
     Add("mother shahraz", MAP_BLACK_TEMPLE, { 22947 })
         .ResistanceAura("shadow resistance aura")
-        .RunWithDebuff(41001, 18.0f)
         .AvoidFront(22947, 10.0f)
-        .Special(SPECIAL_OFFTANK_NO_TAUNT | SPECIAL_STACK_OFFTANKS); // Saber Lash is split between the tanks
+        .Special(SPECIAL_OFFTANK_NO_TAUNT);          // off tanks stay second on threat (Saber Lash)
 
     // Illidari Council: leave Consecration, Flamestrike and Blizzard, stay away from Zerevor's Arcane Explosion.
     Add("illidari council", MAP_BLACK_TEMPLE, { 23426, 22949, 22950, 22951, 22952 })
         .AvoidArea(41481)                           // Flamestrike
         .AvoidArea(41482)                           // Blizzard
-        .AvoidArea(41541, 0.0f, ROLE_NON_TANK)      // Consecration
-        .Avoid(22950, 12.0f, ROLE_MELEE | ROLE_HEAL)// High Nethermancer Zerevor
-        .Spread(8.0f, ROLE_CASTERS);
+        .AvoidArea(41541, 0.0f, ROLE_NON_TANK);     // Consecration
 
     // Illidan Stormrage: leave Flame Crash and Blaze, dodge the Eye Blast, only tanks near the Flames
     // of Azzinoth, kill Parasitic Shadowfiends and Shadow Demons on sight, spread in demon form.
     Add("illidan stormrage", MAP_BLACK_TEMPLE, { 22917, 22997, 23498, 23375 })
         .LustBelow(30.0f)
-        .Kill(23375, ROLE_DPS)                      // Shadow Demon
-        .Kill(23498, ROLE_DPS)                      // Parasitic Shadowfiend
         .Avoid(23336, 9.0f)                         // Flame Crash
         .Avoid(23259, 7.0f)                         // Blaze
         .Avoid(23070, 12.0f)                        // Eye Blast target
-        .Avoid(23069, 5.0f)                         // Demon Fire
-        .Avoid(22997, 15.0f, ROLE_NON_TANK)         // Flame of Azzinoth
-        .RunWithDebuff(41917, 12.0f)                // Parasitic Shadowfiend
-        .RunWithDebuff(41914, 12.0f)
-        .SpreadWhileBossAura(8.0f, ROLE_NON_TANK, 40506) // demon form - Flame Burst
-        .Spread(6.0f, ROLE_CASTERS);
+        .Avoid(23069, 5.0f);                        // Demon Fire
 
     // ---------------------------------------------------------------------
     // Zul'Aman
