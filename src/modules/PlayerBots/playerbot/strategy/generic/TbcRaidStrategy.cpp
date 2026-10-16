@@ -235,7 +235,7 @@ float TbcRaidMultiplier::GetValue(Action* action)
     Player* bot = ai->GetBot();
 
     // Never break the Shadow Grasp channel of a Manticron Cube
-    if (bot->HasAura(SPELL_SHADOW_GRASP))
+    if (bot->HasAura(SPELL_SHADOW_GRASP) && action->getName().rfind("magtheridon", 0) != 0)
         return 0.0f;
 
     const std::string& name = action->getName();
