@@ -411,10 +411,33 @@ bool GruulTheDragonkillerSpreadRangedAction::Execute(Event& /*event*/)
         (raidboss::ExactDist2d(gruul, initialX, initialY) < minBossDistance ||
          raidboss::ExactDist2d(gruul, initialX, initialY) > 35.0f)))
     {
-        // Use the bot's current side of the actual boss. Assigning an arbitrary
-        // opposite ring slot made ranged bots walk through Hurtful Strike range.
-        const float angle = std::atan2(bot->GetPositionY() - position.getY(), bot->GetPositionX() - position.getX());
-        const float radius = std::max(25.0f, std::min(30.0f, raidboss::ExactDist2d(bot, gruul)));
+        // Slots spread evenly over the whole ring, handed out in the order of the current angles
+        // around the boss: neighbours keep their order, so nobody crosses Hurtful Strike range.
+        // Only keeping the own side clumped nearly all ranged on one side (8 deaths to one Shatter).
+        auto angleOf = [&position](Player* player)
+        {
+            return std::atan2(player->GetPositionY() - position.getY(), player->GetPositionX() - position.getX());
+        };
+
+        std::vector<std::pair<float, Player*>> ranged;
+        for (Player* member : raidboss::GetGroupMembers(bot, 80.0f, true))
+        {
+            if (member->IsAlive() && raidboss::IsRangedPlayer(member))
+                ranged.emplace_back(angleOf(member), member);
+        }
+        std::sort(ranged.begin(), ranged.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
+
+        float angle = angleOf(bot);
+        for (size_t i = 0; i < ranged.size(); ++i)
+        {
+            if (ranged[i].second == bot)
+            {
+                angle = ranged.front().first + 2.0f * M_PI_F * float(i) / float(ranged.size());
+                break;
+            }
+        }
+
+        const float radius = 30.0f;
         initialX = position.getX() + radius * std::cos(angle);
         initialY = position.getY() + radius * std::sin(angle);
         hasInitialPosition = true;
@@ -430,9 +453,24 @@ bool GruulTheDragonkillerSpreadRangedAction::Execute(Event& /*event*/)
         }
 
         const float moveDist = std::min(3.5f, distToTarget);
-        const float moveX = bot->GetPositionX() + ((initialX - bot->GetPositionX()) / distToTarget) * moveDist;
-        const float moveY = bot->GetPositionY() + ((initialY - bot->GetPositionY()) / distToTarget) * moveDist;
-        return MoveTo(GRUUL_MAP_ID, moveX, moveY, bot->GetPositionZ(), false, false, false, true);
+        float moveX = bot->GetPositionX() + ((initialX - bot->GetPositionX()) / distToTarget) * moveDist;
+        float moveY = bot->GetPositionY() + ((initialY - bot->GetPositionY()) / distToTarget) * moveDist;
+
+        // A slot on the far side is reached around the ring, not through the boss
+        const float stepBossDistance = raidboss::ExactDist2d(gruul, moveX, moveY);
+        if (stepBossDistance < minBossDistance && stepBossDistance > 0.1f)
+        {
+            const float scale = (minBossDistance + 2.0f) / stepBossDistance;
+            moveX = position.getX() + (moveX - position.getX()) * scale;
+            moveY = position.getY() + (moveY - position.getY()) * scale;
+        }
+
+        if (MoveTo(GRUUL_MAP_ID, moveX, moveY, bot->GetPositionZ(), false, false, false, true))
+            return true;
+
+        // Unreachable slot (wall): keep the spot and let the ordinary spacing below take over
+        hasReachedInitialPosition = true;
+        return false;
     }
 
     const float minSpreadDistance = 10.0f;

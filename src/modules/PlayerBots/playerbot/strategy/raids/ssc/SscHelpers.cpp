@@ -88,6 +88,26 @@ SscInstanceState GetState(Player* bot)
     return states[bot->GetInstanceId()];
 }
 
+std::vector<Unit*> GetKarathressMainTankUnits(PlayerbotAI* ai)
+{
+    Player* bot = ai->GetBot();
+    std::vector<Unit*> units;
+    auto addUnassigned = [&](uint32 entry, uint8 assistIndex)
+    {
+        Unit* unit = FindSscUnit(ai, entry);
+        if (unit && unit->IsAlive() && !raidboss::GetGroupAssistTank(bot, assistIndex))
+            units.push_back(unit);
+    };
+
+    addUnassigned(NPC_TIDALVESS, 2);
+    addUnassigned(NPC_SHARKKIS, 1);
+    if (Unit* karathress = FindSscUnit(ai, NPC_KARATHRESS))
+        if (karathress->IsAlive())
+            units.push_back(karathress);
+    addUnassigned(NPC_CARIBDIS, 0);
+    return units;
+}
+
 bool NeedsStateReset(PlayerbotAI* ai)
 {
     Player* bot = ai->GetBot();

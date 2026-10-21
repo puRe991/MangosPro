@@ -300,8 +300,14 @@ float SscKarathressDisableTankActionsMultiplier::GetValue(Action* action)
     if (bot->GetVictim() && IsActionNamed(action, { "tank assist" }))
         return 0.0f;
 
-    if (IsFormationMove(action) || IsActionNamed(action, { "avoid aoe", "tbc raid taunt", "tbc raid attack priority target" }) ||
-        raidboss::IsTauntAction(bot, action) || raidboss::IsAoeThreatAction(bot, action))
+    if (IsFormationMove(action) || IsActionNamed(action, { "avoid aoe", "tbc raid taunt", "tbc raid attack priority target" }))
+        return 0.0f;
+
+    // A main tank holding unassigned council members (fewer than four tanks) needs taunts and AoE threat
+    if (raidboss::IsMainTank(bot) && GetKarathressMainTankUnits(ai).size() > 1)
+        return 1.0f;
+
+    if (raidboss::IsTauntAction(bot, action) || raidboss::IsAoeThreatAction(bot, action))
         return 0.0f;
 
     return 1.0f;
@@ -400,10 +406,12 @@ float SscVashjDelayCooldownsMultiplier::GetValue(Action* action)
     if (!raidboss::IsDpsCooldownAction(bot, action) || !Engaged(ai, NPC_LADY_VASHJ))
         return 1.0f;
 
+    // Only Bloodlust / Heroism is saved for phase 3. Holding every dps cooldown through phase 1
+    // left Vashj at 88% after four minutes; 2-3 minute cooldowns are ready again for phase 3.
     if (bot->getClass() == CLASS_SHAMAN && IsLustAction(action))
         return IsLadyVashjInPhase3(ai) ? 1.0f : 0.0f;
 
-    return raidboss::IsDps(bot) && IsLadyVashjInPhase1(ai) ? 0.0f : 1.0f;
+    return 1.0f;
 }
 
 float SscVashjMainTankGroupShamanUseGroundingTotemMultiplier::GetValue(Action* action)

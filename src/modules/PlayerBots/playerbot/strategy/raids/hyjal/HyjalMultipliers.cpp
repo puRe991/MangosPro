@@ -47,7 +47,8 @@ float HyjalDelayDpsCooldownsMultiplier::GetValue(Action* action)
     if (!boss)
         return bot->getClass() == CLASS_SHAMAN && IsNamed(action, { "bloodlust", "heroism" }) ? 0.0f : 1.0f;
 
-    return boss->GetHealthPercent() > BOSS_ENGAGED_HEALTH_PCT ? 0.0f : 1.0f;
+    // Only the first percent of the pull (threat): until 95% this held every cooldown for a minute or more
+    return boss->GetHealthPercent() > 99.0f ? 0.0f : 1.0f;
 }
 
 // Spreading / leaving the boss front of the "tbc raid" table fights the boss positioning here
@@ -311,7 +312,7 @@ float ArchimondeSetTremorTotemMultiplier::GetValueInEncounter(Action* action)
         return 1.0f;
 
     Unit* archimonde = GetBoss(ai, NPC_ARCHIMONDE);
-    if (!archimonde || archimonde->GetHealthPercent() > BOSS_ENGAGED_HEALTH_PCT)
+    if (!archimonde || !archimonde->IsInCombat())
         return 1.0f;
 
     return !HasProtectionOfElune(bot) ? 0.0f : 1.0f;

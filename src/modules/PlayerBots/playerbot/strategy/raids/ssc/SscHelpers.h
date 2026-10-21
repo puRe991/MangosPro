@@ -158,6 +158,9 @@ namespace ai
         extern const WorldPosition CARIBDIS_TANK_POSITION;
         extern const WorldPosition CARIBDIS_HEALER_POSITION;
         extern const WorldPosition CARIBDIS_RANGED_DPS_POSITION;
+        // Living council members without an own tank, in dps kill order, followed by Karathress.
+        // With fewer than four tanks the main tank holds these together at the Karathress spot.
+        std::vector<Unit*> GetKarathressMainTankUnits(PlayerbotAI* ai);
 
         // Morogrim Tidewalker
         extern const WorldPosition TIDEWALKER_PHASE_1_TANK_POSITION;

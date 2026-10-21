@@ -495,8 +495,9 @@ bool TkVoidReaverRangedBackOffAndSpreadAction::Execute(Event& event)
         return false;
 
     constexpr float minDistFromBoss = 38.5f;    // 22 yards between the bounding radii
+    constexpr float tolerance = 2.5f;           // don't walk back out for every small step inwards
     const float distance = raidboss::ExactDist2d(bot, voidReaver);
-    if (distance < minDistFromBoss)
+    if (distance < minDistFromBoss - tolerance)
         return MoveAwayFrom(voidReaver, minDistFromBoss - distance);
 
     if (voidReaver->GetHealthPercent() > 90.0f)
@@ -521,8 +522,9 @@ bool TkVoidReaverAvoidArcaneOrbAction::Execute(Event& event)
     constexpr float searchStep = M_PI_F / 12.0f;
     constexpr float minSearchDist = 1.0f;
     constexpr float searchDistStep = 1.0f;
-    constexpr float minDistFromBoss = 35.5f;
-    constexpr float maxDistFromBoss = 43.5f;
+    // Same band the ranged back off to, so a dodge does not trigger another back-off move right after
+    constexpr float minDistFromBoss = 36.0f;
+    constexpr float maxDistFromBoss = 44.0f;
     constexpr uint8 numAngles = 24;
     constexpr uint8 numDistSteps = 39;
     constexpr float safeDistanceSq = ARCANE_ORB_SAFE_DISTANCE * ARCANE_ORB_SAFE_DISTANCE;
@@ -580,7 +582,31 @@ bool TkVoidReaverAvoidArcaneOrbAction::Execute(Event& event)
     bot->InterruptNonMeleeSpells(false);
 
     if (!bestCandidates.empty())
-        return MoveToPosition(bestCandidates[urand(0, bestCandidates.size() - 1)]);
+    {
+        // Of the equally short moves take the one farthest from other players: bots dodging to the
+        // same orb edge clump up, and the next orb then sends the whole clump running again.
+        const std::vector<Player*> members = raidboss::GetGroupMembers(bot, 80.0f, false);
+        const WorldPosition* best = &bestCandidates.front();
+        float bestSpread = -1.0f;
+        for (const WorldPosition& candidate : bestCandidates)
+        {
+            float nearestSq = std::numeric_limits<float>::max();
+            for (Player* member : members)
+            {
+                const float dx = candidate.getX() - member->GetPositionX();
+                const float dy = candidate.getY() - member->GetPositionY();
+                nearestSq = std::min(nearestSq, dx * dx + dy * dy);
+            }
+
+            if (nearestSq > bestSpread)
+            {
+                bestSpread = nearestSq;
+                best = &candidate;
+            }
+        }
+
+        return MoveToPosition(*best);
+    }
 
     const WorldPosition& orb = activeOrbs.front();
     return MoveAwayFrom(orb.getX(), orb.getY(), ARCANE_ORB_SAFE_DISTANCE - raidboss::ExactDist2d(bot, orb.getX(), orb.getY()));

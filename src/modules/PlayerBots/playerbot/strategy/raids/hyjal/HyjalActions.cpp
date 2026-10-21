@@ -343,6 +343,12 @@ bool KazrogalSpreadRangedInArcAction::Execute(Event& /*event*/)
     const float targetX = kazrogal->GetPositionX() + arcRadius * std::cos(angle);
     const float targetY = kazrogal->GetPositionY() + arcRadius * std::sin(angle);
 
+    // The slot follows the boss every tick: without a tolerance the ranged kept taking tiny steps
+    // (30-60 seconds without a single cast in the logs)
+    const float arrivalTolerance = 4.0f;
+    if (ExactDist2d(bot, targetX, targetY) <= arrivalTolerance)
+        return false;
+
     const float moveDist = 3.5f;
     float moveX, moveY, moveZ;
     if (!CanTakeStepTowards(bot, targetX, targetY, moveDist, moveX, moveY, moveZ))

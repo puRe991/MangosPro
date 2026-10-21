@@ -6,6 +6,8 @@
 #include <sstream>
 #include <filesystem>
 #include <mutex>
+#include <map>
+#include <algorithm>
 
 using namespace ai;
 
@@ -46,10 +48,72 @@ std::string RaidBossMapStrategies::GetStrategy(uint32 mapId)
     return "";
 }
 
+namespace
+{
+    // Hybrid bots get "offheal" (dps) or "offdps" (healers) by default. In a raid the dps left their
+    // form to heal (moonkin lost Kiggler at Maulgar) and healers attacked instead of healing, so both
+    // are dropped inside raid instances and restored afterwards.
+    const std::vector<std::string> raidOffSpecStrategies = { "offheal", "offdps" };
+    std::mutex offSpecMutex;
+    std::map<uint32, std::vector<std::string>> offSpecRemoved;
+
+    bool InRaidInstance(Player* bot)
+    {
+        return bot->GetMap() && bot->GetMap()->IsRaid();
+    }
+
+    bool NeedsOffSpecSync(PlayerbotAI* ai, Player* bot)
+    {
+        if (InRaidInstance(bot))
+        {
+            for (const std::string& strategy : raidOffSpecStrategies)
+                if (ai->HasStrategy(strategy, BotState::BOT_STATE_COMBAT))
+                    return true;
+            return false;
+        }
+
+        std::lock_guard<std::mutex> lock(offSpecMutex);
+        return offSpecRemoved.count(bot->GetGUIDLow()) > 0;
+    }
+
+    bool SyncOffSpecStrategies(PlayerbotAI* ai, Player* bot)
+    {
+        bool changed = false;
+        std::lock_guard<std::mutex> lock(offSpecMutex);
+        if (InRaidInstance(bot))
+        {
+            for (const std::string& strategy : raidOffSpecStrategies)
+            {
+                if (!ai->HasStrategy(strategy, BotState::BOT_STATE_COMBAT))
+                    continue;
+
+                ai->ChangeStrategy("-" + strategy, BotState::BOT_STATE_COMBAT);
+                std::vector<std::string>& removed = offSpecRemoved[bot->GetGUIDLow()];
+                if (std::find(removed.begin(), removed.end(), strategy) == removed.end())
+                    removed.push_back(strategy);
+                changed = true;
+            }
+            return changed;
+        }
+
+        auto it = offSpecRemoved.find(bot->GetGUIDLow());
+        if (it == offSpecRemoved.end())
+            return false;
+
+        for (const std::string& strategy : it->second)
+            ai->ChangeStrategy("+" + strategy, BotState::BOT_STATE_COMBAT);
+        offSpecRemoved.erase(it);
+        return true;
+    }
+}
+
 bool RaidBossMapStrategyTrigger::IsActive()
 {
     if (!bot->IsInWorld() || bot->IsBeingTeleported())
         return false;
+
+    if (NeedsOffSpecSync(ai, bot))
+        return true;
 
     const std::string wanted = RaidBossMapStrategies::GetStrategy(bot->GetMapId());
     for (const auto& entry : RaidBossMapStrategies::GetAll())
@@ -72,7 +136,7 @@ bool UpdateRaidBossMapStrategyAction::Execute(Event& event)
 {
     const std::string wanted = RaidBossMapStrategies::GetStrategy(bot->GetMapId());
 
-    bool changed = false;
+    bool changed = SyncOffSpecStrategies(ai, bot);
     for (const auto& entry : RaidBossMapStrategies::GetAll())
     {
         if (!ai->GetAiObjectContext()->GetStrategy(entry.second))
@@ -131,6 +195,10 @@ void RaidBossMapStrategies::Trace(PlayerbotAI* ai, BotState state, const std::st
         found = debug->strategyTriggers.emplace(strategyKey, std::move(names)).first;
     }
     if (!found->second.count(source))
+        return;
+
+    // Failed housekeeping out of combat (timer resets etc.) flooded the console of every bot and lagged the server
+    if (!executed && state != BotState::BOT_STATE_COMBAT && state != BotState::BOT_STATE_REACTION)
         return;
 
     // Keep failed attempts visible too. Repeated position checks must not flood the log.

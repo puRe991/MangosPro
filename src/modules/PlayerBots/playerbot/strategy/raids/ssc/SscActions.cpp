@@ -792,9 +792,34 @@ namespace
         [this](Unit* u) { return IsCurrentTarget(u); }, [this](Unit* u) { return AttackUnit(u); }, \
         [this](const WorldPosition& p, float a, float s) { return StepToPosition(p, a, s); })
 
-// Karathress is tanked near his starting position
+// Karathress is tanked near his starting position. Without enough assist tanks the main tank also
+// holds the unassigned council members there: a loose one is taken back first (false lets the
+// taunt run once it is the current target), otherwise the current dps kill target is tanked.
 bool SscKarathressMainTankPositionBossAction::Execute(Event& event)
 {
+    const std::vector<Unit*> units = GetKarathressMainTankUnits(ai);
+    if (units.size() > 1)
+    {
+        for (Unit* unit : units)
+        {
+            Unit* victim = unit->GetVictim();
+            Player* victimPlayer = victim && victim->GetTypeId() == TYPEID_PLAYER ? static_cast<Player*>(victim) : nullptr;
+            if (!victim || victim == bot || (victimPlayer && PlayerbotAI::IsTank(victimPlayer)))
+                continue;
+
+            return !IsCurrentTarget(unit) && AttackUnit(unit);
+        }
+
+        Unit* killTarget = units.front();
+        if (!IsCurrentTarget(killTarget))
+            return AttackUnit(killTarget);
+
+        if (killTarget->GetVictim() == bot && bot->CanReachWithMeleeAttack(killTarget))
+            return StepToPosition(KARATHRESS_TANK_POSITION, 3.0f, 5.0f);
+
+        return false;
+    }
+
     return SSC_TANK_ADD(FindSscUnit(ai, NPC_KARATHRESS), raidboss::ICON_TRIANGLE, "triangle", KARATHRESS_TANK_POSITION, 5.0f, true);
 }
 

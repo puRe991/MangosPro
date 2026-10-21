@@ -347,7 +347,7 @@ bool ArchimondeShamanShouldProtectAgainstFearTrigger::IsActiveInEncounter()
         return false;
 
     Unit* archimonde = GetBoss(ai, NPC_ARCHIMONDE);
-    if (!archimonde || archimonde->GetHealthPercent() > BOSS_ENGAGED_HEALTH_PCT)
+    if (!archimonde || !archimonde->IsInCombat())
         return false;
 
     return !HasProtectionOfElune(bot) && !AI_VALUE2(bool, "has totem", "tremor totem");

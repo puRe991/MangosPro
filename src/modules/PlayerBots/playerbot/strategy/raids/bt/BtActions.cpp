@@ -144,13 +144,33 @@ bool HighWarlordNajentusDisperseRangedAction::Execute(Event& event)
     if (!najentus)
         return false;
 
-    if (FleeFrom(najentus->GetPositionX(), najentus->GetPositionY(), 10.0f, 1000))
-        return true;
+    // Each ranged player gets an own slot on a ring around the boss. Fleeing from the nearest player
+    // within 7 yards never settled with 20+ ranged and they spent the fight moving instead of casting.
+    std::vector<Player*> ranged;
+    for (Player* member : raidboss::GetGroupMembers(bot, 200.0f, true))
+    {
+        if (raidboss::IsRangedPlayer(member))
+            ranged.push_back(member);
+    }
 
-    if (Player* nearest = raidboss::GetNearestPlayerInRadius(bot, 7.0f))
-        return FleeFrom(nearest->GetPositionX(), nearest->GetPositionY(), 7.0f, 1000);
+    const int index = raidboss::GetIndexOf(bot, ranged);
+    if (index < 0)
+        return false;
 
-    return false;
+    const float ringRadius = 22.0f;
+    const float angle = 2.0f * M_PI_F * float(index) / float(ranged.size());
+    const float slotX = najentus->GetPositionX() + ringRadius * std::cos(angle);
+    const float slotY = najentus->GetPositionY() + ringRadius * std::sin(angle);
+
+    const float arrivalTolerance = 4.0f;
+    if (raidboss::ExactDist2d(bot, slotX, slotY) <= arrivalTolerance)
+        return false;
+
+    float stepX, stepY, stepZ;
+    if (!raidboss::CanTakeStepTowards(bot, slotX, slotY, 8.0f, stepX, stepY, stepZ))
+        return false;
+
+    return MoveTo(bot->GetMapId(), stepX, stepY, stepZ, false, false, false, true);
 }
 
 bool HighWarlordNajentusRemoveImpalingSpineAction::Execute(Event& event)

@@ -249,17 +249,17 @@ bool SscKarathressBossEngagedByMainTankTrigger::IsActive()
 
 bool SscKarathressCaribdisEngagedByFirstAssistTankTrigger::IsActive()
 {
-    return raidboss::IsAssistTank(bot, 0) && GetEngaged(ai, NPC_CARIBDIS);
+    return raidboss::IsAssistTank(bot, 0) && (GetEngaged(ai, NPC_CARIBDIS) || (GetEngaged(ai, NPC_KARATHRESS) && FindSscUnit(ai, NPC_CARIBDIS)));
 }
 
 bool SscKarathressSharkkisEngagedBySecondAssistTankTrigger::IsActive()
 {
-    return raidboss::IsAssistTank(bot, 1) && GetEngaged(ai, NPC_SHARKKIS);
+    return raidboss::IsAssistTank(bot, 1) && (GetEngaged(ai, NPC_SHARKKIS) || (GetEngaged(ai, NPC_KARATHRESS) && FindSscUnit(ai, NPC_SHARKKIS)));
 }
 
 bool SscKarathressTidalvessEngagedByThirdAssistTankTrigger::IsActive()
 {
-    return raidboss::IsAssistTank(bot, 2) && GetEngaged(ai, NPC_TIDALVESS);
+    return raidboss::IsAssistTank(bot, 2) && (GetEngaged(ai, NPC_TIDALVESS) || (GetEngaged(ai, NPC_KARATHRESS) && FindSscUnit(ai, NPC_TIDALVESS)));
 }
 
 bool SscKarathressCaribdisTankNeedsDedicatedHealerTrigger::IsActive()
