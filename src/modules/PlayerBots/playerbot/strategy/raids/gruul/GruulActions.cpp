@@ -327,11 +327,11 @@ bool HighKingMaulgarMisdirectOgresToTanksAction::Execute(Event& /*event*/)
     {
     case 0:
         ogre = FindBlindeye(ai);
-        tank = raidboss::GetGroupAssistTank(bot, 1);
+        tank = raidboss::GetGroupAssistTankOrStandIn(bot, 1);
         break;
     case 1:
         ogre = FindOlm(ai);
-        tank = raidboss::GetGroupAssistTank(bot, 0);
+        tank = raidboss::GetGroupAssistTankOrStandIn(bot, 0);
         break;
     case 2:
         ogre = FindKiggler(ai);

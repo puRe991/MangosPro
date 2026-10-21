@@ -162,12 +162,13 @@ bool IsOlmTank(Player* bot)
 {
     // Only living tanks are counted, so a death swaps the Blindeye tank to Olm. This is intended
     // since Blindeye dies first and Olm is more important to control anyway.
-    return raidboss::IsAssistTank(bot, 0);
+    // With only two tanks a melee dps stand-in takes Blindeye (or Olm too with a single tank).
+    return raidboss::IsAssistTankOrStandIn(bot, 0);
 }
 
 bool IsBlindeyeTank(Player* bot)
 {
-    return raidboss::IsAssistTank(bot, 1);
+    return raidboss::IsAssistTankOrStandIn(bot, 1);
 }
 
 namespace

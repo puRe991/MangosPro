@@ -217,6 +217,27 @@ void RaidBossMapStrategies::Trace(PlayerbotAI* ai, BotState state, const std::st
 
 namespace
 {
+    // 32 segments of 64 MiB: older runs filled the disk until logging paused
+    const size_t MAX_DECISION_LOG_FILES = 32;
+
+    void PruneDecisionLogs(const std::filesystem::path& directory)
+    {
+        std::error_code error;
+        std::vector<std::pair<std::filesystem::file_time_type, std::filesystem::path>> logs;
+        for (const auto& entry : std::filesystem::directory_iterator(directory, error))
+        {
+            const std::string name = entry.path().filename().string();
+            if (name.rfind("raid-ai-", 0) == 0 && entry.path().extension() == ".log" && entry.is_regular_file(error))
+                logs.emplace_back(entry.last_write_time(error), entry.path());
+        }
+        if (logs.size() <= MAX_DECISION_LOG_FILES)
+            return;
+
+        std::sort(logs.begin(), logs.end());
+        for (size_t i = 0; i + MAX_DECISION_LOG_FILES < logs.size(); ++i)
+            std::filesystem::remove(logs[i].second, error);
+    }
+
     void WriteDecisionLog(const std::string& line)
     {
         static std::mutex mutex;
@@ -250,6 +271,7 @@ namespace
         }
         if (!file)
         {
+            PruneDecisionLogs(directory);
             const auto path = directory / ("raid-ai-" + run + "-" + std::to_string(segment) + ".log");
             file = fopen(path.string().c_str(), "a");
             if (!file)
@@ -486,8 +508,8 @@ bool RaidBossMapStrategies::Debug(PlayerbotAI* ai, Player* requester, const std:
     if (bot->GetMapId() == gruul::GRUUL_MAP_ID)
     {
         auto name = [](Player* player) { return player ? std::string(player->GetName()) : std::string("FEHLT"); };
-        tell("Maulgar=" + name(raidboss::GetGroupMainTank(bot)) + " Olm=" + name(raidboss::GetGroupAssistTank(bot, 0)) +
-             " Blindeye=" + name(raidboss::GetGroupAssistTank(bot, 1)));
+        tell("Maulgar=" + name(raidboss::GetGroupMainTank(bot)) + " Olm=" + name(raidboss::GetGroupAssistTankOrStandIn(bot, 0)) +
+             " Blindeye=" + name(raidboss::GetGroupAssistTankOrStandIn(bot, 1)));
         tell("Krosh-Magier=" + name(gruul::GetKroshMageTank(ai)) + " Kiggler-Eule=" + name(gruul::GetKigglerMoonkinTank(ai)) +
              " Heiler=" + std::to_string(raidboss::GetGroupHealers(bot).size()));
         tell("Maulgar sichtbar=" + std::string(gruul::FindMaulgar(ai) ? "JA" : "NEIN") +

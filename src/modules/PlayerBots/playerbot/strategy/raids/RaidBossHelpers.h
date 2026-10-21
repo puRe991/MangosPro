@@ -85,6 +85,11 @@ namespace ai
         Player* GetGroupAssistTank(Player* bot, uint8 index);
         bool IsMainTank(Player* bot);
         bool IsAssistTank(Player* bot, uint8 index);
+        // Raids usually bring only two tanks: an assist tank slot without a real tank goes to a
+        // stand-in, a melee dps bot that can survive an add (warrior, paladin, feral druid in that order)
+        std::vector<Player*> GetGroupStandInTanks(Player* bot);
+        Player* GetGroupAssistTankOrStandIn(Player* bot, uint8 index);
+        bool IsAssistTankOrStandIn(Player* bot, uint8 index);
         // Members of a role in group order (used to give each bot its own job)
         std::vector<Player*> GetGroupTanks(Player* bot);
         std::vector<Player*> GetGroupHealers(Player* bot);

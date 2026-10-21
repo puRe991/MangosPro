@@ -362,6 +362,40 @@ bool raidboss::IsAssistTank(Player* bot, uint8 index)
     return GetGroupAssistTank(bot, index) == bot;
 }
 
+std::vector<Player*> raidboss::GetGroupStandInTanks(Player* bot)
+{
+    std::vector<Player*> standIns = GetMembersMatching(bot, [](Player* member)
+    {
+        if (!member->GetPlayerbotAI() || !IsDps(member) || !IsMeleePlayer(member))
+            return false;
+
+        const uint8 cls = member->getClass();
+        return cls == CLASS_WARRIOR || cls == CLASS_PALADIN || cls == CLASS_DRUID;
+    });
+
+    // Class order only (stable within a class) so the assignment does not flip with buffs or health
+    auto rank = [](Player* member) { return member->getClass() == CLASS_WARRIOR ? 0 : member->getClass() == CLASS_PALADIN ? 1 : 2; };
+    std::stable_sort(standIns.begin(), standIns.end(), [&rank](Player* a, Player* b) { return rank(a) < rank(b); });
+    return standIns;
+}
+
+Player* raidboss::GetGroupAssistTankOrStandIn(Player* bot, uint8 index)
+{
+    if (Player* tank = GetGroupAssistTank(bot, index))
+        return tank;
+
+    const std::vector<Player*> tanks = GetGroupTanks(bot);
+    const size_t realAssistTanks = tanks.empty() ? 0 : tanks.size() - 1;
+    const std::vector<Player*> standIns = GetGroupStandInTanks(bot);
+    const size_t standInIndex = size_t(index) - realAssistTanks;
+    return standInIndex < standIns.size() ? standIns[standInIndex] : nullptr;
+}
+
+bool raidboss::IsAssistTankOrStandIn(Player* bot, uint8 index)
+{
+    return GetGroupAssistTankOrStandIn(bot, index) == bot;
+}
+
 bool raidboss::IsDps(Player* player)
 {
     return !PlayerbotAI::IsTank(player) && !PlayerbotAI::IsHeal(player);
