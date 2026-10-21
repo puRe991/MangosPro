@@ -2,8 +2,61 @@
 #include "playerbot/playerbot.h"
 #include "playerbot/strategy/actions/GenericActions.h"
 #include "HunterActions.h"
+#include <cmath>
 
 using namespace ai;
+
+namespace
+{
+    bool GetHunterRangedLimits(PlayerbotAI* ai, Unit* target, float& minimum, float& maximum)
+    {
+        Player* bot = ai->GetBot();
+        if (!ai->GetSpellRange("auto shot", &maximum, &minimum))
+            return false;
+        // GetSpellRange uses the caster as the target. Ranged minimum range
+        // actually includes the enemy's combat reach, especially on raid bosses.
+        minimum += bot->GetCombinedCombatReach(target, true, 0.0f) -
+            bot->GetCombinedCombatReach(bot, true, 0.0f);
+        return minimum + 2.0f < maximum;
+    }
+}
+
+bool ai::HunterNeedsRangedDistance(PlayerbotAI* ai)
+{
+    Player* bot = ai->GetBot();
+    if (!ai->HasStrategy("ranged", BotState::BOT_STATE_COMBAT) ||
+        ai->HasStrategy("stay", BotState::BOT_STATE_COMBAT) || !ai->CanMove())
+        return false;
+
+    Unit* target = ai->GetUnit(ai->GetAiObjectContext()->GetValue<ObjectGuid>("current target")->Get());
+    if (!target || !target->IsAlive() || !target->GetVictim() || target->GetVictim() == bot)
+        return false;
+
+    float minimum, maximum;
+    return GetHunterRangedLimits(ai, target, minimum, maximum) &&
+        bot->GetDistance(target, true, DIST_CALC_NONE) < minimum + 1.0f;
+}
+
+bool HunterRecoverRangedDistanceAction::isUseful()
+{
+    return HunterNeedsRangedDistance(ai);
+}
+
+bool HunterRecoverRangedDistanceAction::Execute(Event& event)
+{
+    if (!isUseful())
+        return false;
+    Unit* target = ai->GetUnit(AI_VALUE(ObjectGuid, "current target"));
+    float minimum, maximum;
+    if (!GetHunterRangedLimits(ai, target, minimum, maximum))
+        return false;
+
+    const float distance = std::min(minimum + 4.0f, maximum - 1.0f);
+    const float angle = target->GetAngle(bot);
+    const float x = target->GetPositionX() + std::cos(angle) * distance;
+    const float y = target->GetPositionY() + std::sin(angle) * distance;
+    return MoveTo(bot->GetMapId(), x, y, bot->GetPositionZ());
+}
 
 bool CastSerpentStingAction::isUseful()
 {

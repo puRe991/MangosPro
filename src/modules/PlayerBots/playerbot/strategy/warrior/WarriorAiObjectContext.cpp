@@ -147,6 +147,7 @@ namespace ai
                 creators["sunder armor dps"] = [](PlayerbotAI* ai) { return new SunderArmorDpsTrigger(ai); };
                 creators["demoralizing shout"] = [](PlayerbotAI* ai) { return new DemoralizingShoutDebuffTrigger(ai); };
                 creators["devastate"] = [](PlayerbotAI* ai) { return new DevastateAvailableTrigger(ai); };
+                creators["shield slam"] = [](PlayerbotAI* ai) { return new ShieldSlamAvailableTrigger(ai); };
                 creators["revenge"] = [](PlayerbotAI* ai) { return new RevengeAvailableTrigger(ai); };
                 creators["overpower"] = [](PlayerbotAI* ai) { return new OverpowerAvailableTrigger(ai); };
                 creators["mocking blow"] = [](PlayerbotAI* ai) { return new MockingBlowTrigger(ai); };
@@ -156,6 +157,7 @@ namespace ai
                 creators["thunder clap"] = [](PlayerbotAI* ai) { return new ThunderClapTrigger(ai); };
                 creators["bloodthirst"] = [](PlayerbotAI* ai) { return new BloodthirstTrigger(ai); };
                 creators["whirlwind"] = [](PlayerbotAI* ai) { return new WhirlwindTrigger(ai); };
+                creators["slam"] = [](PlayerbotAI* ai) { return new SlamTrigger(ai); };
                 creators["heroic strike"] = [](PlayerbotAI* ai) { return new HeroicStrikeTrigger(ai); };
                 creators["berserker rage"] = [](PlayerbotAI* ai) { return new BerserkerRageBuffTrigger(ai); };
                 creators["pummel on enemy healer"] = [](PlayerbotAI* ai) { return new PummelInterruptEnemyHealerSpellTrigger(ai); };

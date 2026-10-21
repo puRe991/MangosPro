@@ -13,6 +13,7 @@
 #include "Entities/Transports.h"
 #include "MotionGenerators/PathFinder.h"
 #include "playerbot/PlayerbotLLMInterface.h"
+#include "playerbot/strategy/raids/RaidBossStrategies.h"
 
 #ifdef MANGOSBOT_TWO
 #include "Vmap/VMapFactory.h"
@@ -46,7 +47,9 @@ bool DebugAction::Execute(Event& event)
 
     std::string text = event.getParam();
     
-    if (text == "help" || text.find("help ") == 0)
+    if (text == "raid" || text.find("raid ") == 0)
+        return RaidBossMapStrategies::Debug(ai, requester, text);
+    else if (text == "help" || text.find("help ") == 0)
         return HandleDebugHelp(event, requester, text, isMod);
     else if (text == "avoid scan" && isMod)
         return HandleAvoidScan(event, requester, text);
@@ -247,7 +250,7 @@ bool DebugAction::HandleDebugHelp(Event& event, Player* requester, const std::st
         ai->TellPlayer(requester, "=== Debug Commands ===");
         ai->TellPlayer(requester, "Usage: debug help <command>");
         ai->TellPlayer(requester, "");
-        ai->TellPlayer(requester, "General: position, quest, values, level, who, stats, spells, why, engine, history");
+        ai->TellPlayer(requester, "General: position, quest, values, level, who, stats, spells, why, engine, history, raid");
         ai->TellPlayer(requester, "Movement: route, path, distance, teleport, zone");
         ai->TellPlayer(requester, "Info: target, movement, corpse, logouttime, taxi");
         ai->TellPlayer(requester, "Interaction: npc, go, rpg, travel, loot, trade, mail");

@@ -1,5 +1,6 @@
 #pragma once
 #include "playerbot/strategy/NamedObjectContext.h"
+#include "playerbot/strategy/raids/dungeons/DungeonBossStrategy.h"
 
 // Ruins of Ahn'Qiraj (map 509) - strategy "boss aq20"
 namespace ai
@@ -9,6 +10,7 @@ namespace ai
     public:
         Aq20StrategyContext()
         {
+            creators["boss aq20"] = [](PlayerbotAI* ai) { return new ClassicRaidBossStrategy(ai, "boss aq20"); };
         }
     };
 

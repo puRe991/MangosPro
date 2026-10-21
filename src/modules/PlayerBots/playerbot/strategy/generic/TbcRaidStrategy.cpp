@@ -1,6 +1,12 @@
 #include "playerbot/playerbot.h"
 #include "TbcRaidStrategy.h"
+#include "playerbot/strategy/raids/RaidBossStrategies.h"
+#include "playerbot/strategy/raids/dungeons/DungeonBossStrategy.h"
 #include "playerbot/strategy/values/AttackersValue.h"
+#include "playerbot/strategy/raids/karazhan/KarazhanHelpers.h"
+#include "playerbot/strategy/raids/magtheridon/MagtheridonHelpers.h"
+#include "playerbot/strategy/raids/ssc/SscHelpers.h"
+#include "playerbot/strategy/raids/RaidBossHelpers.h"
 #include "Entities/DynamicObject.h"
 #include "Grids/GridNotifiers.h"
 #include "Grids/GridNotifiersImpl.h"
@@ -89,6 +95,8 @@ namespace
 
 TbcRaidStrategy* TbcRaidStrategy::Get(PlayerbotAI* ai)
 {
+    if (ai && (IsDungeonBossMap(ai->GetBot()->GetMapId()) || IsClassicRaidBossMap(ai->GetBot()->GetMapId())))
+        return ai->GetStrategy<DungeonBossStrategy>(RaidBossMapStrategies::GetStrategy(ai->GetBot()->GetMapId()), BotState::BOT_STATE_COMBAT);
     return ai ? ai->GetStrategy<TbcRaidStrategy>("tbc raid", BotState::BOT_STATE_COMBAT) : nullptr;
 }
 
@@ -375,14 +383,22 @@ const Encounter* TbcRaidHelper::GetEncounter(PlayerbotAI* ai, Unit** boss)
 
     Player* bot = ai->GetBot();
     RaidState& state = strategy->GetState();
+    if (state.mapId != bot->GetMapId() || state.instanceId != bot->GetInstanceId())
+    {
+        state = RaidState();
+        state.mapId = bot->GetMapId();
+        state.instanceId = bot->GetInstanceId();
+    }
     if (IsExpired(state.encounterCheckTime, ENCOUNTER_CACHE_MS))
     {
+        const Encounter* previous = state.encounter;
+        const ObjectGuid previousBoss = state.bossGuid;
         state.encounterCheckTime = WorldTimer::getMSTime();
         state.encounter = nullptr;
         state.bossGuid = ObjectGuid();
 
         const EncounterRegistry& registry = EncounterRegistry::Instance();
-        if (bot->IsInWorld() && !bot->IsBeingTeleported() && registry.IsRaidMap(bot->GetMapId()))
+        if (bot->IsInWorld() && !bot->IsBeingTeleported() && registry.IsEncounterMap(bot->GetMapId()))
         {
             const std::list<ObjectGuid> attackers = ai->GetAiObjectContext()->GetValue<std::list<ObjectGuid>>("attackers")->Get();
             for (const ObjectGuid& guid : attackers)
@@ -415,6 +431,17 @@ const Encounter* TbcRaidHelper::GetEncounter(PlayerbotAI* ai, Unit** boss)
                     }
                 }
             }
+        }
+
+        if (state.encounter)
+            state.lastEncounterTime = state.encounterCheckTime;
+        else if (previous && bot->IsAlive() && bot->IsInWorld() && !bot->IsBeingTeleported() &&
+                 (IsDungeonBossMap(bot->GetMapId()) || IsClassicRaidBossMap(bot->GetMapId())) &&
+                 !IsExpired(state.lastEncounterTime, 10000))
+        {
+            // Fire/poison may outlive the last attacker. Keep its hazard rules briefly.
+            state.encounter = previous;
+            state.bossGuid = previousBoss;
         }
 
         // Force the other caches to be refreshed for the new state
@@ -498,7 +525,8 @@ const std::vector<HazardZone>& TbcRaidHelper::GetHazards(PlayerbotAI* ai)
                     continue;
             }
             // The tank of a creature keeps tanking it
-            else if (role == ROLE_TANK && unit->GetVictim() == bot)
+            else if (role == ROLE_TANK && unit->GetVictim() == bot &&
+                     !IsDungeonBossMap(bot->GetMapId()) && !IsClassicRaidBossMap(bot->GetMapId()))
             {
                 continue;
             }
@@ -647,6 +675,16 @@ float TbcRaidHelper::GetRequiredSpread(PlayerbotAI* ai, bool* isDebuffRun)
 
 Unit* TbcRaidHelper::GetPriorityTarget(PlayerbotAI* ai)
 {
+    if (ai->GetBot()->GetMapId() == 548)
+        if (Unit* demon = ssc::GetMyInnerDemon(ai->GetBot())) return demon;
+    if (ai->GetBot()->GetMapId() == 544 && raidboss::IsDps(ai->GetBot()))
+        return magtheridon::GetCombatTarget(ai);
+    if (raidboss::IsDps(ai->GetBot()))
+        if (Unit* priority = karazhan::GetIllhoofTarget(ai, false))
+            return priority;
+    if (IsClassicRaidBossMap(ai->GetBot()->GetMapId()))
+        if (Unit* target = GetClassicRaidPriorityTarget(ai))
+            return target;
     TbcRaidStrategy* strategy = TbcRaidStrategy::Get(ai);
     if (!strategy)
         return nullptr;

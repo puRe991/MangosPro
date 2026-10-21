@@ -5,6 +5,11 @@
 
 using namespace ai;
 
+bool SlamTrigger::IsActive()
+{
+    return CanUseTbcSlam(ai) && SpellCanBeCastedTrigger::IsActive();
+}
+
 bool BloodrageBuffTrigger::IsActive()
 {
     return AI_VALUE2(uint8, "health", "self target") >= sPlayerbotAIConfig.mediumHealth &&

@@ -38,9 +38,21 @@ namespace
 
 // General
 
+float HighKingMaulgarHoldPreparationMultiplier::GetValue(Action* action)
+{
+    if (!action)
+        return 1.0f;
+    const std::string& name = action->getName();
+    if (name != "follow" && name != "follow master" && name != "move random" && name != "move to loot")
+        return 1.0f;
+    float range = 0;
+    Unit* target = GetPrepareTarget(ai, range);
+    return target && IsPrepared(bot, target, range) ? 0.0f : 1.0f;
+}
+
 float GruulsLairEncounterMultiplier::GetValue(Action* action)
 {
-    if (!action || !raidboss::IsEncounterInProgress(bot, GRUUL_MAP_ID))
+    if (!action || !IsGruulsLairEncounterInProgress(bot))
         return 1.0f;
 
     return GetValueInEncounter(action);
@@ -63,10 +75,25 @@ float GruulsLairDelayDpsCooldownsMultiplier::GetValueInEncounter(Action* action)
 
 float HighKingMaulgarControlTankActionsMultiplier::GetValueInEncounter(Action* action)
 {
-    if (!PlayerbotAI::IsTank(bot) || action->getName() != "tank assist")
+    if (!PlayerbotAI::IsTank(bot))
         return 1.0f;
 
-    return FindMaulgar(ai) ? 0.0f : 1.0f;
+    Unit* maulgar = FindMaulgar(ai);
+    if (!maulgar)
+        return 1.0f;
+
+    const std::string& name = action->getName();
+    if (name == "tank assist")
+        return 0.0f;
+
+    // Once Maulgar is following his tank, let the positioning action lead him to the
+    // tank spot (and wait there). Chasing him between steps undoes the drag. Keep
+    // normal reaching and gap closers available when another player holds aggro.
+    if (IsMaulgarTank(bot) && maulgar->GetVictim() == bot &&
+        (IsReachTargetAction(action) || IsGapCloserAction(action) || name == "set behind" || name == "follow"))
+        return 0.0f;
+
+    return 1.0f;
 }
 
 float HighKingMaulgarRestrictTauntingMultiplier::GetValueInEncounter(Action* action)
@@ -158,11 +185,22 @@ float HighKingMaulgarControlMageTankActionsMultiplier::GetValueInEncounter(Actio
 
 float GruulTheDragonkillerControlTankMovementMultiplier::GetValueInEncounter(Action* action)
 {
-    // "flee" is the action of the "avoid aoe" strategy
-    if (!PlayerbotAI::IsTank(bot) || action->getName() != "flee")
+    if (!PlayerbotAI::IsTank(bot))
         return 1.0f;
 
-    return FindGruul(ai) ? 0.0f : 1.0f;
+    Unit* gruul = FindGruul(ai);
+    if (!gruul)
+        return 1.0f;
+
+    const std::string& name = action->getName();
+    // Keep both tanks in place instead of fleeing automatically. Only the tank
+    // holding aggro leads Gruul; the off-tank must still reach melee for Hurtful Strike.
+    if (name == "flee")
+        return 0.0f;
+    if (gruul->GetVictim() == bot &&
+        (IsReachTargetAction(action) || IsGapCloserAction(action) || name == "set behind" || name == "follow"))
+        return 0.0f;
+    return 1.0f;
 }
 
 float GruulTheDragonkillerStaySpreadForShatterMultiplier::GetValueInEncounter(Action* action)

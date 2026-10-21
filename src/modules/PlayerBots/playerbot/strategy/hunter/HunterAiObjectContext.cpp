@@ -226,6 +226,7 @@ namespace ai
                 creators["has ammo"] = [](PlayerbotAI* ai) { return new HunterHasAmmoTrigger(ai); };
                 creators["switch to melee"] = [](PlayerbotAI* ai) { return new SwitchToMeleeTrigger(ai); };
                 creators["switch to ranged"] = [](PlayerbotAI* ai) { return new SwitchToRangedTrigger(ai); };
+                creators["hunter recover ranged distance"] = [](PlayerbotAI* ai) { return new HunterRecoverRangedDistanceTrigger(ai); };
                 creators["feign death"] = [](PlayerbotAI* ai) { return new FeignDeathTrigger(ai); };
                 creators["scatter shot on snare target"] = [](PlayerbotAI* ai) { return new ScatterShotSnareTrigger(ai); };
                 creators["chimera shot"] = [](PlayerbotAI* ai) { return new ChimeraShotCanCastTrigger(ai); };
@@ -258,6 +259,7 @@ namespace ai
                 creators["chimera shot"] = [](PlayerbotAI* ai) { return new CastChimeraShotAction(ai); };
                 creators["explosive shot"] = [](PlayerbotAI* ai) { return new CastExplosiveShotAction(ai); };
                 creators["arcane shot"] = [](PlayerbotAI* ai) { return new CastArcaneShotAction(ai); };
+                creators["hunter recover ranged distance"] = [](PlayerbotAI* ai) { return new HunterRecoverRangedDistanceAction(ai); };
                 creators["tranquilizing shot"] = [](PlayerbotAI* ai) { return new CastTranquilizingShotAction(ai); };
                 creators["concussive shot"] = [](PlayerbotAI* ai) { return new CastConcussiveShotAction(ai); };
                 creators["distracting shot"] = [](PlayerbotAI* ai) { return new CastDistractingShotAction(ai); };

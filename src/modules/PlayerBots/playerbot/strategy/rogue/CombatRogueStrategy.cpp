@@ -427,11 +427,11 @@ void CombatRogueStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
 
     triggers.push_back(new TriggerNode(
         "eviscerate",
-        NextAction::array(0, new NextAction("eviscerate", ACTION_HIGH + 1), NULL)));
+        NextAction::array(0, new NextAction("eviscerate", ACTION_HIGH), NULL)));
 
     triggers.push_back(new TriggerNode(
         "rupture",
-        NextAction::array(0, new NextAction("rupture", ACTION_HIGH), NULL)));
+        NextAction::array(0, new NextAction("rupture", ACTION_HIGH + 1), NULL)));
 
     triggers.push_back(new TriggerNode(
         "sinister strike",

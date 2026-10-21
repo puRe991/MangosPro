@@ -1,6 +1,7 @@
 // Ported from mod-playerbots (src/Ai/Raid/Mag, GPL v2+) and adapted for this core.
 #include "playerbot/playerbot.h"
 #include "MagtheridonHelpers.h"
+#include "playerbot/strategy/values/PossibleAttackTargetsValue.h"
 #include "playerbot/strategy/raids/RaidBossHelpers.h"
 #include <algorithm>
 #include <cmath>
@@ -61,6 +62,31 @@ bool IsMagtheridonActive(Unit* magtheridon)
     return magtheridon && !magtheridon->HasAura(SPELL_SHADOW_CAGE_DUMMY);
 }
 
+Unit* GetCombatTarget(PlayerbotAI* ai)
+{
+    Player* bot = ai->GetBot();
+    if (!bot->IsInWorld() || bot->IsBeingTeleported() || bot->GetMapId() != MAG_MAP_ID || !bot->IsInCombat())
+        return nullptr;
+    Unit* boss = FindMagtheridon(ai);
+    for (ChannelerSlot slot : { CHANNELER_SOUTH, CHANNELER_WEST, CHANNELER_EAST, CHANNELER_NORTHWEST, CHANNELER_NORTHEAST })
+        if (Unit* channeler = GetChanneler(ai, slot))
+            if (PossibleAttackTargetsValue::IsValid(channeler, bot, 150.0f, true))
+                return channeler;
+    if (IsMagtheridonActive(boss) && PossibleAttackTargetsValue::IsValid(boss, bot, 150.0f, true))
+        return boss;
+    return nullptr;
+}
+
+bool CanUseCubeMovement(PlayerbotAI* ai, const std::string& action)
+{
+    Player* bot = ai->GetBot();
+    if (!bot->IsInWorld() || bot->IsBeingTeleported() || bot->GetMapId() != MAG_MAP_ID || !bot->IsInCombat())
+        return true;
+    if (!bot->HasAura(SPELL_SHADOW_GRASP) && (!IsCubeClicker(bot) || !IsBlastNovaSoon(bot)))
+        return true;
+    return action == "magtheridon use manticron cube" || action == "magtheridon move out of debris";
+}
+
 bool IsBlastNovaCasting(Unit* magtheridon)
 {
     return magtheridon && magtheridon->FindCurrentSpellBySpellId(SPELL_BLAST_NOVA);
@@ -108,7 +134,7 @@ Unit* GetChanneler(PlayerbotAI* ai, ChannelerSlot slot)
 std::list<ObjectGuid> FindBurningAbyssalGuids(Player* bot)
 {
     std::list<ObjectGuid> guids;
-    for (Unit* abyssal : raidboss::FindUnits(bot, NPC_BURNING_ABYSSAL, 100.0f))
+    for (Unit* abyssal : raidboss::FindUnits(bot, NPC_BURNING_ABYSSAL, 150.0f))
         guids.push_back(abyssal->GetObjectGuid());
 
     guids.sort([](const ObjectGuid& lhs, const ObjectGuid& rhs) { return lhs.GetCounter() < rhs.GetCounter(); });
@@ -139,13 +165,99 @@ std::vector<Player*> GetGroupBotsOfClass(Player* bot, uint8 classId)
     {
         Player* member = ref->getSource();
         if (member && member->IsAlive() && member->IsInWorld() && member->GetMapId() == bot->GetMapId() &&
-            member->getClass() == classId && member->GetPlayerbotAI())
+            member->GetInstanceId() == bot->GetInstanceId() && member->getClass() == classId && member->GetPlayerbotAI())
         {
             result.push_back(member);
         }
     }
 
     return result;
+}
+
+Unit* GetChannelerInterruptTarget(PlayerbotAI* ai, std::string& spell)
+{
+    Player* bot = ai->GetBot();
+    if (bot->GetMapId() != MAG_MAP_ID || !bot->IsInCombat() || bot->HasAura(SPELL_SHADOW_GRASP))
+        return nullptr;
+
+    std::vector<std::string> interrupts;
+    switch (bot->getClass())
+    {
+        case CLASS_ROGUE: interrupts = { "kick" }; break;
+        case CLASS_WARRIOR: interrupts = { "shield bash", "pummel" }; break;
+        case CLASS_MAGE: interrupts = { "counterspell" }; break;
+        case CLASS_SHAMAN: interrupts = { "earth shock" }; break;
+        case CLASS_PALADIN: interrupts = { "hammer of justice" }; break;
+        case CLASS_PRIEST: interrupts = { "silence" }; break;
+        default: return nullptr;
+    }
+
+    // Look beyond the DPS target. Healing has first priority, then the raid-wide
+    // volley and fear. Recheck at execution so a completed/interrupted cast is skipped.
+    for (uint32 cast : { 30528u, 30510u, 30530u, 39176u })
+        for (ChannelerSlot slot : { CHANNELER_SOUTH, CHANNELER_WEST, CHANNELER_EAST, CHANNELER_NORTHWEST, CHANNELER_NORTHEAST })
+        {
+            Unit* channeler = GetChanneler(ai, slot);
+            if (!channeler || !channeler->IsInCombat() || !channeler->FindCurrentSpellBySpellId(cast))
+                continue;
+            for (const std::string& interrupt : interrupts)
+                if (ai->IsInterruptableSpellCasting(channeler, interrupt) && ai->CanCastSpell(interrupt, channeler, 0))
+                {
+                    spell = interrupt;
+                    return channeler;
+                }
+        }
+    return nullptr;
+}
+
+Unit* GetAssignedAbyssalCcTarget(PlayerbotAI* ai, std::string& spell)
+{
+    Player* bot = ai->GetBot();
+    if (bot->GetMapId() != MAG_MAP_ID || !bot->IsInCombat() || bot->getClass() != CLASS_WARLOCK ||
+        bot->HasAura(SPELL_SHADOW_GRASP))
+        return nullptr;
+
+    // Do not restart a CC cast that is already in flight.
+    for (const char* cc : { "banish", "fear" })
+        if (uint32 id = ai->GetAiObjectContext()->GetValue<uint32>("spell id", cc)->Get())
+            if (bot->FindCurrentSpellBySpellId(id))
+                return nullptr;
+
+    const auto warlocks = GetGroupBotsOfClass(bot, CLASS_WARLOCK);
+    const int index = raidboss::GetIndexOf(bot, warlocks);
+    if (index < 0)
+        return nullptr;
+    const auto abyssals = GetBurningAbyssals(ai);
+    for (size_t i = size_t(index); i < abyssals.size(); i += warlocks.size())
+    {
+        Unit* target = abyssals[i];
+        spell = i < warlocks.size() ? "banish" : "fear";
+        if (ai->HasAura("banish", target) || ai->HasAura("fear", target))
+            continue;
+        if (ai->CanCastSpell(spell, target, 0, nullptr, true))
+            return target;
+    }
+    return nullptr;
+}
+
+bool NeedsCubeAction(PlayerbotAI* ai)
+{
+    Player* bot = ai->GetBot();
+    if (bot->GetMapId() != MAG_MAP_ID)
+        return false;
+    if (bot->HasAura(SPELL_SHADOW_GRASP))
+        return true; // Preserve the channel, then let the action release it explicitly.
+    Unit* boss = FindMagtheridon(ai);
+    CubeInfo cube;
+    if (!IsMagtheridonActive(boss) || bot->HasAura(SPELL_MIND_EXHAUSTION) || !GetAssignedCube(bot, cube))
+        return false;
+    if (IsBlastNovaCasting(boss))
+        return true;
+    if (!IsBlastNovaSoon(bot))
+        return false;
+    return raidboss::ExactDist2d(bot, cube.x, cube.y) > 3.0f || std::fabs(bot->GetPositionZ() - cube.z) >= 3.0f ||
+        IsPositionInActiveDebris(bot, bot->GetPositionX(), bot->GetPositionY()) ||
+        IsPositionInActiveConflagration(bot, bot->GetPositionX(), bot->GetPositionY());
 }
 
 std::vector<CubeInfo> FindCubes(Player* bot)
@@ -290,8 +402,10 @@ bool GetAssignedCube(Player* bot, CubeInfo& cube)
 bool IsBlastNovaSoon(Player* bot)
 {
     uint32 time = 0;
-    return GetBlastNovaTime(bot->GetInstanceId(), time) &&
-           WorldTimer::getMSTimeDiff(time, WorldTimer::getMSTime()) >= BLAST_NOVA_INTERIM_MS;
+    if (!GetBlastNovaTime(bot->GetInstanceId(), time)) return false;
+    const uint32 elapsed = WorldTimer::getMSTimeDiff(time, WorldTimer::getMSTime());
+    // Quake can move the reference time into the future; do not treat that as a wrapped long delay.
+    return elapsed <= 0x7fffffffU && elapsed >= BLAST_NOVA_INTERIM_MS;
 }
 
 bool ResetEncounterState(uint32 instanceId)
@@ -408,8 +522,8 @@ bool UpdateEncounterState(Player* tracker, Unit* magtheridon)
             if (member->GetPlayerbotAI() && member->getClass() != CLASS_WARLOCK && raidboss::IsDps(member) &&
                 raidboss::IsRangedPlayer(member) && CanClickCube(member) && !IsAssigned(assignment, member))
             {
-                candidate = member;
-                break;
+                if (!candidate || raidboss::ExactDist2d(member, cube.x, cube.y) < raidboss::ExactDist2d(candidate, cube.x, cube.y))
+                    candidate = member;
             }
         }
 
@@ -421,8 +535,8 @@ bool UpdateEncounterState(Player* tracker, Unit* magtheridon)
                 if (member->GetPlayerbotAI() && member != victim && member != mainTank && CanClickCube(member) &&
                     !IsAssigned(assignment, member))
                 {
-                    candidate = member;
-                    break;
+                    if (!candidate || raidboss::ExactDist2d(member, cube.x, cube.y) < raidboss::ExactDist2d(candidate, cube.x, cube.y))
+                        candidate = member;
                 }
             }
         }

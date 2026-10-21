@@ -55,9 +55,37 @@ void GruulStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
 
 void GruulStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
 {
+    triggers.push_back(new TriggerNode("gruul's lair no encounter in progress",
+        NextAction::array(0, new NextAction("high king maulgar prepare", raidboss::ACTION_RAID), NULL)));
     // Clean-up between the encounters (spread positions, raid icons)
     triggers.push_back(new TriggerNode("gruul's lair no encounter in progress",
         NextAction::array(0, new NextAction("gruul's lair reset encounter states", ACTION_EMERGENCY + 9), NULL)));
+}
+
+void GruulStrategy::InitNonCombatMultipliers(std::list<Multiplier*>& multipliers)
+{
+    multipliers.push_back(new HighKingMaulgarHoldPreparationMultiplier(ai));
+}
+
+void GruulStrategy::InitReactionTriggers(std::list<TriggerNode*>& triggers)
+{
+    triggers.push_back(new TriggerNode("high king maulgar channeling whirlwind",
+        NextAction::array(0, new NextAction("high king maulgar run away from whirlwind", ACTION_EMERGENCY + 6), NULL)));
+    triggers.push_back(new TriggerNode("high king maulgar should stand back from krosh",
+        NextAction::array(0, new NextAction("high king maulgar back away from krosh", ACTION_EMERGENCY + 5), NULL)));
+    triggers.push_back(new TriggerNode("gruul the dragonkiller in cave in",
+        NextAction::array(0, new NextAction("gruul the dragonkiller get out of cave in", ACTION_EMERGENCY + 7), NULL)));
+    triggers.push_back(new TriggerNode("gruul the dragonkiller incoming shatter",
+        NextAction::array(0, new NextAction("gruul the dragonkiller shatter spread", ACTION_EMERGENCY + 6), NULL)));
+}
+
+void GruulStrategy::InitReactionMultipliers(std::list<Multiplier*>& multipliers)
+{
+    multipliers.push_back(new HighKingMaulgarAvoidWhirlwindMultiplier(ai));
+    multipliers.push_back(new GruulTheDragonkillerControlTankMovementMultiplier(ai));
+    multipliers.push_back(new GruulTheDragonkillerStaySpreadForShatterMultiplier(ai));
+    multipliers.push_back(new GruulTheDragonkillerControlAvoidanceMultiplier(ai));
+    multipliers.push_back(new GruulTheDragonkillerHoldWhileSnaredMultiplier(ai));
 }
 
 void GruulStrategy::InitCombatMultipliers(std::list<Multiplier*>& multipliers)

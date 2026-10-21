@@ -6,6 +6,7 @@
 #include "Engine.h"
 #include "playerbot/PlayerbotAIConfig.h"
 #include "playerbot/PerformanceMonitor.h"
+#include "playerbot/strategy/raids/RaidBossStrategies.h"
 
 #ifdef BUILD_ELUNA
 #include "LuaEngine/LuaEngine.h"
@@ -172,6 +173,7 @@ bool Engine::DoNextAction(Unit* unit, int depth, bool minimal, bool isStunned)
 
             if (!action)
             {
+                RaidBossMapStrategies::TraceDecision(ai, state, nullptr, event.getSource(), "UNKNOWN", actionNode->getName());
                 if (sPlayerbotAIConfig.CanLogAction(ai, actionNode->getName(), false, ""))
                 {
                     std::ostringstream out;
@@ -214,10 +216,21 @@ bool Engine::DoNextAction(Unit* unit, int depth, bool minimal, bool isStunned)
                             action->setRelevance(relevance);
                             if (!relevance)
                             {
+                                RaidBossMapStrategies::TraceDecision(ai, state, action, event.getSource(), "BLOCKED", multiplier->getName());
                                 LogAction("Multiplier %s made action %s useless", multiplier->getName().c_str(), action->getName().c_str());
                                 break;
                             }
                         }
+                    }
+
+                    // A zero multiplier is a veto, not a lower-priority retry.
+                    // Requeuing it marked the shared Action as already modified;
+                    // another positive-priority basket could then bypass the veto,
+                    // or prerequisites could be pushed with 0 + 0.02 relevance.
+                    if (!relevance)
+                    {
+                        delete actionNode;
+                        continue;
                     }
 
                     ActionBasket* peekAction = queue.Peek();
@@ -233,6 +246,7 @@ bool Engine::DoNextAction(Unit* unit, int depth, bool minimal, bool isStunned)
                         LogAction("A:%s - PREREQ", action->getName().c_str());
                         if (MultiplyAndPush(actionNode->getPrerequisites(), relevance + 0.02, false, event, "prereq"))
                         {
+                            RaidBossMapStrategies::TraceDecision(ai, state, action, event.getSource(), "PREREQUISITE");
                             PushAgain(actionNode, relevance + 0.01, event);
                             continue;
                         }
@@ -305,6 +319,7 @@ bool Engine::DoNextAction(Unit* unit, int depth, bool minimal, bool isStunned)
                             if (sPlayerbotAIConfig.hasLog("bot_events.csv"))
                                 sPlayerbotAIConfig.logEvent(ai, "try", action->getName(), "impossible r=" + std::to_string(action->getRelevance()));
                         }
+                        RaidBossMapStrategies::TraceDecision(ai, state, action, event.getSource(), relevance ? "IMPOSSIBLE" : "BLOCKED");
                         LogAction("A:%s - IMPOSSIBLE", action->getName().c_str());
                         MultiplyAndPush(actionNode->getAlternatives(), relevance + 0.03, false, event, "alt");
                     }
@@ -330,6 +345,7 @@ bool Engine::DoNextAction(Unit* unit, int depth, bool minimal, bool isStunned)
                             sPlayerbotAIConfig.logEvent(ai, "try", action->getName(), "useless r=" + std::to_string(action->getRelevance()));
                     }
                     lastRelevance = relevance;
+                    RaidBossMapStrategies::TraceDecision(ai, state, action, event.getSource(), isStunned ? "STUNNED" : "USELESS");
                     LogAction("A:%s - USELESS", action->getName().c_str());
                 }
             }
@@ -675,6 +691,8 @@ void Engine::ProcessTriggers(bool minimal)
             if (!event)
                 continue;
 
+            RaidBossMapStrategies::TraceDecision(ai, state, nullptr, trigger->getName(), "TRIGGERED");
+
             // An external (packet) event is a one-shot obligation: keep the trigger armed until its
             // action has had its turn, so a basket that loses this tick or is dropped from the queue
             // is re-pushed instead of being silently lost. Only arm it when the event actually made
@@ -772,6 +790,7 @@ Action* Engine::InitializeAction(ActionNode* actionNode)
 
 bool Engine::ListenAndExecute(Action* action, Event& event)
 {
+    RaidBossMapStrategies::TraceDecision(ai, state, action, event.getSource(), "START");
     bool actionExecuted = false;
     Action* prevExecutedAction = lastExecutedAction;
     if (actionExecutionListeners.Before(action, event))
@@ -847,6 +866,10 @@ bool Engine::ListenAndExecute(Action* action, Event& event)
 
     actionExecuted = actionExecutionListeners.OverrideResult(action, actionExecuted, event);
     actionExecutionListeners.After(action, actionExecuted, event);
+    // Actions can teleport or log out the bot, clearing its map before returning.
+    if (ai->GetBot()->IsInWorld() && !ai->GetBot()->IsBeingTeleported() && ai->GetBot()->GetMap()->IsDungeon())
+        RaidBossMapStrategies::Trace(ai, state, event.getSource(), action->getName(), actionExecuted);
+    RaidBossMapStrategies::TraceDecision(ai, state, action, event.getSource(), actionExecuted ? "EXECUTED" : "FAILED");
     return actionExecuted;
 }
 

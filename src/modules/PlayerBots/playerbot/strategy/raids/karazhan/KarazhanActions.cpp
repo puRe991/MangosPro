@@ -2,6 +2,7 @@
 #include "playerbot/playerbot.h"
 #include "KarazhanActions.h"
 #include "playerbot/strategy/raids/RaidBossHelpers.h"
+#include "playerbot/strategy/raids/RaidBossStrategies.h"
 #include "playerbot/strategy/values/LastMovementValue.h"
 #include <algorithm>
 #include <cmath>
@@ -10,6 +11,23 @@
 
 using namespace ai;
 using namespace ai::karazhan;
+
+namespace
+{
+    void LogEscape(PlayerbotAI* ai, Unit* boss, const char* mechanic, float safeDistance, bool moved)
+    {
+        auto* debug = dynamic_cast<RaidBossDebugValue*>(ai->GetAiObjectContext()->GetUntypedValue("raid boss debug"));
+        if (!debug || !debug->Get()) return;
+        const time_t now = time(nullptr);
+        time_t& last = debug->lastLog[std::string("escape ") + mechanic];
+        if (now - last < 2) return;
+        last = now;
+        Player* bot = ai->GetBot();
+        sLog.outString("[RaidEscape] bot=%s mechanic=%s boss=%u distance=%.2f safeDistance=%.2f moved=%u pos=(%.2f,%.2f,%.2f)",
+            bot->GetName(), mechanic, boss->GetEntry(), raidboss::ExactDist2d(bot, boss), safeDistance, moved,
+            bot->GetPositionX(), bot->GetPositionY(), bot->GetPositionZ());
+    }
+}
 
 // ---------------------------------------------------------------------------
 // Movement helpers
@@ -323,29 +341,59 @@ bool KarazhanMaidenTankPositionBossAction::Execute(Event& event)
     if (maiden->GetVictim() != bot)
         return false;
 
-    // Drag Maiden onto a healer stunned by Repentance so Holy Ground silences nobody else
+    // Wake the nearest stunned healer first; group order can otherwise send
+    // the tank across the room while a much closer healer remains disabled.
+    Player* nearestHealer = nullptr;
+    float nearestDistance = std::numeric_limits<float>::max();
     for (Player* healer : raidboss::GetGroupHealers(bot))
     {
-        if (healer->HasAura(SPELL_REPENTANCE))
-            return MoveBossToStunnedHealer(healer);
+        if (!healer->IsAlive() || !healer->HasAura(SPELL_REPENTANCE))
+            continue;
+        const float distance = raidboss::ExactDist2d(maiden, healer);
+        if (distance < nearestDistance)
+        {
+            nearestDistance = distance;
+            nearestHealer = healer;
+        }
     }
+    if (nearestHealer)
+        return MoveBossToStunnedHealer(nearestHealer);
 
-    if (!bot->CanReachWithMeleeAttack(maiden))
-        return false;
-
+    // Keep dragging even between melee swings, as with the Gruul tank fix.
     return StepToPosition(MAIDEN_OF_VIRTUE_TANK_POSITION, 2.0f, maiden);
 }
 
 bool KarazhanMaidenTankPositionBossAction::MoveBossToStunnedHealer(Player* healer)
 {
-    const float endDistance = 6.0f;
-    const float angle = healer->GetOrientation();
+    const float endDistance = 3.0f;
+    Unit* maiden = GetKaraUnit(ai, NPC_MAIDEN_OF_VIRTUE);
+    if (!maiden)
+        return false;
+    // Pull through the healer, independent of which way the healer faces.
+    const float angle = maiden->GetAngle(healer);
     const float targetX = healer->GetPositionX() + std::cos(angle) * endDistance;
     const float targetY = healer->GetPositionY() + std::sin(angle) * endDistance;
     if (raidboss::ExactDist2d(bot, targetX, targetY) <= 1.0f)
         return false;
 
-    return MoveToPoint(targetX, targetY, healer->GetPositionZ());
+    float z = healer->GetPositionZ();
+    if (!GetValidGroundPoint(bot, targetX, targetY, z))
+        return false;
+    const bool moved = MoveToPoint(targetX, targetY, z);
+    auto* debug = dynamic_cast<RaidBossDebugValue*>(ai->GetAiObjectContext()->GetUntypedValue("raid boss debug"));
+    if (debug && debug->Get())
+    {
+        const time_t now = time(nullptr);
+        time_t& last = debug->lastLog["maiden wake healer"];
+        if (now - last >= 3)
+        {
+            last = now;
+            sLog.outString("[RaidPosition] boss=Maiden bot=%s wakeHealer=%s healerHp=%.2f bossToHealer=%.2f tankToHealer=%.2f destination=(%.2f,%.2f,%.2f) moved=%u",
+                bot->GetName(), healer->GetName(), healer->GetHealthPercent(),
+                raidboss::ExactDist2d(maiden, healer), raidboss::ExactDist2d(bot, healer), targetX, targetY, z, moved);
+        }
+    }
+    return moved;
 }
 
 bool KarazhanMaidenPositionRangedAction::Execute(Event& event)
@@ -448,7 +496,13 @@ bool KarazhanWizardOfOzMarkTargetAction::Execute(Event& event)
 bool KarazhanWizardOfOzScorchStrawmanAction::Execute(Event& event)
 {
     Unit* strawman = GetKaraUnit(ai, NPC_STRAWMAN);
-    return strawman && raidboss::TryCast(ai, "scorch", strawman);
+    if (!strawman)
+        return false;
+    if (bot->getClass() == CLASS_MAGE)
+        return raidboss::TryCast(ai, "scorch", strawman);
+    if (bot->getClass() == CLASS_WARLOCK)
+        return raidboss::TryCast(ai, "searing pain", strawman);
+    return false;
 }
 
 // ---------------------------------------------------------------------------
@@ -470,7 +524,7 @@ bool KarazhanCuratorPositionBossAction::Execute(Event& event)
     if (!IsBotCurrentTarget(ai, curator))
         return Attack(GetRequester(ai, event), curator);
 
-    if (curator->GetVictim() != bot || !bot->CanReachWithMeleeAttack(curator))
+    if (curator->GetVictim() != bot)
         return false;
 
     return StepToPosition(THE_CURATOR_TANK_POSITION, 2.0f, curator);
@@ -489,13 +543,8 @@ bool KarazhanCuratorSpreadRangedAction::Execute(Event& event)
 
 bool KarazhanIllhoofMarkTargetAction::Execute(Event& event)
 {
-    for (uint32 entry : { NPC_DEMON_CHAINS, NPC_KILREK, NPC_TERESTIAN_ILLHOOF })
-    {
-        if (Unit* target = GetKaraUnit(ai, entry))
-            return raidboss::MarkTargetWithSkull(bot, target);
-    }
-
-    return false;
+    Unit* target = GetIllhoofTarget(ai, false);
+    return target && raidboss::MarkTargetWithSkull(bot, target);
 }
 
 // ---------------------------------------------------------------------------
@@ -508,12 +557,15 @@ bool KarazhanAranRunAwayFromArcaneExplosionAction::Execute(Event& event)
     if (!aran)
         return false;
 
-    const float safeDistance = 21.0f;
+    const float safeDistance = ARAN_ESCAPE_DISTANCE;
     if (raidboss::ExactDist2d(bot, aran) >= safeDistance)
         return false;
 
     StopCasting(bot);
-    return MoveAwayFromPoint(aran->GetPositionX(), aran->GetPositionY(), safeDistance);
+    const bool moved = MoveAwayFromPoint(aran->GetPositionX(), aran->GetPositionY(), safeDistance);
+    SetDuration(200); // recheck the actual distance, not the estimated travel time
+    LogEscape(ai, aran, "arcane-explosion", safeDistance, moved);
+    return moved;
 }
 
 // I will not move when Flame Wreath is cast or the raid blows up
@@ -614,10 +666,10 @@ bool KarazhanNetherspiteBlockRedBeamAction::Execute(Event& event)
         redBeamMoveTimer = std::time(nullptr);
     }
 
-    const float idealDistance = 18.0f;
+    const float idealDistance = 4.0f;
     float beamX = 0.0f;
     float beamY = 0.0f;
-    if (!FindBeamPosition(netherspite, redPortal, std::vector<Unit*>(), idealDistance, beamX, beamY))
+    if (!FindBeamPosition(netherspite, redPortal, GetAllVoidZones(ai), idealDistance, beamX, beamY))
         return false;
 
     auto move = [this](float x, float y, float z) { return MoveToPoint(x, y, z); };
@@ -659,6 +711,8 @@ bool KarazhanNetherspiteBlockBlueBeamAction::Execute(Event& event)
     if (!FindBeamPosition(netherspite, bluePortal, GetAllVoidZones(ai), idealDistance, beamX, beamY))
         return false;
 
+    if (raidboss::ExactDist2d(bot, beamX, beamY) < 0.5f)
+        return false;
     StopCasting(bot);
     return MoveToBeamPoint(ai, beamX, beamY, bot->GetPositionZ(), [this](float x, float y, float z) { return MoveToPoint(x, y, z); });
 }
@@ -685,9 +739,11 @@ bool KarazhanNetherspiteBlockGreenBeamAction::Execute(Event& event)
 
     float beamX = 0.0f;
     float beamY = 0.0f;
-    if (!FindBeamPosition(netherspite, greenPortal, GetAllVoidZones(ai), 18.0f, beamX, beamY))
+    if (!FindBeamPosition(netherspite, greenPortal, GetAllVoidZones(ai), PlayerbotAI::IsHeal(bot) ? 18.0f : 4.0f, beamX, beamY))
         return false;
 
+    if (raidboss::ExactDist2d(bot, beamX, beamY) < 0.5f)
+        return false;
     StopCasting(bot);
     return MoveToBeamPoint(ai, beamX, beamY, bot->GetPositionZ(), [this](float x, float y, float z) { return MoveToPoint(x, y, z); });
 }
@@ -807,6 +863,24 @@ bool KarazhanNetherspiteManageTimersAndTrackersAction::Execute(Event& event)
     const uint32 instanceId = bot->GetInstanceId();
     const bool isMechanicTracker = raidboss::IsMechanicTrackerBot(bot, KARAZHAN_MAP_ID);
     bool didSomething = false;
+    auto* debug = dynamic_cast<RaidBossDebugValue*>(context->GetUntypedValue("raid boss debug"));
+    if (debug && debug->Get())
+    {
+        const time_t now = time(nullptr);
+        time_t& last = debug->lastLog["beam assignment"];
+        if (now - last >= 3)
+        {
+            last = now;
+            const auto blockers = GetCurrentBeamBlockers(bot);
+            sLog.outString("[RaidBeam] bot=%s instance=%u banish=%u redPortal=%u greenPortal=%u bluePortal=%u red=%s green=%s blue=%s redStacks=%u greenStacks=%u blueStacks=%u",
+                bot->GetName(), instanceId, IsBanishPhase(netherspite),
+                GetKaraUnit(ai, NPC_RED_PORTAL) != nullptr, GetKaraUnit(ai, NPC_GREEN_PORTAL) != nullptr,
+                GetKaraUnit(ai, NPC_BLUE_PORTAL) != nullptr,
+                blockers.red ? blockers.red->GetName() : "none", blockers.green ? blockers.green->GetName() : "none",
+                blockers.blue ? blockers.blue->GetName() : "none", bot->GetAuraCount(SPELL_RED_BEAM_DEBUFF),
+                bot->GetAuraCount(SPELL_GREEN_BEAM_DEBUFF), bot->GetAuraCount(SPELL_BLUE_BEAM_DEBUFF));
+        }
+    }
 
     if (IsBanishPhase(netherspite))
     {
@@ -837,8 +911,9 @@ bool KarazhanMalchezaarEnfeebledAvoidHazardAction::Execute(Event& event)
     if (!malchezaar)
         return false;
 
-    const float minSafeBossDistance = 32.0f;
-    if (raidboss::ExactDist2d(bot, malchezaar) >= minSafeBossDistance)
+    const float minSafeBossDistance = MALCHEZAAR_ESCAPE_DISTANCE;
+    if (raidboss::ExactDist2d(bot, malchezaar) >= minSafeBossDistance &&
+        IsSafePosition(bot->GetPositionX(), bot->GetPositionY(), GetSpawnedInfernals(ai), 22.0f))
         return false;
 
     struct Candidate
@@ -878,7 +953,7 @@ bool KarazhanMalchezaarEnfeebledAvoidHazardAction::Execute(Event& event)
         if (!IsStraightPathSafe(botX, botY, candidate.x, candidate.y, infernals, safeInfernalDistance))
             continue;
 
-        if (++checks > 20)
+        if (++checks > 96)
             break;
 
         float z = 0.0f;
@@ -886,9 +961,13 @@ bool KarazhanMalchezaarEnfeebledAvoidHazardAction::Execute(Event& event)
             continue;
 
         StopCasting(bot);
-        return MoveToPoint(candidate.x, candidate.y, z);
+        const bool moved = MoveToPoint(candidate.x, candidate.y, z);
+        SetDuration(200);
+        LogEscape(ai, malchezaar, "enfeeble", minSafeBossDistance, moved);
+        return moved;
     }
 
+    LogEscape(ai, malchezaar, "enfeeble", minSafeBossDistance, false);
     return false;
 }
 
@@ -925,7 +1004,7 @@ bool KarazhanMalchezaarTanksPositionBossAction::Execute(Event& event)
     if (!IsBotCurrentTarget(ai, malchezaar))
         return Attack(GetRequester(ai, event), malchezaar);
 
-    if (malchezaar->GetVictim() != bot || !bot->CanReachWithMeleeAttack(malchezaar))
+    if (malchezaar->GetVictim() != bot)
         return false;
 
     const float safeInfernalDistance = 30.0f;

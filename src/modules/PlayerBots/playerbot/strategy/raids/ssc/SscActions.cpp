@@ -2,6 +2,7 @@
 #include "playerbot/playerbot.h"
 #include "SscActions.h"
 #include "SscHelpers.h"
+#include "playerbot/strategy/raids/RaidBossStrategies.h"
 #include "playerbot/strategy/raids/RaidBossHelpers.h"
 #include "Loot/LootMgr.h"
 #include "Entities/DynamicObject.h"
@@ -59,6 +60,8 @@ bool SscMovementAction::MoveToPosition(const WorldPosition& position)
     if (raidboss::ExactDist2d(bot, position.getX(), position.getY()) < 0.5f)
         return false;
 
+    if (IsReaction())
+        bot->InterruptNonMeleeSpells(true);
     return MoveTo(bot->GetMapId(), position.getX(), position.getY(), position.getZ(), false, IsReaction(), false, true);
 }
 
@@ -82,6 +85,8 @@ bool SscAttackAction::MoveToPosition(const WorldPosition& position)
     if (raidboss::ExactDist2d(bot, position.getX(), position.getY()) < 0.5f)
         return false;
 
+    if (IsReaction())
+        bot->InterruptNonMeleeSpells(true);
     return MoveTo(bot->GetMapId(), position.getX(), position.getY(), position.getZ(), false, IsReaction(), false, true);
 }
 
@@ -104,55 +109,12 @@ bool SscAttackAction::StepToPosition(const WorldPosition& position, float arriva
 
 bool SscEraseTimersAndTrackersAction::Execute(Event& event)
 {
-    const ObjectGuid guid = bot->GetObjectGuid();
-    const bool hydross = FindSscUnit(ai, NPC_HYDROSS) != nullptr;
-    const bool lurker = FindSscUnit(ai, NPC_LURKER_BELOW) != nullptr;
-    const bool leotheras = FindSscUnit(ai, NPC_LEOTHERAS) != nullptr;
-    const bool karathress = FindSscUnit(ai, NPC_KARATHRESS) != nullptr;
-    const bool tidewalker = FindSscUnit(ai, NPC_MOROGRIM) != nullptr;
-    const bool vashj = FindSscUnit(ai, NPC_LADY_VASHJ) != nullptr;
+    if (!NeedsStateReset(ai))
+        return false;
 
-    bool erased = false;
-    WithState(bot, [&](SscInstanceState& state)
-    {
-        if (!hydross && (state.hydrossChangeToNaturePhase || state.hydrossChangeToFrostPhase || state.hydrossNatureDpsWait || state.hydrossFrostDpsWait))
-        {
-            state.hydrossChangeToNaturePhase = state.hydrossChangeToFrostPhase = state.hydrossNatureDpsWait = state.hydrossFrostDpsWait = 0;
-            erased = true;
-        }
-
-        if (!lurker && (state.lurkerRangedPositions.erase(guid) > 0 || state.lurkerSpoutEnd))
-        {
-            state.lurkerSpoutEnd = 0;
-            erased = true;
-        }
-
-        if (!leotheras && (state.leotherasHumanFormDpsWait || state.leotherasDemonFormDpsWait || state.leotherasFinalPhaseDpsWait))
-        {
-            state.leotherasHumanFormDpsWait = state.leotherasDemonFormDpsWait = state.leotherasFinalPhaseDpsWait = 0;
-            erased = true;
-        }
-
-        if (!karathress && state.karathressDpsWait)
-        {
-            state.karathressDpsWait = 0;
-            erased = true;
-        }
-
-        if (!tidewalker && (state.tidewalkerTankStep.erase(guid) > 0 || state.tidewalkerRangedStep.erase(guid) > 0))
-            erased = true;
-
-        if (!vashj && (state.hasReachedVashjRangedPosition.erase(guid) > 0 || state.intendedLineup.erase(guid) > 0 ||
-            state.lastCoreInInventoryTime.erase(guid) > 0 || !state.vashjGenerator.IsEmpty()))
-        {
-            state.vashjGenerator = ObjectGuid();
-            erased = true;
-        }
-    });
-
-    return erased;
+    WithState(bot, [](SscInstanceState& state) { state = SscInstanceState(); });
+    return true;
 }
-
 // ---------------------------------------------------------------------------
 // Trash
 // ---------------------------------------------------------------------------
@@ -207,7 +169,9 @@ bool SscHydrossPositionFrostTankAction::Execute(Event& event)
     const bool corrupted = hydross->HasAura(SPELL_CORRUPTION);
     const bool tanking = hydross->GetVictim() == bot && bot->CanReachWithMeleeAttack(hydross);
 
-    if (!corrupted && !HasMarkOfHydrossAt100Percent(bot))
+    UpdateHydrossState(ai);
+    const time_t changeTime = GetState(bot).hydrossChangeToNaturePhase;
+    if (!corrupted && !changeTime)
     {
         if (raidboss::MarkTargetWithSquare(bot, hydross))
             return true;
@@ -220,21 +184,27 @@ bool SscHydrossPositionFrostTankAction::Execute(Event& event)
             return StepToPosition(HYDROSS_FROST_TANK_POSITION, 2.0f, 5.0f);
     }
 
-    if (!corrupted && HasMarkOfHydrossAt100Percent(bot) && tanking)
+    if (!corrupted && changeTime && tanking)
     {
-        const time_t changeTime = GetState(bot).hydrossChangeToNaturePhase;
         if (changeTime && time(nullptr) - changeTime >= 1)
         {
             if (StepToPosition(HYDROSS_NATURE_TANK_POSITION, 2.0f, 5.0f))
                 return true;
 
-            // Boss handed off: stop attacking, the nature tank picks it up
-            return StopAttacking(ai);
+            // Keep threat until the form actually changes.
+            return false;
         }
     }
 
     if (corrupted)
+    {
+        if (StopAttacking(ai))
+            return true;
+        // Do not drag the boss back over the boundary before the other tank takes over.
+        if (hydross->GetVictim() != raidboss::GetGroupAssistTank(bot, 0))
+            return false;
         return MoveToPosition(HYDROSS_FROST_TANK_POSITION);
+    }
 
     return false;
 }
@@ -251,7 +221,9 @@ bool SscHydrossPositionNatureTankAction::Execute(Event& event)
     const bool corrupted = hydross->HasAura(SPELL_CORRUPTION);
     const bool tanking = hydross->GetVictim() == bot && bot->CanReachWithMeleeAttack(hydross);
 
-    if (corrupted && !HasMarkOfCorruptionAt100Percent(bot))
+    UpdateHydrossState(ai);
+    const time_t changeTime = GetState(bot).hydrossChangeToFrostPhase;
+    if (corrupted && !changeTime)
     {
         if (raidboss::MarkTargetWithTriangle(bot, hydross))
             return true;
@@ -264,20 +236,25 @@ bool SscHydrossPositionNatureTankAction::Execute(Event& event)
             return StepToPosition(HYDROSS_NATURE_TANK_POSITION, 2.0f, 5.0f);
     }
 
-    if (corrupted && HasMarkOfCorruptionAt100Percent(bot) && tanking)
+    if (corrupted && changeTime && tanking)
     {
-        const time_t changeTime = GetState(bot).hydrossChangeToFrostPhase;
         if (changeTime && time(nullptr) - changeTime >= 1)
         {
             if (StepToPosition(HYDROSS_FROST_TANK_POSITION, 2.0f, 5.0f))
                 return true;
 
-            return StopAttacking(ai);
+            return false;
         }
     }
 
     if (!corrupted)
+    {
+        if (StopAttacking(ai))
+            return true;
+        if (hydross->GetVictim() != raidboss::GetGroupMainTank(bot))
+            return false;
         return MoveToPosition(HYDROSS_NATURE_TANK_POSITION);
+    }
 
     return false;
 }
@@ -331,72 +308,13 @@ bool SscHydrossMisdirectBossToTankAction::Execute(Event& event)
 
 bool SscHydrossStopDpsUponPhaseChangeAction::Execute(Event& event)
 {
-    const SscInstanceState state = GetState(bot);
-    const time_t now = time(nullptr);
-    constexpr time_t phaseStartStopSeconds = 5;
-    constexpr time_t phaseEndStopSeconds = 1;
-
-    // 1 second after 100% Mark, stop DPS; keep it stopped for 5 seconds after the transition
-    const bool shouldStopDps =
-        (state.hydrossChangeToNaturePhase && now - state.hydrossChangeToNaturePhase >= phaseEndStopSeconds) ||
-        (state.hydrossNatureDpsWait && now - state.hydrossNatureDpsWait < phaseStartStopSeconds) ||
-        (state.hydrossChangeToFrostPhase && now - state.hydrossChangeToFrostPhase >= phaseEndStopSeconds) ||
-        (state.hydrossFrostDpsWait && now - state.hydrossFrostDpsWait < phaseStartStopSeconds);
-
-    return shouldStopDps && StopAttacking(ai);
+    return ShouldPauseHydrossDps(ai) && StopAttacking(ai);
 }
 
 bool SscHydrossManageTimersAction::Execute(Event& event)
 {
-    Unit* hydross = FindSscUnit(ai, NPC_HYDROSS);
-    if (!hydross)
-        return false;
-
-    const time_t now = time(nullptr);
-    const bool corrupted = hydross->HasAura(SPELL_CORRUPTION);
-    const bool markHydross = HasMarkOfHydrossAt100Percent(bot);
-    const bool markCorruption = HasMarkOfCorruptionAt100Percent(bot);
-
-    bool changed = false;
-    WithState(bot, [&](SscInstanceState& state)
-    {
-        if (!corrupted)
-        {
-            if (!state.hydrossFrostDpsWait || state.hydrossNatureDpsWait || state.hydrossChangeToFrostPhase)
-                changed = true;
-
-            if (!state.hydrossFrostDpsWait)
-                state.hydrossFrostDpsWait = now;
-            state.hydrossNatureDpsWait = 0;
-            state.hydrossChangeToFrostPhase = 0;
-
-            if (markHydross && !state.hydrossChangeToNaturePhase)
-            {
-                state.hydrossChangeToNaturePhase = now;
-                changed = true;
-            }
-        }
-        else
-        {
-            if (!state.hydrossNatureDpsWait || state.hydrossFrostDpsWait || state.hydrossChangeToNaturePhase)
-                changed = true;
-
-            if (!state.hydrossNatureDpsWait)
-                state.hydrossNatureDpsWait = now;
-            state.hydrossFrostDpsWait = 0;
-            state.hydrossChangeToNaturePhase = 0;
-
-            if (markCorruption && !state.hydrossChangeToFrostPhase)
-            {
-                state.hydrossChangeToFrostPhase = now;
-                changed = true;
-            }
-        }
-    });
-
-    return changed;
+    return UpdateHydrossState(ai);
 }
-
 // ---------------------------------------------------------------------------
 // The Lurker Below
 // ---------------------------------------------------------------------------
@@ -587,6 +505,7 @@ bool SscLeotherasDemonFormTankAttackBossAction::Execute(Event& event)
 // Applies only if there is a Warlock tank present
 bool SscLeotherasMeleeTanksDontAttackDemonFormAction::Execute(Event& event)
 {
+    if (!bot->GetVictim() && !AI_VALUE(ObjectGuid, "current target")) return false;
     return StopAttacking(ai);
 }
 
@@ -657,6 +576,22 @@ bool SscLeotherasDestroyInnerDemonAction::Execute(Event& event)
     if (!innerDemon)
         return false;
 
+    auto* debug = dynamic_cast<RaidBossDebugValue*>(context->GetUntypedValue("raid boss debug"));
+    if (debug && debug->Get() && time(nullptr) - debug->lastLog["inner demon"] >= 2)
+    {
+        debug->lastLog["inner demon"] = time(nullptr);
+        sLog.outString("[RaidInnerDemon] bot=%s demon=%u owner=%u hp=%.2f distance=%.2f los=%u selected=%u",
+            bot->GetName(), innerDemon->GetObjectGuid().GetCounter(), innerDemon->GetSpawnerGuid().GetCounter(),
+            innerDemon->GetHealthPercent(), raidboss::ExactDist2d(bot, innerDemon), bot->IsWithinLOSInMap(innerDemon), IsCurrentTarget(innerDemon));
+    }
+    if (!IsCurrentTarget(innerDemon)) return AttackUnit(innerDemon);
+    if (raidboss::ExactDist2d(bot, innerDemon) > 22.0f || !bot->IsWithinLOSInMap(innerDemon))
+    {
+        const bool moved = MoveTo(SSC_MAP_ID, innerDemon->GetPositionX(), innerDemon->GetPositionY(), innerDemon->GetPositionZ(), false, false, false, true);
+        if (moved) SetDuration(200);
+        return moved;
+    }
+
     if (PlayerbotAI::IsTank(bot) && bot->getClass() == CLASS_DRUID && HandleFeralTankStrategy(innerDemon))
         return true;
 
@@ -707,7 +642,8 @@ bool SscLeotherasDestroyInnerDemonAction::HandleHealerStrategy(Unit* innerDemon)
     case CLASS_PALADIN:
         return raidboss::TryCast(ai, "avenging wrath", bot) || raidboss::TryCast(ai, "consecration", bot) ||
                raidboss::TryCast(ai, "exorcism", innerDemon) || raidboss::TryCast(ai, "hammer of wrath", innerDemon) ||
-               raidboss::TryCast(ai, "holy shock", innerDemon) || raidboss::TryCast(ai, "judgement of light", innerDemon);
+               raidboss::TryCast(ai, "holy shock", innerDemon) || raidboss::TryCast(ai, "judgement", innerDemon) ||
+               raidboss::TryCast(ai, "seal of righteousness", bot);
     case CLASS_PRIEST:
         return raidboss::TryCast(ai, "smite", innerDemon);
     case CLASS_SHAMAN:
@@ -771,6 +707,17 @@ bool SscLeotherasManageDpsWaitTimersAction::Execute(Event& event)
     const bool human = GetLeotherasHuman(ai) != nullptr;
     const bool phase2Demon = GetPhase2LeotherasDemon(ai) != nullptr;
     const bool phase3Demon = GetPhase3LeotherasDemon(ai) != nullptr;
+    auto* debug = dynamic_cast<RaidBossDebugValue*>(context->GetUntypedValue("raid boss debug"));
+    if (debug && debug->Get() && time(nullptr) - debug->lastLog["leotheras"] >= 3)
+    {
+        debug->lastLog["leotheras"] = time(nullptr);
+        Player* tank = GetLeotherasDemonFormTank(bot);
+        sLog.outString("[RaidLeotheras] instance=%u human=%u demon=%u final=%u whirlwind=%u demonTank=%s victim=%s bossHp=%.2f",
+            bot->GetInstanceId(), human, phase2Demon, phase3Demon,
+            leotheras->HasAura(SPELL_WHIRLWIND) || leotheras->HasAura(SPELL_WHIRLWIND_CHANNEL),
+            tank ? tank->GetName() : "none", leotheras->GetVictim() ? leotheras->GetVictim()->GetName() : "none", leotheras->GetHealthPercent());
+    }
+
 
     bool changed = false;
     WithState(bot, [&](SscInstanceState& state)
@@ -915,17 +862,18 @@ bool SscKarathressAssignDpsPriorityAction::Execute(Event& event)
         return !IsCurrentTarget(target) && AttackUnit(target);
     };
 
-    const bool meleeDps = raidboss::IsDps(bot) && raidboss::IsMeleePlayer(bot);
-
-    // Target priority 1: Spitfire Totems for melee dps
+    // Every free damage dealer focuses Spitfire Totems immediately.
     Unit* totem = FindSscUnit(ai, NPC_SPITFIRE_TOTEM, 100.0f);
-    if (totem && meleeDps)
+    if (totem)
     {
+        Unit* current = ai->GetUnit(AI_VALUE(ObjectGuid, "current target"));
+        if (current != totem)
+            bot->InterruptNonMeleeSpells(true);
         if (focus(totem, raidboss::ICON_SKULL, "skull"))
             return true;
 
         // Direct movement order, the path between Sharkkis and the totem is sometimes bad
-        if (!bot->CanReachWithMeleeAttack(totem))
+        if (raidboss::IsMeleePlayer(bot) && !bot->CanReachWithMeleeAttack(totem))
             return MoveToPosition(WorldPosition(totem));
 
         return false;

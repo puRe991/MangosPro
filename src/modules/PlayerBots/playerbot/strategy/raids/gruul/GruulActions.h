@@ -17,6 +17,14 @@ namespace ai
 
     // High King Maulgar <Lord of the Ogres>
 
+    class HighKingMaulgarPrepareAction : public MovementAction
+    {
+    public:
+        HighKingMaulgarPrepareAction(PlayerbotAI* ai) : MovementAction(ai, "high king maulgar prepare") {}
+        bool isUseful() override;
+        bool Execute(Event& event) override;
+    };
+
     class HighKingMaulgarMeleeTanksPositionBossesAction : public AttackAction
     {
     public:
@@ -53,6 +61,7 @@ namespace ai
     {
     public:
         HighKingMaulgarRunAwayFromWhirlwindAction(PlayerbotAI* ai) : MovementAction(ai, "high king maulgar run away from whirlwind") {}
+        bool isUseful() override;
         bool Execute(Event& event) override;
     };
 
@@ -60,6 +69,7 @@ namespace ai
     {
     public:
         HighKingMaulgarBackAwayFromKroshAction(PlayerbotAI* ai) : MovementAction(ai, "high king maulgar back away from krosh") {}
+        bool isUseful() override;
         bool Execute(Event& event) override;
     };
 
@@ -112,6 +122,7 @@ namespace ai
     {
     public:
         GruulTheDragonkillerGetOutOfCaveInAction(PlayerbotAI* ai) : MovementAction(ai, "gruul the dragonkiller get out of cave in") {}
+        bool isUseful() override;
         bool Execute(Event& event) override;
     };
 
@@ -119,6 +130,7 @@ namespace ai
     {
     public:
         GruulTheDragonkillerShatterSpreadAction(PlayerbotAI* ai) : MovementAction(ai, "gruul the dragonkiller shatter spread") {}
+        bool isUseful() override;
         bool Execute(Event& event) override;
     };
 }

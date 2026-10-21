@@ -28,6 +28,7 @@ namespace ai
     {
     public:
         RuptureTrigger(PlayerbotAI* ai, uint8 comboPoints = 4) : NoDebuffAndComboPointsAvailableTrigger(ai, "rupture", comboPoints) {}
+        bool IsActive() override;
     };
 
     class EviscerateTrigger : public ComboPointsAvailableTrigger

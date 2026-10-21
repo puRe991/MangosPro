@@ -22,6 +22,7 @@ void ai::AddRaidBossContexts(NamedObjectContextList<Strategy>& strategies, Named
                              NamedObjectContextList<Trigger>& triggers, NamedObjectContextList<UntypedValue>& values)
 {
     strategies.Add(new RaidBossMapStrategyContext());
+    values.Add(new RaidBossDebugValueContext());
     actions.Add(new RaidBossMapActionContext());
     triggers.Add(new RaidBossMapTriggerContext());
 

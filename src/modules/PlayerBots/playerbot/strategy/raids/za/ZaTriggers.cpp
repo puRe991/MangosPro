@@ -77,7 +77,7 @@ bool ZaAkilzonShouldTrackElectricalStormTrigger::IsActiveInEncounter()
     if (!AI_VALUE(uint32, "akil'zon electrical storm timer"))
         return true;
 
-    // A new storm started (a storm lasts about 10s, the next one comes after 62s at the earliest)
+    // A new storm started (the weather cycle repeats after 54-60s).
     if (!GetElectricalStormTarget(bot))
         return false;
 

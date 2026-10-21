@@ -6,6 +6,22 @@
 
 using namespace ai;
 
+#ifdef MANGOSBOT_ONE
+static const char* TbcDestructionFiller(PlayerbotAI* ai)
+{
+    Player* bot = ai->GetBot();
+    // Emberstorm plus fire-oriented gear selects the fire build. Do not
+    // switch a shadow build merely because it has learned Incinerate.
+    const bool fireBuild = bot->HasSpell(17954) || bot->HasSpell(17955) ||
+        bot->HasSpell(17956) || bot->HasSpell(17957) || bot->HasSpell(17958);
+    if (fireBuild && bot->SpellBaseDamageBonusDone(SPELL_SCHOOL_MASK_FIRE) >=
+        bot->SpellBaseDamageBonusDone(SPELL_SCHOOL_MASK_SHADOW) &&
+        ai->GetAiObjectContext()->GetValue<uint32>("spell id", "incinerate")->Get())
+        return "incinerate";
+    return "shadow bolt";
+}
+#endif
+
 #ifdef MANGOSBOT_ZERO // Vanilla
 
 ai::NextAction** DestructionWarlockStrategy::GetDefaultCombatActions()
@@ -371,7 +387,7 @@ void DestructionWarlockCursesRaidStrategy::InitCombatTriggers(std::list<TriggerN
 
 ai::NextAction** DestructionWarlockStrategy::GetDefaultCombatActions()
 {
-    return NextAction::array(0, new NextAction("shadow bolt", ACTION_IDLE), NULL);
+    return NextAction::array(0, new NextAction(TbcDestructionFiller(ai), ACTION_IDLE), NULL);
 }
 
 void DestructionWarlockStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
@@ -380,7 +396,7 @@ void DestructionWarlockStrategy::InitCombatTriggers(std::list<TriggerNode*>& tri
 
     triggers.push_back(new TriggerNode(
         "backlash",
-        NextAction::array(0, new NextAction("incinerate", ACTION_HIGH + 2), NULL)));
+        NextAction::array(0, new NextAction(TbcDestructionFiller(ai), ACTION_HIGH + 2), NULL)));
 
     triggers.push_back(new TriggerNode(
         "conflagrate",

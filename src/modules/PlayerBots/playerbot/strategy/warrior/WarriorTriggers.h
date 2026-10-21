@@ -15,6 +15,7 @@ namespace ai
     DEBUFF_TRIGGER(MortalStrikeDebuffTrigger, "mortal strike");
     DEBUFF_ENEMY_TRIGGER(RendDebuffOnAttackerTrigger, "rend");
     CAN_CAST_TRIGGER(DevastateAvailableTrigger, "devastate");
+    CAN_CAST_TRIGGER(ShieldSlamAvailableTrigger, "shield slam");
     CAN_CAST_TRIGGER(RevengeAvailableTrigger, "revenge");
     CAN_CAST_TRIGGER(OverpowerAvailableTrigger, "overpower");
     BUFF_TRIGGER(RampageAvailableTrigger, "rampage");
@@ -149,6 +150,7 @@ namespace ai
     {
     public:
         SlamTrigger(PlayerbotAI* ai) : SpellCanBeCastedTrigger(ai, "slam") {}
+        bool IsActive() override;
     };
 
     // Sunder armor for dps warriors: only when no warrior tank in the group keeps the stacks up

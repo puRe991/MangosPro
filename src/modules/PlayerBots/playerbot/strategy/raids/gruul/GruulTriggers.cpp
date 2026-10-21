@@ -11,12 +11,12 @@ using namespace ai::gruul;
 
 bool GruulsLairEncounterTrigger::IsActive()
 {
-    return raidboss::IsEncounterInProgress(bot, GRUUL_MAP_ID) && IsActiveInEncounter();
+    return IsGruulsLairEncounterInProgress(bot) && IsActiveInEncounter();
 }
 
 bool GruulsLairNoEncounterInProgressTrigger::IsActive()
 {
-    return bot->GetMapId() == GRUUL_MAP_ID && !raidboss::IsEncounterInProgress(bot, GRUUL_MAP_ID);
+    return bot->GetMapId() == GRUUL_MAP_ID && !IsGruulsLairEncounterInProgress(bot);
 }
 
 // High King Maulgar <Lord of the Ogres>
@@ -65,7 +65,8 @@ bool HighKingMaulgarDeterminingKillOrderTrigger::IsActiveInEncounter()
 bool HighKingMaulgarChannelingWhirlwindTrigger::IsActiveInEncounter()
 {
     Unit* maulgar = FindMaulgar(ai);
-    return maulgar && maulgar->HasAura(SPELL_WHIRLWIND) && !IsMaulgarTank(bot);
+    return maulgar && maulgar->HasAura(SPELL_WHIRLWIND) && !IsMaulgarTank(bot) &&
+        raidboss::ExactDist2d(bot, maulgar) < MAULGAR_WHIRLWIND_SAFE_DISTANCE;
 }
 
 bool HighKingMaulgarShouldStandBackFromKroshTrigger::IsActiveInEncounter()
@@ -73,7 +74,8 @@ bool HighKingMaulgarShouldStandBackFromKroshTrigger::IsActiveInEncounter()
     if (PlayerbotAI::IsTank(bot) || IsKroshMageTank(ai))
         return false;
 
-    return FindKrosh(ai) != nullptr;
+    Unit* krosh = FindKrosh(ai);
+    return krosh && raidboss::ExactDist2d(bot, krosh) < KROSH_BLAST_WAVE_SAFE_DISTANCE;
 }
 
 bool HighKingMaulgarWildFelStalkerSpawnedTrigger::IsActiveInEncounter()

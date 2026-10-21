@@ -6,6 +6,7 @@
 #include "playerbot/LootObjectStack.h"
 #include "playerbot/ServerFacade.h"
 #include "playerbot/strategy/generic/CombatStrategy.h"
+#include "playerbot/strategy/raids/gruul/GruulHelpers.h"
 
 using namespace ai;
 
@@ -30,9 +31,16 @@ bool AttackMyTargetAction::Execute(Event& event)
         const ObjectGuid guid = requester->GetSelectionGuid();
         if (guid)
         {
-            if (Attack(requester, ai->GetUnit(guid)))
+            Unit* target = ai->GetUnit(guid);
+            // Council caster tanks must open on their own assignment immediately.
+            if (gruul::IsCouncilMember(target) &&
+                (ai->HasStrategy("boss gruul", BotState::BOT_STATE_NON_COMBAT) ||
+                 ai->HasStrategy("boss gruul", BotState::BOT_STATE_COMBAT)))
+                if (Unit* assigned = gruul::GetCasterRoleTarget(ai))
+                    target = assigned;
+            if (Attack(requester, target))
             {
-                SET_AI_VALUE(ObjectGuid, "attack target", guid);
+                SET_AI_VALUE(ObjectGuid, "attack target", target->GetObjectGuid());
                 return true;
             }
         }

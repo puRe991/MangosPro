@@ -73,7 +73,13 @@ namespace ai
     class RipTrigger : public NoDebuffAndComboPointsAvailableTrigger
     {
     public:
-        RipTrigger(PlayerbotAI* ai, uint8 comboPoints = 3) : NoDebuffAndComboPointsAvailableTrigger(ai, "rip", comboPoints) {}
+        RipTrigger(PlayerbotAI* ai, uint8 comboPoints =
+#ifdef MANGOSBOT_ONE
+            5
+#else
+            3
+#endif
+        ) : NoDebuffAndComboPointsAvailableTrigger(ai, "rip", comboPoints) {}
     };
 
     class InsectSwarmTrigger : public DebuffTrigger
@@ -253,7 +259,11 @@ namespace ai
         bool IsActive() override
         {
             Unit* target = GetTarget();
+#ifdef MANGOSBOT_ONE
+            return target && !ai->HasAura("lacerate", target, true, true, -1, false, 3000) && !HasMaxDebuffs();
+#else
             return target && !ai->HasAura("lacerate", target, true) && !HasMaxDebuffs();
+#endif
         }
     };
 

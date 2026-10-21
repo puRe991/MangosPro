@@ -1,8 +1,7 @@
 #pragma once
-#include "playerbot/strategy/NamedObjectContext.h"
+#include "DungeonBossStrategy.h"
 
-// Burning Crusade dungeons: Auchenai Crypts (558), The Mechanar (554), Magisters' Terrace (585),
-// Hellfire Ramparts (543), Sethekk Halls (556), The Underbog (546)
+// Classic and TBC dungeons share the existing encounter engine.
 namespace ai
 {
     class TbcDungeonStrategyContext : public NamedObjectContext<Strategy>
@@ -10,6 +9,11 @@ namespace ai
     public:
         TbcDungeonStrategyContext()
         {
+            for (const auto& entry : GetDungeonBossMaps())
+            {
+                const std::string name = entry.second;
+                creators[name] = [name](PlayerbotAI* ai) { return new DungeonBossStrategy(ai, name); };
+            }
         }
     };
 
@@ -18,6 +22,7 @@ namespace ai
     public:
         TbcDungeonActionContext()
         {
+            creators["dungeon boss special"] = [](PlayerbotAI* ai) { return new DungeonBossSpecialAction(ai); };
         }
     };
 
@@ -26,6 +31,7 @@ namespace ai
     public:
         TbcDungeonTriggerContext()
         {
+            creators["dungeon boss special"] = [](PlayerbotAI* ai) { return new DungeonBossSpecialTrigger(ai); };
         }
     };
 

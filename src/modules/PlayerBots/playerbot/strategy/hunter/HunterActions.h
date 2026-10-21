@@ -1,9 +1,20 @@
 #pragma once
 
 #include "playerbot/strategy/actions/GenericActions.h"
+#include "playerbot/strategy/actions/MovementActions.h"
 
 namespace ai
 {
+    bool HunterNeedsRangedDistance(PlayerbotAI* ai);
+
+    class HunterRecoverRangedDistanceAction : public MovementAction
+    {
+    public:
+        HunterRecoverRangedDistanceAction(PlayerbotAI* ai) : MovementAction(ai, "hunter recover ranged distance") {}
+        bool isUseful() override;
+        bool Execute(Event& event) override;
+    };
+
     BEGIN_RANGED_DEBUFF_ACTION(CastHuntersMarkAction, "hunter's mark")
     END_SPELL_ACTION()
 

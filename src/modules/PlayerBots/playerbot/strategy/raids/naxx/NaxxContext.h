@@ -1,5 +1,6 @@
 #pragma once
 #include "playerbot/strategy/NamedObjectContext.h"
+#include "playerbot/strategy/raids/dungeons/DungeonBossStrategy.h"
 
 // Naxxramas (map 533) - strategy "boss naxxramas"
 namespace ai
@@ -9,6 +10,7 @@ namespace ai
     public:
         NaxxStrategyContext()
         {
+            creators["boss naxxramas"] = [](PlayerbotAI* ai) { return new ClassicRaidBossStrategy(ai, "boss naxxramas"); };
         }
     };
 

@@ -34,6 +34,16 @@ float MagtheridonEncounterMultiplier::GetValue(Action* action)
 }
 
 // Cube clickers stay by their cube once Blast Nova is coming
+float MagtheridonControlCrowdControlMultiplier::GetValueInEncounter(Action* action)
+{
+    // Generic CC picks the same marked target for several warlocks and can even
+    // remove an existing Banish. The encounter action owns the Abyssal rotation.
+    if (bot->getClass() == CLASS_WARLOCK && (action->getName() == "banish" || action->getName() == "fear") &&
+        !GetBurningAbyssals(ai).empty())
+        return 0.0f;
+    return 1.0f;
+}
+
 float MagtheridonUseManticronCubeMultiplier::GetValueInEncounter(Action* action)
 {
     if (dynamic_cast<AttackAction*>(action) || dynamic_cast<MagtheridonUseManticronCubeAction*>(action))

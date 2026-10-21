@@ -2,8 +2,22 @@
 #include "playerbot/playerbot.h"
 #include "RogueTriggers.h"
 #include "RogueActions.h"
+#include "playerbot/strategy/generic/TbcRotationRules.h"
 
 using namespace ai;
+
+bool RuptureTrigger::IsActive()
+{
+    if (!NoDebuffAndComboPointsAvailableTrigger::IsActive())
+        return false;
+#ifdef MANGOSBOT_ONE
+    Unit* target = GetTarget();
+    return target && tbc::UseBleedFinisher(target->GetHealth(), bot->GetMaxHealth(), target->GetHealthPercent()) &&
+        ai->CanCastSpell("rupture", target, 0);
+#else
+    return true;
+#endif
+}
 
 // Remaining duration (ms) of our own deadly poison on the target, -1 if absent
 static int32 GetOwnDeadlyPoisonDuration(Player* bot, Unit* target)
@@ -27,7 +41,7 @@ static int32 GetOwnDeadlyPoisonDuration(Player* bot, Unit* target)
 bool EnvenomTrigger::IsActive()
 {
     return ComboPointsAvailableTrigger::IsActive() &&
-           GetOwnDeadlyPoisonDuration(bot, AI_VALUE(Unit*, "current target")) >= 0;
+           GetOwnDeadlyPoisonDuration(bot, ai->GetUnit(AI_VALUE(ObjectGuid, "current target"))) >= 0;
 }
 
 bool ShivTrigger::IsActive()

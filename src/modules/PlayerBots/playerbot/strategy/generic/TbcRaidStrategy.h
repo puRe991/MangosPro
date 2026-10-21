@@ -19,6 +19,9 @@ namespace ai
         // Per bot state, cached for a short time to keep the raid triggers cheap
         struct RaidState
         {
+            uint32 mapId = 0;
+            uint32 instanceId = 0;
+            uint32 lastEncounterTime = 0;
             uint32 encounterCheckTime = 0;
             const Encounter* encounter = nullptr;
             ObjectGuid bossGuid;

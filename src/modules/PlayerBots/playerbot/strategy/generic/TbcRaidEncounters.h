@@ -206,10 +206,13 @@ namespace ai
             const Encounter* FindByCreature(uint32 mapId, uint32 entry) const;
             // Encounter of the first boss / add among the bot's possible attack targets
             const Encounter* FindNearby(PlayerbotAI* ai) const;
+            bool IsEncounterMap(uint32 mapId) const;
+            size_t GetEncounterCount(uint32 mapId) const;
             bool IsRaidMap(uint32 mapId) const;
 
         private:
             EncounterRegistry();
+            void RegisterDungeons();
             Encounter& Add(const std::string& name, uint32 mapId, const std::vector<uint32>& entries);
 
             std::vector<Encounter*> encounters;

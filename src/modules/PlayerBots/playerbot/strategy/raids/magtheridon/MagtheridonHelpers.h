@@ -60,7 +60,7 @@ namespace ai
         constexpr uint32 MAG_DPS_HOLD_MS = 8000;
         // Time since the previous Blast Nova (or since Magtheridon joined the fight) after which the
         // cube clickers go wait by their cube. Blast Nova repeats every ~55s, delayed by every Quake.
-        constexpr uint32 BLAST_NOVA_INTERIM_MS = 48000;
+        constexpr uint32 BLAST_NOVA_INTERIM_MS = 30000;
         constexpr float DEBRIS_HAZARD_RADIUS = 10.0f;
         constexpr float CONFLAGRATION_HAZARD_RADIUS = 5.0f;
         // Quake delays Blast Nova by (essentially) 7s (the boss script stuns him for 7s)
@@ -85,6 +85,8 @@ namespace ai
         };
 
         Unit* FindMagtheridon(PlayerbotAI* ai);
+        Unit* GetCombatTarget(PlayerbotAI* ai);
+        bool CanUseCubeMovement(PlayerbotAI* ai, const std::string& action);
         bool IsMagtheridonActive(Unit* magtheridon);
         bool IsBlastNovaCasting(Unit* magtheridon);
 
@@ -92,6 +94,9 @@ namespace ai
         ChannelerSlot GetChannelerSlot(Creature* channeler);
         std::list<ObjectGuid> FindChannelerGuids(Player* bot);
         Unit* GetChanneler(PlayerbotAI* ai, ChannelerSlot slot);
+        Unit* GetChannelerInterruptTarget(PlayerbotAI* ai, std::string& spell);
+        Unit* GetAssignedAbyssalCcTarget(PlayerbotAI* ai, std::string& spell);
+        bool NeedsCubeAction(PlayerbotAI* ai);
 
         // Burning Abyssals, ordered by guid so every warlock indexes the same abyssal
         std::list<ObjectGuid> FindBurningAbyssalGuids(Player* bot);

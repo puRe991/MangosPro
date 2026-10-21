@@ -425,11 +425,15 @@ void ArmsWarriorStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
 
     triggers.push_back(new TriggerNode(
         "mortal strike",
-        NextAction::array(0, new NextAction("mortal strike", ACTION_NORMAL + 1), NULL)));
+        NextAction::array(0, new NextAction("mortal strike", ACTION_NORMAL + 4), NULL)));
 
     triggers.push_back(new TriggerNode(
-        "rend",
-        NextAction::array(0, new NextAction("rend", ACTION_NORMAL), NULL)));
+        "slam",
+        NextAction::array(0, new NextAction("slam", ACTION_NORMAL + 5), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "whirlwind",
+        NextAction::array(0, new NextAction("whirlwind", ACTION_NORMAL + 3), NULL)));
 }
 
 void ArmsWarriorStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)

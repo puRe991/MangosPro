@@ -177,7 +177,13 @@ bool ConflagrateTrigger::IsActive()
 		if (aura)
 		{
 			// Check if immolate is about to expire
-			if (aura->GetAuraDuration() <= 7000)
+            if (aura->GetAuraDuration() <=
+#ifdef MANGOSBOT_ONE
+                1500
+#else
+                7000
+#endif
+            )
 			{
 				return true;
 			}

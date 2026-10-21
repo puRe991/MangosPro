@@ -7,6 +7,13 @@ namespace ai
 {
     // General
 
+    class HighKingMaulgarHoldPreparationMultiplier : public Multiplier
+    {
+    public:
+        HighKingMaulgarHoldPreparationMultiplier(PlayerbotAI* ai) : Multiplier(ai, "high king maulgar hold preparation") {}
+        float GetValue(Action* action) override;
+    };
+
     class GruulsLairEncounterMultiplier : public Multiplier
     {
     public:

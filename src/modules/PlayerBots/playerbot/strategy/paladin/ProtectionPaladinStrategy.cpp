@@ -777,6 +777,10 @@ void ProtectionPaladinAoeRaidStrategy::InitNonCombatTriggers(std::list<TriggerNo
 void ProtectionPaladinBuffStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
 {
     PaladinBuffStrategy::InitCombatTriggers(triggers);
+
+    // Restore the threat buff after a death or dispel even if the next pull has begun.
+    triggers.push_back(new TriggerNode("righteous fury",
+        NextAction::array(0, new NextAction("righteous fury", ACTION_HIGH + 8), NULL)));
 }
 
 void ProtectionPaladinBuffStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)

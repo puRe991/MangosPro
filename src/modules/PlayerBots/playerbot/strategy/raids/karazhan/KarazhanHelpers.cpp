@@ -3,6 +3,7 @@
 #include "KarazhanHelpers.h"
 #include "playerbot/strategy/raids/RaidBossHelpers.h"
 #include "playerbot/strategy/generic/TbcRaidStrategy.h"
+#include "playerbot/strategy/values/PossibleTargetsValue.h"
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -133,6 +134,14 @@ std::vector<Unit*> karazhan::GetKaraUnits(PlayerbotAI* ai, uint32 entry)
             units.push_back(unit);
     }
 
+    // Environmental summons can be absent from the cached GUID list (and
+    // need not be ordinary attackable/alive combat targets). Resolve them by
+    // entry directly before concluding that a beam or hazard does not exist.
+    const bool portal = entry == NPC_RED_PORTAL || entry == NPC_GREEN_PORTAL || entry == NPC_BLUE_PORTAL;
+    if (units.empty() && (portal || entry == NPC_VOID_ZONE || entry == NPC_NETHERSPITE_INFERNAL))
+        for (Unit* unit : TbcRaidHelper::FindCreatures(bot, entry, 120.0f))
+            if (unit && unit->IsInWorld() && unit->GetInstanceId() == bot->GetInstanceId() && (portal || unit->IsAlive()))
+                units.push_back(unit);
     return units;
 }
 
@@ -152,6 +161,38 @@ Unit* karazhan::GetKaraUnit(PlayerbotAI* ai, uint32 entry)
 bool karazhan::IsBotCurrentTarget(PlayerbotAI* ai, Unit* unit)
 {
     return unit && ai->GetAiObjectContext()->GetValue<ObjectGuid>("current target")->Get() == unit->GetObjectGuid();
+}
+
+bool karazhan::IsLiveDemonChains(PlayerbotAI* ai, Unit* target)
+{
+    Player* bot = ai->GetBot();
+    return bot->IsInWorld() && bot->GetMapId() == KARAZHAN_MAP_ID && bot->IsInCombat() &&
+        target && target->GetEntry() == NPC_DEMON_CHAINS && target->IsAlive() && target->IsInWorld() &&
+        target->GetInstanceId() == bot->GetInstanceId() &&
+        PossibleTargetsValue::IsValid(target, bot) && GetKaraUnit(ai, NPC_TERESTIAN_ILLHOOF);
+}
+
+Unit* karazhan::GetIllhoofTarget(PlayerbotAI* ai, bool tank)
+{
+    Player* bot = ai->GetBot();
+    if (!bot->IsInWorld() || bot->GetMapId() != KARAZHAN_MAP_ID || !bot->IsInCombat())
+        return nullptr;
+    Unit* boss = GetKaraUnit(ai, NPC_TERESTIAN_ILLHOOF);
+    if (!boss)
+        return nullptr;
+    if (tank)
+    {
+        const auto tanks = raidboss::GetGroupTanks(bot);
+        if (tanks.empty() || tanks.front() == bot)
+            return boss;
+    }
+    else if (Unit* chains = GetKaraUnit(ai, NPC_DEMON_CHAINS))
+        if (IsLiveDemonChains(ai, chains))
+            return chains;
+    if (Unit* kilrek = GetKaraUnit(ai, NPC_KILREK))
+        if (!ai->HasAura("banish", kilrek))
+            return kilrek;
+    return boss;
 }
 
 // ---------------------------------------------------------------------------
@@ -353,9 +394,9 @@ bool karazhan::FindBeamPosition(Unit* netherspite, Unit* portal, const std::vect
     const float dy = (portal->GetPositionY() - bossY) / length;
 
     const float voidZoneRadius = 4.0f;
-    const float searchMinDist = 18.0f;
+    const float searchMinDist = 2.0f;
     const float searchStep = 0.5f;
-    const uint8 numSteps = 24;
+    const uint8 numSteps = 56;
 
     float bestDist = std::numeric_limits<float>::max();
     bool found = false;
@@ -402,6 +443,8 @@ std::vector<Unit*> karazhan::GetSpawnedInfernals(PlayerbotAI* ai)
 
 bool karazhan::IsStraightPathSafe(float sx, float sy, float tx, float ty, const std::vector<Unit*>& hazards, float hazardRadius)
 {
+    if (!IsSafePosition(tx, ty, hazards, hazardRadius))
+        return false;
     const float totalDistX = tx - sx;
     const float totalDistY = ty - sy;
     const float totalDist = std::sqrt(totalDistX * totalDistX + totalDistY * totalDistY);
@@ -419,11 +462,61 @@ bool karazhan::IsStraightPathSafe(float sx, float sy, float tx, float ty, const 
         {
             const float hx = checkX - hazard->GetPositionX();
             const float hy = checkY - hazard->GetPositionY();
-            if ((hx * hx + hy * hy) < hazardRadius * hazardRadius)
+            const float startX = sx - hazard->GetPositionX();
+            const float startY = sy - hazard->GetPositionY();
+            const float startSq = startX * startX + startY * startY;
+            const float currentSq = hx * hx + hy * hy;
+            // Allow leaving an existing hazard, but never moving deeper into
+            // it or entering another one. The start point itself is not a veto.
+            if (currentSq < hazardRadius * hazardRadius &&
+                (startSq >= hazardRadius * hazardRadius || currentSq + 0.01f < startSq))
                 return false;
         }
     }
 
+    return true;
+}
+
+bool karazhan::NeedsEmergencyEscape(PlayerbotAI* ai)
+{
+    Player* bot = ai->GetBot();
+    if (!bot->IsInWorld() || bot->IsBeingTeleported() || bot->GetMapId() != KARAZHAN_MAP_ID)
+        return false;
+    if (Unit* aran = GetKaraUnit(ai, NPC_SHADE_OF_ARAN))
+        if (IsAranCastingArcaneExplosion(aran) && !IsFlameWreathActive(ai) &&
+            raidboss::ExactDist2d(bot, aran) < ARAN_ESCAPE_DISTANCE)
+            return true;
+    if (bot->HasAura(SPELL_ENFEEBLE))
+        if (Unit* prince = GetKaraUnit(ai, NPC_PRINCE_MALCHEZAAR))
+            return raidboss::ExactDist2d(bot, prince) < MALCHEZAAR_ESCAPE_DISTANCE ||
+                !IsSafePosition(bot->GetPositionX(), bot->GetPositionY(), GetSpawnedInfernals(ai), 22.0f);
+    return false;
+}
+
+bool karazhan::CanUseMechanicMovement(PlayerbotAI* ai, const std::string& action)
+{
+    Player* bot = ai->GetBot();
+    if (!bot->IsInWorld() || bot->IsBeingTeleported() || bot->GetMapId() != KARAZHAN_MAP_ID)
+        return true;
+    if (IsFlameWreathActive(ai))
+        return action == "shade of aran stop moving during flame wreath";
+    if (NeedsEmergencyEscape(ai))
+        return action == "shade of aran run away from arcane explosion" ||
+            action == "prince malchezaar enfeebled bot avoid hazard";
+    if (Unit* prince = GetKaraUnit(ai, NPC_PRINCE_MALCHEZAAR))
+        if (PlayerbotAI::IsTank(bot) && prince->GetVictim() == bot &&
+            !IsSafePosition(bot->GetPositionX(), bot->GetPositionY(), GetSpawnedInfernals(ai), 30.0f))
+            return action == "prince malchezaar tanks position boss";
+    if (Unit* boss = GetKaraUnit(ai, NPC_NETHERSPITE))
+    {
+        if (!IsBanishPhase(boss))
+        {
+            const auto blockers = GetCurrentBeamBlockers(bot);
+            if (bot == blockers.red && GetKaraUnit(ai, NPC_RED_PORTAL)) return action == "netherspite block red beam";
+            if (bot == blockers.blue && GetKaraUnit(ai, NPC_BLUE_PORTAL)) return action == "netherspite block blue beam";
+            if (bot == blockers.green && GetKaraUnit(ai, NPC_GREEN_PORTAL)) return action == "netherspite block green beam";
+        }
+    }
     return true;
 }
 
@@ -464,7 +557,7 @@ bool karazhan::TryFindSafePositionWithSafePath(Player* bot, float originX, float
     std::sort(candidates.begin(), candidates.end(), [](const Candidate& a, const Candidate& b) { return a.moveDistSq < b.moveDistSq; });
 
     // Attempt to find a safe path, but take any path to a safe position if no safe path is found
-    for (bool requireSafePath : { true, false })
+    for (bool requireSafePath : { true })
     {
         uint8 groundChecks = 0;
         for (const Candidate& candidate : candidates)

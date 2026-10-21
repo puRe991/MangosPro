@@ -2,6 +2,7 @@
 #include "playerbot/playerbot.h"
 
 #include "ReactionEngine.h"
+#include "raids/RaidBossStrategies.h"
 #include <iomanip>
 
 using namespace ai;
@@ -36,6 +37,7 @@ ReactionEngine::ReactionEngine(PlayerbotAI* ai, AiObjectContext* factory, BotSta
 
 bool ReactionEngine::FindReaction(bool isStunned)
 {
+    RaidBossMapStrategies::TraceDecision(ai, state, nullptr, "", "STATE");
     // Don't find a new reaction if the previous reaction is still running
     if(!IsReacting())
     {
@@ -86,6 +88,7 @@ bool ReactionEngine::FindReaction(bool isStunned)
                                 reaction->setRelevance(reactionRelevance);
                                 if (reactionRelevance <= 0.0f)
                                 {
+                                    RaidBossMapStrategies::TraceDecision(ai, state, reaction, reactionEvent.getSource(), "BLOCKED", (*i)->getName());
                                     // Multiplier made reaction useless
                                     break;
                                 }
@@ -114,9 +117,14 @@ bool ReactionEngine::FindReaction(bool isStunned)
                             }
                             else
                             {
+                                RaidBossMapStrategies::TraceDecision(ai, state, reaction, reactionEvent.getSource(), reactionRelevance > 0 ? "IMPOSSIBLE" : "BLOCKED");
                                 // Add the alternative reactions to the queue
                                 MultiplyAndPush(reactionNode->getAlternatives(), reactionRelevance + 0.03, false, reactionEvent, "alt");
                             }
+                        }
+                        else
+                        {
+                            RaidBossMapStrategies::TraceDecision(ai, state, reaction, reactionEvent.getSource(), isStunned ? "STUNNED" : "USELESS");
                         }
                     }
 
@@ -217,6 +225,7 @@ bool ReactionEngine::Update(uint32 elapsed, bool minimal, bool isStunned, bool& 
 
 bool ReactionEngine::ListenAndExecute(Action* action, Event& event)
 {
+    RaidBossMapStrategies::TraceDecision(ai, state, action, event.getSource(), "START");
     bool actionExecuted = false;
     if (actionExecutionListeners.Before(action, event))
     {
@@ -255,6 +264,9 @@ bool ReactionEngine::ListenAndExecute(Action* action, Event& event)
 
     actionExecuted = actionExecutionListeners.OverrideResult(action, actionExecuted, event);
     actionExecutionListeners.After(action, actionExecuted, event);
+    RaidBossMapStrategies::TraceDecision(ai, state, action, event.getSource(), actionExecuted ? "EXECUTED" : "FAILED");
+    if (ai->GetBot()->IsInWorld() && !ai->GetBot()->IsBeingTeleported() && ai->GetBot()->GetMap()->IsDungeon())
+        RaidBossMapStrategies::Trace(ai, state, event.getSource(), action->getName(), actionExecuted);
     return actionExecuted;
 }
 

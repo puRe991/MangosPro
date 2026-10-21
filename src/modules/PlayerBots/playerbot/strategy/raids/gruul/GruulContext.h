@@ -27,6 +27,7 @@ namespace ai
             creators["gruul's lair reset encounter states"] = [](PlayerbotAI* ai) { return new GruulsLairResetEncounterStatesAction(ai); };
 
             // High King Maulgar
+            creators["high king maulgar prepare"] = [](PlayerbotAI* ai) { return new HighKingMaulgarPrepareAction(ai); };
             creators["high king maulgar melee tanks position bosses"] = [](PlayerbotAI* ai) { return new HighKingMaulgarMeleeTanksPositionBossesAction(ai); };
             creators["high king maulgar mage tank attack krosh"] = [](PlayerbotAI* ai) { return new HighKingMaulgarMageTankAttackKroshAction(ai); };
             creators["high king maulgar moonkin tank attack kiggler"] = [](PlayerbotAI* ai) { return new HighKingMaulgarMoonkinTankAttackKigglerAction(ai); };

@@ -28,6 +28,9 @@ void MagtheridonStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
     triggers.push_back(new TriggerNode("magtheridon burning abyssal spawned",
         NextAction::array(0, new NextAction("magtheridon warlock cc burning abyssal", raid + 2), NULL)));
 
+    triggers.push_back(new TriggerNode("magtheridon channeler needs interrupt",
+        NextAction::array(0, new NextAction("magtheridon interrupt channeler", ACTION_EMERGENCY + 4), NULL)));
+
     triggers.push_back(new TriggerNode("magtheridon should be tanked",
         NextAction::array(0, new NextAction("magtheridon main tank position boss", raid + 1), NULL)));
 
@@ -57,4 +60,22 @@ void MagtheridonStrategy::InitCombatMultipliers(std::list<Multiplier*>& multipli
     multipliers.push_back(new MagtheridonHoldDpsMultiplier(ai));
     multipliers.push_back(new MagtheridonControlTankActionsMultiplier(ai));
     multipliers.push_back(new MagtheridonAvoidDebrisDangerMultiplier(ai));
+    multipliers.push_back(new MagtheridonControlCrowdControlMultiplier(ai));
+}
+
+void MagtheridonStrategy::InitReactionTriggers(std::list<TriggerNode*>& triggers)
+{
+    triggers.push_back(new TriggerNode("magtheridon channeler needs interrupt",
+        NextAction::array(0, new NextAction("magtheridon interrupt channeler", ACTION_EMERGENCY + 4), NULL)));
+    triggers.push_back(new TriggerNode("magtheridon burning abyssal spawned",
+        NextAction::array(0, new NextAction("magtheridon warlock cc burning abyssal", ACTION_EMERGENCY + 3), NULL)));
+    triggers.push_back(new TriggerNode("magtheridon standing in debris",
+        NextAction::array(0, new NextAction("magtheridon move out of debris", ACTION_EMERGENCY + 7), NULL)));
+    triggers.push_back(new TriggerNode("magtheridon incoming blast nova",
+        NextAction::array(0, new NextAction("magtheridon use manticron cube", ACTION_EMERGENCY + 6), NULL)));
+}
+
+void MagtheridonStrategy::InitReactionMultipliers(std::list<Multiplier*>& multipliers)
+{
+    InitCombatMultipliers(multipliers);
 }

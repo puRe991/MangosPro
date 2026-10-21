@@ -143,7 +143,7 @@ void SscStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
 
     triggers.push_back(new TriggerNode(
         "fathom-lord karathress determining kill order",
-        NextAction::array(0, new NextAction("fathom-lord karathress assign dps priority", raidboss::ACTION_RAID + 1), NULL)));
+        NextAction::array(0, new NextAction("fathom-lord karathress assign dps priority", ACTION_EMERGENCY + 6), NULL)));
 
     triggers.push_back(new TriggerNode(
         "fathom-lord karathress tanks need to establish aggro",
@@ -240,4 +240,28 @@ void SscStrategy::InitCombatMultipliers(std::list<Multiplier*>& multipliers)
     multipliers.push_back(new SscVashjDoNotLootTheTaintedCoreMultiplier(ai));
     multipliers.push_back(new SscVashjCorePassersPrioritizePositioningMultiplier(ai));
     multipliers.push_back(new SscVashjDisableAutomaticTargetingAndMovementMultiplier(ai));
+}
+
+void SscStrategy::InitReactionTriggers(std::list<TriggerNode*>& triggers)
+{
+    triggers.push_back(new TriggerNode(
+        "underbog colossus spawned toxic pool after death",
+        NextAction::array(0, new NextAction("underbog colossus escape toxic pool", ACTION_EMERGENCY + 9), NULL)));
+    triggers.push_back(new TriggerNode(
+        "the lurker below spout is active",
+        NextAction::array(0, new NextAction("the lurker below run around behind boss", ACTION_EMERGENCY + 6), NULL)));
+    triggers.push_back(new TriggerNode(
+        "leotheras the blind boss channeling whirlwind",
+        NextAction::array(0, new NextAction("leotheras the blind run away from whirlwind", ACTION_EMERGENCY + 1), NULL)));
+    triggers.push_back(new TriggerNode(
+        "leotheras the blind bot has too many chaos blast stacks",
+        NextAction::array(0, new NextAction("leotheras the blind melee dps run away from boss", ACTION_EMERGENCY + 6), NULL)));
+    triggers.push_back(new TriggerNode(
+        "lady vashj bot has static charge",
+        NextAction::array(0, new NextAction("lady vashj static charge move away from group", ACTION_EMERGENCY + 7), NULL)));
+}
+
+void SscStrategy::InitReactionMultipliers(std::list<Multiplier*>& multipliers)
+{
+    InitCombatMultipliers(multipliers);
 }

@@ -5,6 +5,7 @@
 #include "KarazhanHelpers.h"
 #include "playerbot/strategy/raids/RaidBossHelpers.h"
 #include "playerbot/strategy/actions/GenericSpellActions.h"
+#include "playerbot/ServerFacade.h"
 #include <initializer_list>
 
 using namespace ai;
@@ -114,10 +115,19 @@ float KarazhanAttumenWaitForDpsMultiplier::GetValue(Action* action)
 
 float KarazhanMaidenDisableCombatFormationMoveMultiplier::GetValue(Action* action)
 {
-    if (!IsFormationMove(action))
+    const bool competingTankMove = IsReach(action) ||
+        NameIs(action, { "follow", "charge", "intercept", "intervene" });
+    if (!IsFormationMove(action) && !competingTankMove)
         return 1.0f;
 
-    return GetKaraUnit(ai, NPC_MAIDEN_OF_VIRTUE) ? 0.0f : 1.0f;
+    Unit* maiden = GetKaraUnit(ai, NPC_MAIDEN_OF_VIRTUE);
+    if (!maiden)
+        return 1.0f;
+    if (IsFormationMove(action))
+        return 0.0f;
+    // Only the current aggro holder drags Maiden. Off-tanks and ranged/healers
+    // still need their ordinary chase and heal-range recovery.
+    return PlayerbotAI::IsTank(bot) && maiden->GetVictim() == bot ? 0.0f : 1.0f;
 }
 
 float KarazhanMaidenSetGroundingTotemMultiplier::GetValue(Action* action)
@@ -144,10 +154,17 @@ float KarazhanCuratorDisableTankAssistMultiplier::GetValue(Action* action)
 
 float KarazhanCuratorDisableCombatFormationMoveMultiplier::GetValue(Action* action)
 {
-    if (!IsFormationMove(action))
+    const bool competingTankMove = IsReach(action) ||
+        NameIs(action, { "follow", "charge", "intercept", "intervene" });
+    if (!IsFormationMove(action) && !competingTankMove)
         return 1.0f;
 
-    return GetKaraUnit(ai, NPC_CURATOR) ? 0.0f : 1.0f;
+    Unit* curator = GetKaraUnit(ai, NPC_CURATOR);
+    if (!curator)
+        return 1.0f;
+    if (IsFormationMove(action))
+        return 0.0f;
+    return PlayerbotAI::IsTank(bot) && curator->GetVictim() == bot ? 0.0f : 1.0f;
 }
 
 // Save Bloodlust / Heroism for Evocation (100% increased damage)
@@ -157,13 +174,38 @@ float KarazhanCuratorDelayBloodlustMultiplier::GetValue(Action* action)
         return 1.0f;
 
     Unit* curator = GetKaraUnit(ai, NPC_CURATOR);
-    return curator && !curator->HasAura(SPELL_CURATOR_EVOCATION) ? 0.0f : 1.0f;
+    if (!curator)
+    {
+        Unit* target = ai->GetUnit(AI_VALUE(ObjectGuid, "current target"));
+        if (target && target->GetEntry() == NPC_CURATOR && target->IsAlive())
+            curator = target;
+    }
+    // Below 15% the Curator enrages and no longer enters Evocation.
+    return curator && curator->GetHealthPercent() >= 15.0f &&
+        !curator->HasAura(SPELL_CURATOR_EVOCATION) ? 0.0f : 1.0f;
 }
 
 // Terestian Illhoof
 
 float KarazhanIllhoofDontDotFiendishImpsMultiplier::GetValue(Action* action)
 {
+    if (Unit* assigned = GetIllhoofTarget(ai, PlayerbotAI::IsTank(bot)))
+    {
+        if (IsAttack(action) && action->GetTarget() != assigned)
+            return 0.0f;
+        if (!PlayerbotAI::IsTank(bot) && !PlayerbotAI::IsHeal(bot) && assigned->GetEntry() == NPC_DEMON_CHAINS)
+        {
+            if (NameIs(action, { "seed of corruption on attacker", "seed of corruption", "rain of fire", "hellfire", "volley",
+                                "corruption on attacker", "curse of agony on attacker", "serpent sting on attacker" }))
+                return 0.0f;
+            if (dynamic_cast<CastSpellAction*>(action))
+            {
+                Unit* target = action->GetTarget();
+                if (target && target != bot && target != assigned && !sServerFacade.IsFriendlyTo(bot, target))
+                    return 0.0f;
+            }
+        }
+    }
     if (!dynamic_cast<CastRangedDebuffSpellOnAttackerAction*>(action) && !dynamic_cast<CastMeleeDebuffSpellOnAttackerAction*>(action))
         return 1.0f;
 

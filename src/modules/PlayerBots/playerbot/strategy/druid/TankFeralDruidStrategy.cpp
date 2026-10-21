@@ -516,13 +516,18 @@ void TankFeralDruidStrategy::InitCombatTriggers(std::list<TriggerNode*>& trigger
         "faerie fire (feral)",
         NextAction::array(0, new NextAction("faerie fire (feral)", ACTION_HIGH + 1), NULL)));
 
+    // Maul has its own >=45 rage guard; do not rely on Mangle failing.
+    triggers.push_back(new TriggerNode(
+        "maul ready",
+        NextAction::array(0, new NextAction("maul", ACTION_NORMAL + 1), NULL)));
+
     triggers.push_back(new TriggerNode(
         "lacerate",
         NextAction::array(0, new NextAction("lacerate", ACTION_HIGH), NULL)));
 
     triggers.push_back(new TriggerNode(
-        "medium rage available",
-        NextAction::array(0, new NextAction("mangle (bear)", ACTION_NORMAL + 2), NULL)));
+        "mangle (bear) ready",
+        NextAction::array(0, new NextAction("mangle (bear)", ACTION_HIGH + 3), NULL)));
 
     triggers.push_back(new TriggerNode(
         "demoralizing roar",

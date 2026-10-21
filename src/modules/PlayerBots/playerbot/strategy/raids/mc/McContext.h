@@ -1,5 +1,6 @@
 #pragma once
 #include "playerbot/strategy/NamedObjectContext.h"
+#include "playerbot/strategy/raids/dungeons/DungeonBossStrategy.h"
 
 // Molten Core (map 409) - strategy "boss molten core"
 namespace ai
@@ -9,6 +10,7 @@ namespace ai
     public:
         McStrategyContext()
         {
+            creators["boss molten core"] = [](PlayerbotAI* ai) { return new ClassicRaidBossStrategy(ai, "boss molten core"); };
         }
     };
 

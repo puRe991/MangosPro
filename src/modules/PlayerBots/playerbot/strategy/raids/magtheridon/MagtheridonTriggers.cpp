@@ -55,7 +55,14 @@ bool MagtheridonDeterminingKillOrderTrigger::IsActiveInEncounter()
 
 bool MagtheridonBurningAbyssalSpawnedTrigger::IsActiveInEncounter()
 {
-    return bot->getClass() == CLASS_WARLOCK && !GetBurningAbyssals(ai).empty();
+    std::string spell;
+    return GetAssignedAbyssalCcTarget(ai, spell) != nullptr;
+}
+
+bool MagtheridonChannelerNeedsInterruptTrigger::IsActiveInEncounter()
+{
+    std::string spell;
+    return GetChannelerInterruptTarget(ai, spell) != nullptr;
 }
 
 bool MagtheridonShouldBeTankedTrigger::IsActiveInEncounter()
@@ -94,7 +101,7 @@ bool MagtheridonStandingInDebrisTrigger::IsActiveInEncounter()
 
 bool MagtheridonIncomingBlastNovaTrigger::IsActiveInEncounter()
 {
-    return IsCubeClicker(bot) && IsMagtheridonActive(FindMagtheridon(ai));
+    return NeedsCubeAction(ai);
 }
 
 bool MagtheridonShouldManageTimersAndAssignmentsTrigger::IsActiveInEncounter()

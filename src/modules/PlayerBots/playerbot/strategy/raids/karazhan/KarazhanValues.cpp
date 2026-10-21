@@ -14,12 +14,16 @@ std::list<ObjectGuid> KarazhanNearbyCreaturesValue::Calculate()
     if (!bot->IsInWorld() || bot->GetMapId() != karazhan::KARAZHAN_MAP_ID)
         return result;
 
-    const float range = 120.0f;
+    // Match the shared raid boss search radius. DIST_CALC_NONE returns a
+    // squared center distance in this core; the predicate needs range squared,
+    // while the grid traversal still takes yards. Passing range to both made
+    // the old 120-yard search lose bosses beyond sqrt(120), about 11 yards.
+    const float range = 150.0f;
     std::list<Unit*> units;
     MaNGOS::AnyUnitFulfillingConditionInRangeCheck check(bot, [](Unit* unit)
     {
         return unit->GetTypeId() == TYPEID_UNIT && unit->IsAlive() && karazhan::IsTrackedEntry(unit->GetEntry());
-    }, range, DIST_CALC_NONE);
+    }, range * range, DIST_CALC_NONE);
     MaNGOS::UnitListSearcher<MaNGOS::AnyUnitFulfillingConditionInRangeCheck> searcher(units, check);
     Cell::VisitAllObjects(bot, searcher, range);
 

@@ -5,6 +5,7 @@
 
 namespace ai
 {
+    bool UseTbcAirTotem(PlayerbotAI* ai, const std::string& spell);
     BUFF_ACTION(CastGhostWolfAction, "ghost wolf");
     class CastLesserHealingWaveAction : public CastHealingSpellAction 
     {
@@ -230,7 +231,11 @@ namespace ai
 
         virtual bool isUseful() override
         {
+#ifdef MANGOSBOT_ONE
+            return UseTbcAirTotem(ai, "wrath of air totem") && CastTotemAction::isUseful();
+#else
             return (!bot->GetGroup() || ai->HasStrategy("totem air wrath", BotState::BOT_STATE_COMBAT)) && CastTotemAction::isUseful();
+#endif
         }
 	};
 
@@ -290,7 +295,11 @@ namespace ai
 
         virtual bool isUseful() override
         {
+#ifdef MANGOSBOT_ONE
+            return UseTbcAirTotem(ai, "windfury totem") && CastTotemAction::isUseful();
+#else
             return (bot->GetGroup() || ai->HasStrategy("totem air windfury", BotState::BOT_STATE_COMBAT)) && CastTotemAction::isUseful();
+#endif
         }
     };
 
@@ -307,7 +316,11 @@ namespace ai
 
         virtual bool isUseful() override
         {
+#ifdef MANGOSBOT_ONE
+            return UseTbcAirTotem(ai, "grace of air totem") && CastTotemAction::isUseful();
+#else
             return (!bot->GetGroup() || ai->HasStrategy("totem air grace", BotState::BOT_STATE_COMBAT)) && CastTotemAction::isUseful();
+#endif
         }
     };
 

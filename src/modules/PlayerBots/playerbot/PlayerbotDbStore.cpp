@@ -39,6 +39,14 @@ void PlayerbotDbStore::Load(PlayerbotAI *ai, std::string preset)
         } while (results->NextRow());
 
         ai->GetAiObjectContext()->Load(values);
+
+        // Older saved profiles replace the defaults and may predate dungeon auto-activation.
+        // Keep the dispatcher installed so map-specific boss strategies can repair themselves.
+        for (BotState state : { BotState::BOT_STATE_COMBAT, BotState::BOT_STATE_NON_COMBAT })
+        {
+            if (!ai->HasStrategy("dungeon", state))
+                ai->ChangeStrategy("+dungeon", state);
+        }
     }
 }
 

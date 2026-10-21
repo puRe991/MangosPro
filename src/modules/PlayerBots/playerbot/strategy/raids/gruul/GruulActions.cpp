@@ -3,6 +3,7 @@
 #include "GruulActions.h"
 #include "GruulHelpers.h"
 #include "playerbot/strategy/raids/RaidBossHelpers.h"
+#include "playerbot/strategy/raids/RaidBossStrategies.h"
 #include <algorithm>
 #include <cmath>
 
@@ -14,6 +15,27 @@ namespace
     Unit* GetCurrentTarget(PlayerbotAI* ai)
     {
         return ai->GetUnit(ai->GetAiObjectContext()->GetValue<ObjectGuid>("current target")->Get());
+    }
+
+    void LogTankPosition(PlayerbotAI* ai, Unit* maulgar, const WorldPosition& position, const char* status)
+    {
+        auto* debug = dynamic_cast<RaidBossDebugValue*>(ai->GetAiObjectContext()->GetUntypedValue("raid boss debug"));
+        if (!debug || !debug->Get())
+            return;
+
+        const time_t now = time(nullptr);
+        time_t& last = debug->lastLog[std::string("tank position ") + maulgar->GetName()];
+        if (now - last < 3)
+            return;
+        last = now;
+
+        Player* tank = ai->GetBot();
+        Unit* victim = maulgar->GetVictim();
+        sLog.outString("[RaidPosition] bot=%s boss=%s status=%s tank=(%.2f,%.2f,%.2f) boss=(%.2f,%.2f,%.2f) tankSpot=(%.2f,%.2f,%.2f) tankDistance=%.2f victim=%s melee=%u",
+            tank->GetName(), maulgar->GetName(), status, tank->GetPositionX(), tank->GetPositionY(), tank->GetPositionZ(),
+            maulgar->GetPositionX(), maulgar->GetPositionY(), maulgar->GetPositionZ(),
+            position.getX(), position.getY(), position.getZ(), raidboss::ExactDist2d(tank, position.getX(), position.getY()),
+            victim ? victim->GetName() : "none", tank->CanReachWithMeleeAttack(maulgar));
     }
 }
 
@@ -37,11 +59,32 @@ bool GruulsLairResetEncounterStatesAction::Execute(Event& /*event*/)
 
 // High King Maulgar <Lord of the Ogres>
 
+bool HighKingMaulgarPrepareAction::isUseful()
+{
+    float range = 0;
+    Unit* target = GetPrepareTarget(ai, range);
+    return target && !IsPrepared(bot, target, range) && MovementAction::isUseful();
+}
+
+bool HighKingMaulgarPrepareAction::Execute(Event& /*event*/)
+{
+    float range = 0;
+    Unit* target = GetPrepareTarget(ai, range);
+    if (!target || IsPrepared(bot, target, range))
+        return false;
+    float x, y, z;
+    if (!GetPreparePosition(ai, target, range, x, y, z))
+        return false;
+    // Movement only: never set an attack target or send the pet before the pull.
+    return MoveTo(GRUUL_MAP_ID, x, y, z, false, false, false, false);
+}
+
 bool HighKingMaulgarMeleeTanksPositionBossesAction::Execute(Event& /*event*/)
 {
     Unit* target = nullptr;
     WorldPosition position;
-    if (IsMaulgarTank(bot))
+    const bool maulgarTank = IsMaulgarTank(bot);
+    if (maulgarTank)
     {
         target = FindMaulgar(ai);
         position = MAULGAR_TANK_POSITION;
@@ -61,18 +104,38 @@ bool HighKingMaulgarMeleeTanksPositionBossesAction::Execute(Event& /*event*/)
         return false;
 
     if (GetCurrentTarget(ai) != target)
+    {
+        if (maulgarTank)
+            LogTankPosition(ai, target, position, "select_target");
         return Attack(GetMaster(), target);
+    }
 
-    if (target->GetVictim() != bot || !bot->CanReachWithMeleeAttack(target))
+    if (target->GetVictim() != bot)
+    {
+        if (maulgarTank)
+            LogTankPosition(ai, target, position, "no_aggro");
+        return false;
+    }
+
+    // Maulgar must be allowed to follow between short steps even when the tank has
+    // temporarily left melee range. Otherwise normal melee chasing moves him back.
+    if (!maulgarTank && !bot->CanReachWithMeleeAttack(target))
         return false;
 
     const float arrivalDist = 3.0f;
     float moveX, moveY;
     bool backwards;
     if (!raidboss::GetStepToPosition(bot, position, arrivalDist, target, moveX, moveY, backwards))
+    {
+        if (maulgarTank)
+            LogTankPosition(ai, target, position, "tank_at_spot");
         return false;
+    }
 
-    return MoveTo(GRUUL_MAP_ID, moveX, moveY, bot->GetPositionZ(), false, false, false, true);
+    const bool moved = MoveTo(GRUUL_MAP_ID, moveX, moveY, bot->GetPositionZ(), false, false, false, true);
+    if (maulgarTank)
+        LogTankPosition(ai, target, position, moved ? "move_sent" : "move_failed");
+    return moved;
 }
 
 bool HighKingMaulgarMageTankAttackKroshAction::Execute(Event& /*event*/)
@@ -183,8 +246,21 @@ bool HighKingMaulgarAssignDpsPriorityAction::Execute(Event& /*event*/)
     return GetCurrentTarget(ai) != target && Attack(GetMaster(), target);
 }
 
+bool HighKingMaulgarRunAwayFromWhirlwindAction::isUseful()
+{
+    // Reaction selection interrupts casts before Execute, so reject stale or
+    // unnecessary escapes here as well as in the trigger.
+    Unit* maulgar = FindMaulgar(ai);
+    return MovementAction::isUseful() && IsGruulsLairEncounterInProgress(bot) &&
+        maulgar && maulgar->HasAura(SPELL_WHIRLWIND) && !IsMaulgarTank(bot) &&
+        raidboss::ExactDist2d(bot, maulgar) < MAULGAR_WHIRLWIND_SAFE_DISTANCE;
+}
+
 bool HighKingMaulgarRunAwayFromWhirlwindAction::Execute(Event& /*event*/)
 {
+    if (!isUseful())
+        return false;
+
     Unit* maulgar = FindMaulgar(ai);
     if (!maulgar || raidboss::ExactDist2d(bot, maulgar) >= MAULGAR_WHIRLWIND_SAFE_DISTANCE)
         return false;
@@ -197,8 +273,19 @@ bool HighKingMaulgarRunAwayFromWhirlwindAction::Execute(Event& /*event*/)
     return MoveTo(GRUUL_MAP_ID, x, y, z, false, false, false, true);
 }
 
+bool HighKingMaulgarBackAwayFromKroshAction::isUseful()
+{
+    Unit* krosh = FindKrosh(ai);
+    return MovementAction::isUseful() && IsGruulsLairEncounterInProgress(bot) &&
+        !PlayerbotAI::IsTank(bot) && !IsKroshMageTank(ai) && krosh &&
+        raidboss::ExactDist2d(bot, krosh) < KROSH_BLAST_WAVE_SAFE_DISTANCE;
+}
+
 bool HighKingMaulgarBackAwayFromKroshAction::Execute(Event& /*event*/)
 {
+    if (!isUseful())
+        return false;
+
     Unit* krosh = FindKrosh(ai);
     if (!krosh || raidboss::ExactDist2d(bot, krosh) >= KROSH_BLAST_WAVE_SAFE_DISTANCE)
         return false;
@@ -281,40 +368,53 @@ bool GruulTheDragonkillerTanksPositionBossAction::Execute(Event& /*event*/)
     if (GetCurrentTarget(ai) != gruul)
         return Attack(GetMaster(), gruul);
 
-    if (gruul->GetVictim() != bot || !bot->CanReachWithMeleeAttack(gruul))
+    if (gruul->GetVictim() != bot)
         return false;
 
     const float arrivalDist = 3.0f;
     float moveX, moveY;
     bool backwards;
     if (!raidboss::GetStepToPosition(bot, GRUUL_TANK_POSITION, arrivalDist, gruul, moveX, moveY, backwards))
+    {
+        LogTankPosition(ai, gruul, GRUUL_TANK_POSITION, "tank_at_spot");
         return false;
+    }
 
-    return MoveTo(GRUUL_MAP_ID, moveX, moveY, bot->GetPositionZ(), false, false, false, true);
+    const bool moved = MoveTo(GRUUL_MAP_ID, moveX, moveY, bot->GetPositionZ(), false, false, false, true);
+    LogTankPosition(ai, gruul, GRUUL_TANK_POSITION, moved ? "move_sent" : "move_failed");
+    return moved;
 }
 
 bool GruulTheDragonkillerSpreadRangedAction::Execute(Event& /*event*/)
 {
-    const WorldPosition& position = GRUUL_TANK_POSITION;
+    Unit* gruul = FindGruul(ai);
+    if (!gruul || HasGroundSlam(bot))
+        return false;
 
-    if (!hasInitialPosition)
+    const WorldPosition position(gruul);
+    const float minBossDistance = std::max(20.0f, gruul->GetCombatReach() + bot->GetCombatReach() + 5.0f);
+    // Ground Slam and combat resurrection can leave a healer/caster in Hurtful
+    // Strike range after its original spread position was already reached.
+    if (raidboss::ExactDist2d(bot, gruul) < minBossDistance)
     {
-        // Each ranged bot gets its own angle on a ring around the tank position
-        std::vector<Player*> members;
-        for (Player* member : raidboss::GetGroupMembers(bot, 200.0f, true))
-        {
-            if (member->GetPlayerbotAI() && raidboss::IsRangedPlayer(member))
-                members.push_back(member);
-        }
-
-        if (members.empty())
+        float x, y, z;
+        if (!GetPointAwayFrom(bot, gruul->GetPositionX(), gruul->GetPositionY(), minBossDistance, x, y, z))
             return false;
+        return MoveTo(GRUUL_MAP_ID, x, y, z, false, false, false, true);
+    }
 
-        const int index = std::max(0, raidboss::GetIndexOf(bot, members));
-        const float minRadius = 25.0f;
-        const float maxRadius = 40.0f;
-        const float angle = 2.0f * M_PI_F * index / members.size();
-        const float radius = frand(minRadius, maxRadius);
+    // Ordinary spacing must not repeatedly interrupt healing or damage casts.
+    if (bot->IsNonMeleeSpellCasted(false))
+        return false;
+
+    if (!hasInitialPosition || (!hasReachedInitialPosition &&
+        (raidboss::ExactDist2d(gruul, initialX, initialY) < minBossDistance ||
+         raidboss::ExactDist2d(gruul, initialX, initialY) > 35.0f)))
+    {
+        // Use the bot's current side of the actual boss. Assigning an arbitrary
+        // opposite ring slot made ranged bots walk through Hurtful Strike range.
+        const float angle = std::atan2(bot->GetPositionY() - position.getY(), bot->GetPositionX() - position.getX());
+        const float radius = std::max(25.0f, std::min(30.0f, raidboss::ExactDist2d(bot, gruul)));
         initialX = position.getX() + radius * std::cos(angle);
         initialY = position.getY() + radius * std::sin(angle);
         hasInitialPosition = true;
@@ -344,13 +444,28 @@ bool GruulTheDragonkillerSpreadRangedAction::Execute(Event& /*event*/)
     if (!GetPointAwayFrom(bot, nearestPlayer->GetPositionX(), nearestPlayer->GetPositionY(), minSpreadDistance, x, y, z))
         return false;
 
+    // Do not solve crowding by stepping back into the boss or out of spell range.
+    const float bossDistance = raidboss::ExactDist2d(gruul, x, y);
+    if (bossDistance < minBossDistance || bossDistance > 35.0f)
+        return false;
+
     return MoveTo(GRUUL_MAP_ID, x, y, z, false, false, false, true);
 }
 
 // More preemptive avoidance than "avoid aoe", which only reacts once the bot has the damaging aura
 // and forgets the pool as soon as the bot is out of it.
+bool GruulTheDragonkillerGetOutOfCaveInAction::isUseful()
+{
+    Unit* gruul = FindGruul(ai);
+    return MovementAction::isUseful() && IsGruulsLairEncounterInProgress(bot) && gruul &&
+        gruul->GetVictim() != bot && IsInCaveIn(bot) && bot->GetSpeed(MOVE_RUN) > 0.0f;
+}
+
 bool GruulTheDragonkillerGetOutOfCaveInAction::Execute(Event& /*event*/)
 {
+    if (!isUseful())
+        return false;
+
     WorldPosition pool;
     if (!GetNearestCaveInPosition(bot, pool))
         return false;
@@ -363,19 +478,21 @@ bool GruulTheDragonkillerGetOutOfCaveInAction::Execute(Event& /*event*/)
     return MoveTo(GRUUL_MAP_ID, x, y, z, false, false, false, true);
 }
 
-bool GruulTheDragonkillerShatterSpreadAction::Execute(Event& /*event*/)
+bool GruulTheDragonkillerShatterSpreadAction::isUseful()
 {
-    Player* nearestPlayer = raidboss::GetNearestPlayerInRadius(bot, GRUUL_SHATTER_SAFE_DISTANCE);
-    if (!nearestPlayer)
+    if (!MovementAction::isUseful() || !IsGruulsLairEncounterInProgress(bot) || !FindGruul(ai))
         return false;
-
-    // Small steps away from the nearest player, re-evaluated every tick
-    const float distToNearest = raidboss::ExactDist2d(bot, nearestPlayer);
-    const float wantedDistance = std::min(GRUUL_SHATTER_SAFE_DISTANCE, distToNearest + 3.5f);
 
     float x, y, z;
-    if (!GetPointAwayFrom(bot, nearestPlayer->GetPositionX(), nearestPlayer->GetPositionY(), wantedDistance, x, y, z))
+    return GetShatterSpreadPosition(bot, x, y, z);
+}
+
+bool GruulTheDragonkillerShatterSpreadAction::Execute(Event& /*event*/)
+{
+    float x, y, z;
+    if (!GetShatterSpreadPosition(bot, x, y, z))
         return false;
 
+    bot->InterruptNonMeleeSpells(true);
     return MoveTo(GRUUL_MAP_ID, x, y, z, false, false, false, true);
 }

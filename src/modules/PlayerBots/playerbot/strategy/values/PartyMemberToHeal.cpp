@@ -34,9 +34,9 @@ bool compareByHealth(const Unit *u1, const Unit *u2)
 
 bool compareByMissingHealth(const Unit* u1, const Unit* u2, bool incomingDamage = false)
 {
-    uint32 hp1 = u1->GetHealth() - (incomingDamage ? getIncomingdamage(u1) : 0);
+    uint32 hp1 = u1->GetHealth() - std::min(u1->GetHealth(), incomingDamage ? getIncomingdamage(u1) : 0u);
     uint32 hpmax1 = u1->GetMaxHealth();
-    uint32 hp2 = u2->GetHealth() - (incomingDamage ? getIncomingdamage(u2) : 0);
+    uint32 hp2 = u2->GetHealth() - std::min(u2->GetHealth(), incomingDamage ? getIncomingdamage(u2) : 0u);
     uint32 hpmax2 = u2->GetMaxHealth();
     return (hpmax1 - hp1) > (hpmax2 - hp2);
 }
@@ -49,6 +49,7 @@ ObjectGuid PartyMemberToHeal::Calculate()
     {
         Unit* target = ai->GetUnit(bot->GetSelectionGuid());
         if (target &&
+            sServerFacade.IsAlive(target) &&
             target->GetObjectGuid() != bot->GetObjectGuid() && 
             sServerFacade.IsFriendlyTo(bot, target) &&
             target->GetHealthPercent() < 100 && 
@@ -61,7 +62,8 @@ ObjectGuid PartyMemberToHeal::Calculate()
     if (GuidPosition rpgTarget = AI_VALUE(GuidPosition, "rpg target"))
     {
         Unit* target = rpgTarget.GetCreature(bot->GetInstanceId());
-        if (target && sServerFacade.IsFriendlyTo(bot, target) && target->GetHealthPercent() < 100)
+        if (target && sServerFacade.IsAlive(target) && Check(target) &&
+            sServerFacade.IsFriendlyTo(bot, target) && target->GetHealthPercent() < 100)
         {
             LootObject loot = AI_VALUE(LootObject, "loot target");
 
@@ -105,17 +107,19 @@ ObjectGuid PartyMemberToHeal::Calculate()
             if (ai->HasStrategy("preheal", BotState::BOT_STATE_COMBAT))
                 incomingDamage = getIncomingdamage(player);
 
-            uint8 health = (((player->GetHealth() - incomingDamage) * 100.0f) / player->GetMaxHealth());
-            if (isTank || (health < sPlayerbotAIConfig.almostFullHealth && !IsTargetOfSpellCast(player, predicate)))
+            uint8 health = (((player->GetHealth() - std::min(player->GetHealth(), incomingDamage)) * 100.0f) / player->GetMaxHealth());
+            if (isTank || (health < sPlayerbotAIConfig.almostFullHealth &&
+                (health < sPlayerbotAIConfig.lowHealth || !IsTargetOfSpellCast(player, predicate))))
             { 
-                needHeals.push_back(player);
+                if (std::find(needHeals.begin(), needHeals.end(), player) == needHeals.end())
+                    needHeals.push_back(player);
             }
 
             Pet* pet = player->GetPet();
-            if (pet && CanHealPet(pet))
+            if (pet && CanHealPet(pet) && sServerFacade.IsAlive(pet) && Check(pet))
             {
                 health = pet->GetHealthPercent();
-                if (health < sPlayerbotAIConfig.almostFullHealth || !IsTargetOfSpellCast(player, predicate))
+                if (health < sPlayerbotAIConfig.almostFullHealth && !IsTargetOfSpellCast(player, predicate))
                 {
                     needHeals.push_back(pet);
                 }
@@ -139,6 +143,18 @@ ObjectGuid PartyMemberToHeal::Calculate()
     }
 
     bool preHealing = ai->HasStrategy("preheal", BotState::BOT_STATE_COMBAT);
+    // Emergencies override healer spreading. A large health pool must not hide
+    // a critically injured raid member behind a healthy tank.
+    Unit* urgent = *std::min_element(needHeals.begin(), needHeals.end(), compareByHealth);
+    if (urgent->GetHealthPercent() < sPlayerbotAIConfig.criticalHealth)
+        return urgent->GetObjectGuid();
+
+    // Keep distributing healers, but only among injured targets while any are low.
+    if (urgent->GetHealthPercent() < sPlayerbotAIConfig.lowHealth)
+        needHeals.erase(std::remove_if(needHeals.begin(), needHeals.end(), [](Unit* unit)
+        {
+            return unit->GetHealthPercent() >= sPlayerbotAIConfig.lowHealth;
+        }), needHeals.end());
     sort(needHeals.begin(), needHeals.end(), [preHealing](const Unit* u1, const Unit* u2) { return compareByMissingHealth(u1, u2, preHealing); });
 
     int healerIndex = 0;

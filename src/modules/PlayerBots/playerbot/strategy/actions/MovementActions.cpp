@@ -11,6 +11,9 @@
 #include "playerbot/strategy/values/Stances.h"
 #include "MotionGenerators/TargetedMovementGenerator.h"
 #include "playerbot/TravelMgr.h"
+#include "playerbot/strategy/raids/karazhan/KarazhanHelpers.h"
+#include "playerbot/strategy/raids/magtheridon/MagtheridonHelpers.h"
+#include "playerbot/strategy/raids/ssc/SscHelpers.h"
 #include "Entities/Transports.h"
 #ifdef MANGOSBOT_TWO
 #include "Entities/Vehicle.h"
@@ -1083,6 +1086,8 @@ Unit* MovementAction::GetMover(Player* bot)
 
 bool MovementAction::MoveTo2(const WorldPosition& endPos, bool idle, bool react, bool noPath, bool ignoreEnemyTargets)
 {
+    if ((!karazhan::CanUseMechanicMovement(ai, getName()) || !magtheridon::CanUseCubeMovement(ai, getName()) || !ssc::CanUseLeotherasMovement(ai, getName())))
+        return false;
     if (!endPos.isValid())
         return false;
 
@@ -1337,6 +1342,8 @@ bool MovementAction::MoveTo2(const WorldPosition& endPos, bool idle, bool react,
 
 bool MovementAction::MoveTo(uint32 mapId, float x, float y, float z, bool idle, bool react, bool noPath, bool ignoreEnemyTargets)
 {
+    if ((!karazhan::CanUseMechanicMovement(ai, getName()) || !magtheridon::CanUseCubeMovement(ai, getName()) || !ssc::CanUseLeotherasMovement(ai, getName())))
+        return false;
     return MoveTo2(WorldPosition(mapId, x, y, z), idle, react, noPath, ignoreEnemyTargets);
 
     WorldPosition endPosition(mapId, x, y, z, 0);
@@ -2340,6 +2347,8 @@ void MovementAction::UpdateMovementState()
 
 bool MovementAction::Follow(Unit* target, float distance, float angle)
 {
+    if ((!karazhan::CanUseMechanicMovement(ai, getName()) || !magtheridon::CanUseCubeMovement(ai, getName()) || !ssc::CanUseLeotherasMovement(ai, getName())))
+        return false;
     if (!ai->IsSafe(target))
         return MoveTo2(target);
 
@@ -2600,6 +2609,8 @@ WorldPosition CalculatePerpendicularPoint(const WorldPosition& A, const WorldPos
 
 bool MovementAction::ChaseTo(WorldObject* obj, float distance, float angle)
 {
+    if ((!karazhan::CanUseMechanicMovement(ai, getName()) || !magtheridon::CanUseCubeMovement(ai, getName()) || !ssc::CanUseLeotherasMovement(ai, getName())))
+        return false;
     if (!ai->CanMove())
     {
         return false;

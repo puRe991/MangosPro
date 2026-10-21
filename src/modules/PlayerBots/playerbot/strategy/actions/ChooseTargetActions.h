@@ -29,6 +29,7 @@ namespace ai
     public:
         TankAssistAction(PlayerbotAI* ai) : AttackAction(ai, "tank assist") {}
         std::string GetTargetName() override { return "tank target"; }
+        bool isUseful() override;
     };
 
     class AttackAnythingAction : public AttackAction

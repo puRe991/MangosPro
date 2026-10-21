@@ -242,6 +242,13 @@ private:
         virtual bool IsActive() override { return !AmmoCountTrigger::IsActive(); }
     };
 
+    class HunterRecoverRangedDistanceTrigger : public Trigger
+    {
+    public:
+        HunterRecoverRangedDistanceTrigger(PlayerbotAI* ai) : Trigger(ai, "hunter recover ranged distance", 1) {}
+        bool IsActive() override;
+    };
+
     class SwitchToRangedTrigger : public Trigger
     {
     public:

@@ -142,6 +142,12 @@ namespace ai
         bool IsBotCurrentTarget(PlayerbotAI* ai, Unit* unit);
         // Creatures the "karazhan nearby creatures" value looks for
         bool IsTrackedEntry(uint32 entry);
+        Unit* GetIllhoofTarget(PlayerbotAI* ai, bool tank);
+        bool IsLiveDemonChains(PlayerbotAI* ai, Unit* target);
+        constexpr float ARAN_ESCAPE_DISTANCE = 26.0f; // local damage radius 21 + reserve
+        constexpr float MALCHEZAAR_ESCAPE_DISTANCE = 36.0f;
+        bool NeedsEmergencyEscape(PlayerbotAI* ai);
+        bool CanUseMechanicMovement(PlayerbotAI* ai, const std::string& action);
 
         // Encounter timers and trackers shared by the bots of one instance
         enum class KaraTimer : uint8

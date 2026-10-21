@@ -42,10 +42,23 @@ namespace ai
         bool Execute(Event& event) override;
     };
 
-    class MagtheridonWarlockCcBurningAbyssalAction : public Action
+    class MagtheridonInterruptChannelerAction : public Action
     {
     public:
-        MagtheridonWarlockCcBurningAbyssalAction(PlayerbotAI* ai) : Action(ai, "magtheridon warlock cc burning abyssal") {}
+        MagtheridonInterruptChannelerAction(PlayerbotAI* ai) : Action(ai, "magtheridon interrupt channeler") {}
+        bool isUseful() override;
+        bool Execute(Event& event) override;
+        Unit* GetTarget() override;
+        bool ShouldReactionInterruptCast() const override { return true; }
+    };
+
+    class MagtheridonWarlockCcBurningAbyssalAction : public MovementAction
+    {
+    public:
+        MagtheridonWarlockCcBurningAbyssalAction(PlayerbotAI* ai) : MovementAction(ai, "magtheridon warlock cc burning abyssal") {}
+        bool isUseful() override;
+        bool isPossible() override { return true; }
+        Unit* GetTarget() override;
         bool Execute(Event& event) override;
     };
 
@@ -77,6 +90,10 @@ namespace ai
     {
     public:
         MagtheridonUseManticronCubeAction(PlayerbotAI* ai) : MovementAction(ai, "magtheridon use manticron cube") {}
+        bool isUseful() override { return magtheridon::NeedsCubeAction(ai); }
+        // Execute interrupts only when moving/clicking, never while holding a cube.
+        bool ShouldReactionInterruptCast() const override { return false; }
+        bool ShouldReactionInterruptMovement() const override { return false; }
         bool Execute(Event& event) override;
         bool isPossible() override { return true; }
 

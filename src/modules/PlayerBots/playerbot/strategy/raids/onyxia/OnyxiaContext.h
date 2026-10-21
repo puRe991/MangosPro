@@ -1,5 +1,6 @@
 #pragma once
 #include "playerbot/strategy/NamedObjectContext.h"
+#include "playerbot/strategy/raids/dungeons/DungeonBossStrategy.h"
 
 // Onyxia's Lair (map 249) - strategy "boss onyxia"
 namespace ai
@@ -9,6 +10,7 @@ namespace ai
     public:
         OnyxiaStrategyContext()
         {
+            creators["boss onyxia"] = [](PlayerbotAI* ai) { return new ClassicRaidBossStrategy(ai, "boss onyxia"); };
         }
     };
 

@@ -756,6 +756,10 @@ void ElementalShamanTotemsStrategy::InitCombatTriggers(std::list<TriggerNode*>& 
         NextAction::array(0, new NextAction("wrath of air totem", ACTION_HIGH), NULL)));
 
     triggers.push_back(new TriggerNode(
+        "air totem",
+        NextAction::array(0, new NextAction("grace of air totem", ACTION_HIGH), NULL)));
+
+    triggers.push_back(new TriggerNode(
         "water totem",
         NextAction::array(0, new NextAction("mana spring totem", ACTION_HIGH), NULL)));
 

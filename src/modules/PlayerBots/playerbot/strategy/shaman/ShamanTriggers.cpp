@@ -21,7 +21,7 @@ static bool IsLustAllowed(PlayerbotAI* ai)
     if (!encounter || encounter->lustBelowHealthPct >= 100.0f || encounter->entries.empty())
         return true;
 
-    Unit* target = ai->GetAiObjectContext()->GetValue<Unit*>("current target")->Get();
+    Unit* target = ai->GetUnit(ai->GetAiObjectContext()->GetValue<ObjectGuid>("current target")->Get());
     if (!target || target->GetEntry() != encounter->entries.front())
         return false;
 

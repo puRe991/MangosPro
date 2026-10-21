@@ -30,7 +30,15 @@ Strategy names (one per map, added automatically on the map and removed when lea
 | 534 Hyjal Summit | `boss hyjal` | `hyjal` |
 | 564 Black Temple | `boss black temple` | `bt` |
 | 568 Zul'Aman | `boss zul'aman` | `za` |
-| 543 / 546 / 554 / 556 / 558 / 585 | `boss ramparts`, `boss underbog`, `boss mechanar`, `boss sethekk halls`, `boss auchenai crypts`, `boss magisters terrace` | `dungeons` |
+| 19 Classic / 16 TBC dungeon maps | `boss ...` names from `GetDungeonBossMaps()` | `dungeons` |
+
+The dungeon contexts now register map-specific strategies backed by the existing
+encounter engine, with 110 dungeon and 40 Classic raid profiles and additional line-of-sight and
+damage-hold mechanics. See `doc/Bot_Dungeon_Strategien.md` for coverage and
+`debug raid dungeons` for a runtime check of every dungeon context and handler.
+The Classic raid contexts (`mc`, `bwl`, `onyxia`, `aq20`, `naxx`) now register
+`ClassicRaidBossStrategy`, including the existing Magmadar, suppression-room and
+Four Horsemen strategies. `debug raid classic` checks their wiring separately.
 
 ## API differences (mod-playerbots -> this core)
 

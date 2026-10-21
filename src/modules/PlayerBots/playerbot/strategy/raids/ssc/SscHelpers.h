@@ -134,6 +134,8 @@ namespace ai
         bool HasNoMarkOfHydross(Player* bot);
         bool HasMarkOfCorruptionAt100Percent(Player* bot);
         bool HasNoMarkOfCorruption(Player* bot);
+        bool UpdateHydrossState(PlayerbotAI* ai);
+        bool ShouldPauseHydrossDps(PlayerbotAI* ai);
 
         // The Lurker Below
         extern const WorldPosition LURKER_MAIN_TANK_POSITION;
@@ -147,6 +149,7 @@ namespace ai
         Unit* GetActiveLeotherasDemon(PlayerbotAI* ai);
         Player* GetLeotherasDemonFormTank(Player* bot);
         Unit* GetMyInnerDemon(Player* bot);
+        bool CanUseLeotherasMovement(PlayerbotAI* ai, const std::string& action);
 
         // Fathom-Lord Karathress
         extern const WorldPosition KARATHRESS_TANK_POSITION;
@@ -204,6 +207,7 @@ namespace ai
         // Runs the function with the locked state of the bot's instance
         void WithState(Player* bot, const std::function<void(SscInstanceState&)>& function);
         SscInstanceState GetState(Player* bot);
+        bool NeedsStateReset(PlayerbotAI* ai);
 
         // Cached lookup of a creature of this raid (one grid search per bot and entry every 500 ms)
         Unit* FindSscUnit(PlayerbotAI* ai, uint32 entry, float range = 150.0f);

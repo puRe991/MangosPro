@@ -2,6 +2,7 @@
 #include "ChooseTargetActions.h"
 #include "MotionGenerators/MovementGenerator.h"
 #include "AI/BaseAI/CreatureAI.h"
+#include "Entities/Pet.h"
 #include "playerbot/TravelMgr.h"
 #include "playerbot/strategy/generic/PullStrategy.h"
 #include "playerbot/strategy/values/FreeMoveValues.h"
@@ -12,7 +13,29 @@ bool DpsAssistAction::isUseful()
     if (bot->HasAura(23333) || bot->HasAura(23335) || bot->HasAura(34976))
         return false;
 
-    return true;
+    Unit* target = GetTarget();
+    if (!target)
+        return false;
+
+    // A pet can lose its target independently (for example after crowd control).
+    // Let assist resume its attack without repeatedly commanding an active pet.
+    Pet* pet = bot->GetPet();
+    if (pet && pet->IsAlive() && !pet->HasAura(4511) &&
+        !pet->hasUnitState(UNIT_STAT_CAN_NOT_REACT_OR_LOST_CONTROL) && pet->GetVictim() != target)
+        return true;
+
+    // Selecting the enemy again consumes a decision ahead of normal attacks.
+    // Keep target switches and restarting a stopped attack available.
+    return AI_VALUE(ObjectGuid, "current target") != target->GetObjectGuid() ||
+        bot->GetVictim() != target ||
+        (!ai->IsRanged(bot) && !bot->hasUnitState(UNIT_STAT_MELEE_ATTACKING));
+}
+
+bool TankAssistAction::isUseful()
+{
+    Unit* target = GetTarget();
+    return target && (AI_VALUE(ObjectGuid, "current target") != target->GetObjectGuid() ||
+        bot->GetVictim() != target || !bot->hasUnitState(UNIT_STAT_MELEE_ATTACKING));
 }
 
 bool AttackAnythingAction::isUseful() 

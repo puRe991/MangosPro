@@ -37,6 +37,7 @@ namespace ai
     MAGTHERIDON_TRIGGER(MagtheridonPullingWestAndEastChannelersTrigger, "magtheridon pulling west and east channelers");
     MAGTHERIDON_TRIGGER(MagtheridonDeterminingKillOrderTrigger, "magtheridon determining kill order");
     MAGTHERIDON_TRIGGER(MagtheridonBurningAbyssalSpawnedTrigger, "magtheridon burning abyssal spawned");
+    MAGTHERIDON_TRIGGER(MagtheridonChannelerNeedsInterruptTrigger, "magtheridon channeler needs interrupt");
     MAGTHERIDON_TRIGGER(MagtheridonShouldBeTankedTrigger, "magtheridon should be tanked");
     MAGTHERIDON_TRIGGER(MagtheridonShouldSpreadRangedTrigger, "magtheridon should spread ranged");
     MAGTHERIDON_TRIGGER(MagtheridonStandingInDebrisTrigger, "magtheridon standing in debris");

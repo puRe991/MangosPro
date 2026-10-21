@@ -2,6 +2,8 @@
 #include "playerbot/strategy/NamedObjectContext.h"
 #include "playerbot/strategy/Trigger.h"
 #include "playerbot/strategy/Action.h"
+#include "playerbot/strategy/Value.h"
+#include "playerbot/BotState.h"
 #include <string>
 
 namespace ai
@@ -15,13 +17,36 @@ namespace ai
         // Strategy name of the map, empty if the map has no boss strategy
         static std::string GetStrategy(uint32 mapId);
         static const std::vector<std::pair<uint32, std::string>>& GetAll();
+        static bool Debug(PlayerbotAI* ai, Player* requester, const std::string& command);
+        static void Trace(PlayerbotAI* ai, BotState state, const std::string& source,
+                          const std::string& action, bool executed);
+        static void TraceDecision(PlayerbotAI* ai, BotState state, Action* action,
+                                  const std::string& source, const char* result, const std::string& detail = "");
+    };
+
+    // Per-bot, opt-in diagnostics; never persist debug state to the character database.
+    class RaidBossDebugValue : public ManualSetValue<bool>
+    {
+    public:
+        RaidBossDebugValue(PlayerbotAI* ai) : ManualSetValue<bool>(ai, false, "raid boss debug") {}
+        std::map<std::string, time_t> lastLog;
+        std::map<std::string, std::set<std::string>> strategyTriggers;
+    };
+
+    class RaidBossDebugValueContext : public NamedObjectContext<UntypedValue>
+    {
+    public:
+        RaidBossDebugValueContext()
+        {
+            creators["raid boss debug"] = [](PlayerbotAI* ai) { return new RaidBossDebugValue(ai); };
+        }
     };
 
     // The boss strategy of the current map is missing, or one of another map is still active
     class RaidBossMapStrategyTrigger : public Trigger
     {
     public:
-        RaidBossMapStrategyTrigger(PlayerbotAI* ai) : Trigger(ai, "raid boss map strategy", 5) {}
+        RaidBossMapStrategyTrigger(PlayerbotAI* ai) : Trigger(ai, "raid boss map strategy", 1) {}
         bool IsActive() override;
     };
 

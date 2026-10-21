@@ -527,6 +527,10 @@ void HunterStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
     ClassStrategy::InitCombatTriggers(triggers);
 
     triggers.push_back(new TriggerNode(
+        "hunter recover ranged distance",
+        NextAction::array(0, new NextAction("hunter recover ranged distance", ACTION_MOVE - 1), NULL)));
+
+    triggers.push_back(new TriggerNode(
         "switch to ranged",
         NextAction::array(0, new NextAction("switch to ranged", ACTION_INTERRUPT + 3), NULL)));
 

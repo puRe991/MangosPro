@@ -32,7 +32,7 @@ namespace
 
 bool SscBotIsNotInCombatTrigger::IsActive()
 {
-    return InSsc(bot) && !bot->IsInCombat();
+    return NeedsStateReset(ai);
 }
 
 // Trash
@@ -84,7 +84,7 @@ bool SscHydrossTankNeedsAggroUponPhaseChangeTrigger::IsActive()
 
 bool SscHydrossAggroResetsUponPhaseChangeTrigger::IsActive()
 {
-    if (IsHunter(bot) || PlayerbotAI::IsHeal(bot) || raidboss::IsMainTank(bot) || raidboss::IsAssistTank(bot, 0))
+    if (PlayerbotAI::IsHeal(bot) || raidboss::IsMainTank(bot) || raidboss::IsAssistTank(bot, 0))
         return false;
 
     return GetEngaged(ai, NPC_HYDROSS);
@@ -212,7 +212,7 @@ bool SscLeotherasBotHasTooManyChaosBlastStacksTrigger::IsActive()
 
 bool SscLeotherasInnerDemonHasAwakenedTrigger::IsActive()
 {
-    return bot->HasAura(SPELL_INSIDIOUS_WHISPER) && GetLeotherasDemonFormTank(bot) != bot;
+    return bot->HasAura(SPELL_INSIDIOUS_WHISPER) && GetMyInnerDemon(bot);
 }
 
 bool SscLeotherasEnteredFinalPhaseTrigger::IsActive()
@@ -278,6 +278,9 @@ bool SscKarathressPullingBossesTrigger::IsActive()
 
 bool SscKarathressDeterminingKillOrderTrigger::IsActive()
 {
+    if (raidboss::IsDps(bot) && FindSscUnit(ai, NPC_SPITFIRE_TOTEM, 100.0f))
+        return true;
+
     if (PlayerbotAI::IsHeal(bot) || !GetEngaged(ai, NPC_KARATHRESS))
         return false;
 

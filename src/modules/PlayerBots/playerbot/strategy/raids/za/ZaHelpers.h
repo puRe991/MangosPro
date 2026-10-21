@@ -115,8 +115,8 @@ namespace ai
         // therefore track the pull and the start of every storm and react from AKILZON_STORM_LEAD_MS
         // before the earliest possible cast until the storm has been seen (or the window is over).
         constexpr uint32 AKILZON_FIRST_STORM_MS = 50500;
-        constexpr uint32 AKILZON_NEXT_STORM_MIN_MS = 62500;
-        constexpr uint32 AKILZON_NEXT_STORM_MAX_MS = 68500;
+        constexpr uint32 AKILZON_NEXT_STORM_MIN_MS = 54000;
+        constexpr uint32 AKILZON_NEXT_STORM_MAX_MS = 60000;
         constexpr uint32 AKILZON_STORM_LEAD_MS = 5000;
         constexpr uint32 AKILZON_STORM_DURATION_MS = 10000;
 

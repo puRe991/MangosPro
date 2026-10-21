@@ -28,6 +28,7 @@ namespace ai
     MAGTHERIDON_MULTIPLIER(MagtheridonHoldDpsMultiplier, "magtheridon hold dps");
     MAGTHERIDON_MULTIPLIER(MagtheridonControlTankActionsMultiplier, "magtheridon control tank actions");
     MAGTHERIDON_MULTIPLIER(MagtheridonAvoidDebrisDangerMultiplier, "magtheridon avoid debris danger");
+    MAGTHERIDON_MULTIPLIER(MagtheridonControlCrowdControlMultiplier, "magtheridon coordinated crowd control");
 
 #undef MAGTHERIDON_MULTIPLIER
 }

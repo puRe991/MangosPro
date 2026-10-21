@@ -2,6 +2,10 @@
 #include "playerbot/playerbot.h"
 #include "GenericActions.h"
 #include "UseItemAction.h"
+#include "playerbot/strategy/raids/RaidBossStrategies.h"
+#include "playerbot/strategy/raids/karazhan/KarazhanMultipliers.h"
+#include "playerbot/strategy/raids/karazhan/KarazhanHelpers.h"
+#include "playerbot/strategy/raids/ssc/SscHelpers.h"
 
 using namespace ai;
 
@@ -119,24 +123,27 @@ bool CastSpellAction::isPossible()
             if (!pSpellInfo)
                 return false;
 
-            if (range != ATTACK_DISTANCE && pSpellInfo->rangeIndex != SPELL_RANGE_IDX_COMBAT && pSpellInfo->rangeIndex != SPELL_RANGE_IDX_SELF_ONLY && pSpellInfo->rangeIndex != SPELL_RANGE_IDX_ANYWHERE)
-            {
-                float max_range, min_range;
-                if (ai->GetSpellRange(GetSpellName(), &max_range, &min_range))
-                {
-                    canReach = dist < max_range && dist >= min_range;
-                }
-            }
+            // The core checks minimum range using this target's combat reach.
+            // Do not compare a reach-subtracted distance with a caster-only
+            // minimum: that incorrectly rejects valid hunter shots.
         }
     }
 
     if(!canReach)
     {
+        RaidBossMapStrategies::TraceDecision(ai, IsReaction() ? BotState::BOT_STATE_REACTION : ai->GetState(),
+            this, "spell check", "CAST_REJECTED", "spell=" + std::to_string(spellId) + " reason=OUT_OF_RANGE");
         return false;
     }
     
     // Check if the spell can be casted
-	return ai->CanCastSpell(spellName, spellTarget, 0, nullptr, true);
+    SpellCastResult checkResult = SPELL_CAST_OK;
+    const bool possible = ai->CanCastSpell(spellName, spellTarget, 0, nullptr, false, false, false, &checkResult);
+    if (!possible)
+        RaidBossMapStrategies::TraceDecision(ai, IsReaction() ? BotState::BOT_STATE_REACTION : ai->GetState(),
+            this, "spell check", "CAST_REJECTED", "spell=" + std::to_string(spellId) +
+            " reason=" + GetSpellCastResultString(checkResult));
+    return possible;
 }
 
 bool CastSpellAction::isUseful()
@@ -153,6 +160,51 @@ bool CastSpellAction::isUseful()
 
     if (!spellTarget->IsInWorld() || spellTarget->GetMapId() != bot->GetMapId())
         return false;
+
+    if (bot->GetMapId() == 544 && bot->HasAura(30410)) return false;
+    if (bot->GetMapId() == 548 && spellTarget != bot && !sServerFacade.IsFriendlyTo(bot, spellTarget))
+        if (Unit* demon = ssc::GetMyInnerDemon(bot))
+            if (spellTarget != demon) return false;
+
+
+    if (karazhan::NeedsEmergencyEscape(ai))
+    {
+        const SpellEntry* escapeSpell = sServerFacade.LookupSpellInfo(spellId);
+        if (escapeSpell && GetSpellCastTime(escapeSpell, bot) > 0)
+            return false;
+    }
+
+    // Enforce this encounter rule even before the map strategy has been added
+    // to the combat engine at pull time, including directly requested actions.
+    if ((spellName == "bloodlust" || spellName == "heroism") && bot->GetMapId() == 532)
+    {
+        KarazhanCuratorDelayBloodlustMultiplier timing(ai);
+        if (timing.GetValue(this) == 0.0f)
+            return false;
+        KarazhanMalchezaarDelayBloodlustMultiplier princeTiming(ai);
+        if (princeTiming.GetValue(this) == 0.0f)
+            return false;
+    }
+
+    const bool directHeal = spellName == "greater heal" || spellName == "heal" ||
+        spellName == "lesser heal" || spellName == "flash heal" ||
+        spellName == "healing wave" || spellName == "lesser healing wave" ||
+        spellName == "holy light" || spellName == "flash of light" || spellName == "healing touch";
+    if (directHeal)
+    {
+        // Trigger queues can outlive the injury which queued the cast.
+        if (spellTarget->GetHealthPercent() >= sPlayerbotAIConfig.almostFullHealth &&
+            !ai->HasStrategy("preheal", BotState::BOT_STATE_COMBAT))
+            return false;
+
+        if (spellTarget == bot && PlayerbotAI::IsHeal(bot) && bot->IsInCombat() &&
+            bot->GetHealthPercent() >= sPlayerbotAIConfig.lowHealth)
+        {
+            Unit* urgent = ai->GetUnit(AI_VALUE(ObjectGuid, "party member to heal"));
+            if (urgent && urgent->IsAlive() && urgent->GetHealthPercent() < sPlayerbotAIConfig.criticalHealth)
+                return false;
+        }
+    }
 
     const SpellEntry* pSpellInfo = sServerFacade.LookupSpellInfo(spellId);
     if (pSpellInfo)

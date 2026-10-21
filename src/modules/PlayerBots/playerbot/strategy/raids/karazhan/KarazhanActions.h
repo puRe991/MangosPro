@@ -322,6 +322,7 @@ namespace ai
     public:
         KarazhanNetherspiteAvoidBeamAndVoidZoneAction(PlayerbotAI* ai) : KarazhanMovementAction(ai, "netherspite avoid beam and void zone") {}
         bool Execute(Event& event) override;
+        bool isUseful() override { return true; } // hazards override stay
 
     private:
         struct BeamAvoid
@@ -339,6 +340,7 @@ namespace ai
     public:
         KarazhanNetherspiteBanishPhaseAvoidVoidZoneAction(PlayerbotAI* ai) : KarazhanMovementAction(ai, "netherspite banish phase avoid void zone") {}
         bool Execute(Event& event) override;
+        bool isUseful() override { return true; }
     };
 
     class KarazhanNetherspiteManageTimersAndTrackersAction : public Action
@@ -363,6 +365,7 @@ namespace ai
     public:
         KarazhanMalchezaarNonTankAvoidInfernalAction(PlayerbotAI* ai) : KarazhanMovementAction(ai, "prince malchezaar non-tank avoid infernal") {}
         bool Execute(Event& event) override;
+        bool isUseful() override { return true; }
     };
 
     class KarazhanMalchezaarTanksPositionBossAction : public KarazhanAttackAction

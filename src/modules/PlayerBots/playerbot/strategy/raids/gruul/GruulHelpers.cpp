@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include "MotionGenerators/PathFinder.h"
 
 using namespace ai;
 
@@ -28,9 +29,133 @@ Unit* FindKiggler(PlayerbotAI* ai) { return raidboss::FindUnit(ai, NPC_KIGGLER_T
 Unit* FindBlindeye(PlayerbotAI* ai) { return raidboss::FindUnit(ai, NPC_BLINDEYE_THE_SEER); }
 Unit* FindGruul(PlayerbotAI* ai) { return raidboss::FindUnit(ai, NPC_GRUUL_THE_DRAGONKILLER); }
 
+bool IsGruulsLairEncounterInProgress(Player* bot)
+{
+    // An empty entry list treats any trash attacker as an encounter. Nearby,
+    // unpulled council members must not take over targeting or suppress DPS.
+    static const std::vector<uint32> bosses = { NPC_HIGH_KING_MAULGAR, NPC_KROSH_FIREHAND,
+        NPC_OLM_THE_SUMMONER, NPC_KIGGLER_THE_CRAZED, NPC_BLINDEYE_THE_SEER, NPC_GRUUL_THE_DRAGONKILLER };
+    return raidboss::IsEncounterInProgress(bot, GRUUL_MAP_ID, bosses);
+}
+
 bool IsMaulgarTank(Player* bot)
 {
     return PlayerbotAI::IsTank(bot) && raidboss::IsMainTank(bot);
+}
+
+bool IsCouncilMember(Unit* unit)
+{
+    if (!unit || unit->GetMapId() != GRUUL_MAP_ID)
+        return false;
+    const uint32 entry = unit->GetEntry();
+    return entry == NPC_HIGH_KING_MAULGAR || entry == NPC_KROSH_FIREHAND ||
+        entry == NPC_KIGGLER_THE_CRAZED || entry == NPC_OLM_THE_SUMMONER || entry == NPC_BLINDEYE_THE_SEER;
+}
+
+Unit* GetCasterRoleTarget(PlayerbotAI* ai)
+{
+    if (PlayerbotAI::IsTank(ai->GetBot()))
+        return nullptr;
+    if (IsKroshMageTank(ai))
+        return FindKrosh(ai);
+    if (IsKigglerMoonkinTank(ai))
+        return FindKiggler(ai);
+    return nullptr;
+}
+
+Unit* GetPrepareTarget(PlayerbotAI* ai, float& range)
+{
+    Player* bot = ai->GetBot();
+    Player* master = ai->GetMaster();
+    if (bot->GetMapId() != GRUUL_MAP_ID || !bot->IsAlive() || bot->IsInCombat() ||
+        !master || master->GetMap() != bot->GetMap() || !master->IsAlive() || master->IsInCombat() ||
+        master->IsMoving() || !bot->IsWithinDistInMap(master, 60.0f) ||
+        !ai->HasStrategy("boss gruul", BotState::BOT_STATE_NON_COMBAT) ||
+        ai->HasStrategy("stay", BotState::BOT_STATE_NON_COMBAT) ||
+        ai->HasStrategy("passive", BotState::BOT_STATE_NON_COMBAT) ||
+        IsGruulsLairEncounterInProgress(bot))
+        return nullptr;
+
+    // Selecting a council member arms preparation; moving away or clearing selection releases it.
+    Unit* selected = ai->GetUnit(master->GetSelectionGuid());
+    if (!IsCouncilMember(selected) || !selected->IsAlive() || !master->IsWithinDistInMap(selected, 60.0f))
+        return nullptr;
+    if (Group* group = bot->GetGroup())
+        for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
+            if (Player* member = ref->getSource())
+                if (member->GetMap() == bot->GetMap() && member->IsInCombat())
+                    return nullptr;
+
+    Unit* target = GetCasterRoleTarget(ai);
+    if (!target || !target->IsAlive() || !bot->IsWithinDistInMap(target, 75.0f))
+        return nullptr;
+    if (!ai->GetSpellRange(target->GetEntry() == NPC_KROSH_FIREHAND ? "frostbolt" : "wrath", &range))
+        return nullptr;
+    if (target->GetEntry() == NPC_KROSH_FIREHAND)
+    {
+        float stealRange = 0;
+        if (!ai->GetSpellRange("spellsteal", &stealRange))
+            return nullptr;
+        range = std::min(range, stealRange);
+    }
+    range -= 1.5f; // Keep some room inside actual spell range.
+    return range > target->GetAttackDistance(bot) + 3.0f ? target : nullptr;
+}
+
+namespace
+{
+    bool SafePreparationSegment(Player* bot, const std::vector<Unit*>& council,
+        float ax, float ay, float bx, float by)
+    {
+        const float dx = bx - ax, dy = by - ay;
+        const float length2 = dx * dx + dy * dy;
+        for (Unit* member : council)
+        {
+            if (!member || !member->IsAlive() || member->IsInCombat())
+                return false;
+            const float t = length2 > 0.001f ? std::max(0.0f, std::min(1.0f,
+                ((member->GetPositionX() - ax) * dx + (member->GetPositionY() - ay) * dy) / length2)) : 0.0f;
+            if (std::hypot(member->GetPositionX() - ax - t * dx, member->GetPositionY() - ay - t * dy) <
+                member->GetAttackDistance(bot) + 3.0f)
+                return false;
+        }
+        return true;
+    }
+}
+
+bool IsPrepared(Player* bot, Unit* target, float range)
+{
+    return target && raidboss::ExactDist2d(bot, target) <= range &&
+        raidboss::ExactDist2d(bot, target) > target->GetAttackDistance(bot) + 3.0f &&
+        bot->IsWithinLOSInMap(target);
+}
+
+bool GetPreparePosition(PlayerbotAI* ai, Unit* target, float range, float& x, float& y, float& z)
+{
+    Player* bot = ai->GetBot();
+    const std::vector<Unit*> council = { FindMaulgar(ai), FindKrosh(ai), FindOlm(ai), FindKiggler(ai), FindBlindeye(ai) };
+    const float angle = std::atan2(bot->GetPositionY() - target->GetPositionY(), bot->GetPositionX() - target->GetPositionX());
+    const float offsets[] = { 0, 0.2f, -0.2f, 0.4f, -0.4f, 0.6f, -0.6f, 0.8f, -0.8f };
+    for (float offset : offsets)
+    {
+        x = target->GetPositionX() + std::cos(angle + offset) * (range - 0.5f);
+        y = target->GetPositionY() + std::sin(angle + offset) * (range - 0.5f);
+        z = target->GetPositionZ();
+        bot->UpdateAllowedPositionZ(x, y, z);
+        if (!target->IsWithinLOS(x, y, z + bot->GetCollisionHeight(), true))
+            continue;
+        PathFinder path(bot);
+        path.calculate(x, y, z, false);
+        if (path.getPathType() != PATHFIND_NORMAL || path.getPath().size() < 2)
+            continue;
+        const auto& points = path.getPath();
+        bool safe = SafePreparationSegment(bot, council, bot->GetPositionX(), bot->GetPositionY(), points.front().x, points.front().y);
+        for (size_t i = 1; safe && i < points.size(); ++i)
+            safe = SafePreparationSegment(bot, council, points[i - 1].x, points[i - 1].y, points[i].x, points[i].y);
+        if (safe && std::hypot(points.back().x - x, points.back().y - y) < 1.0f)
+            return true;
+    }
+    return false;
 }
 
 bool IsOlmTank(Player* bot)
@@ -66,7 +191,7 @@ namespace
                 continue;
             }
 
-            if (balanceOnly && AiFactory::GetPlayerSpecTab(member) != int(DRUID_TAB_BALANCE))
+            if (balanceOnly && (AiFactory::GetPlayerSpecTab(member) != int(DRUID_TAB_BALANCE) || PlayerbotAI::IsHeal(member)))
                 continue;
 
             if (group->IsAssistant(member->GetObjectGuid()))
@@ -209,7 +334,62 @@ bool IsInCaveIn(Player* bot)
 
 bool HasGroundSlam(Player* bot)
 {
-    return bot->HasAura(SPELL_GROUND_SLAM_1) || bot->HasAura(SPELL_GROUND_SLAM_2);
+    // The Ground Slam aura expires before Stoned/Shatter. Keep normal chasing
+    // suppressed until the actual Shatter removes Grasp and Stoned as well.
+    return bot->HasAura(SPELL_GROUND_SLAM_1) || bot->HasAura(SPELL_GROUND_SLAM_2) ||
+        bot->HasAura(SPELL_GRONN_LORDS_GRASP) || bot->HasAura(SPELL_STONED);
+}
+
+bool GetShatterSpreadPosition(Player* bot, float& x, float& y, float& z)
+{
+    if (!HasGroundSlam(bot) || bot->HasAura(SPELL_STONED) || bot->GetSpeed(MOVE_RUN) <= 0.0f)
+        return false;
+
+    const std::vector<Player*> members = raidboss::GetGroupMembers(bot, 60.0f, false);
+    // Moving away from only the nearest player can move straight into the next
+    // player and reverse direction every tick. Minimize exposure to the whole group.
+    const auto exposure = [&members](float px, float py)
+    {
+        float score = 0.0f;
+        for (Player* member : members)
+        {
+            const float distance = raidboss::ExactDist2d(member, px, py);
+            const float overlap = std::max(0.0f, GRUUL_SHATTER_SAFE_DISTANCE - distance);
+            score += overlap * overlap;
+        }
+        return score;
+    };
+
+    float bestScore = exposure(bot->GetPositionX(), bot->GetPositionY());
+    bool found = false;
+    const std::vector<WorldPosition> pools = raidboss::GetDynamicObjectPositions(bot, CAVE_IN_SEARCH_RADIUS, SPELL_CAVE_IN);
+    for (unsigned i = 0; i < 16; ++i)
+    {
+        const float angle = bot->GetOrientation() + i * M_PI_F / 8.0f;
+        const float px = bot->GetPositionX() + std::cos(angle) * 3.5f;
+        const float py = bot->GetPositionY() + std::sin(angle) * 3.5f;
+        const float score = exposure(px, py);
+        if (score >= bestScore - 0.01f)
+            continue;
+
+        bool inPool = false;
+        for (const WorldPosition& pool : pools)
+            if (std::hypot(px - pool.getX(), py - pool.getY()) < CAVE_IN_RADIUS)
+                inPool = true;
+        if (inPool)
+            continue;
+
+        float candidateX, candidateY, candidateZ;
+        if (!raidboss::CanTakeStepTowards(bot, px, py, 3.5f, candidateX, candidateY, candidateZ))
+            continue;
+
+        bestScore = score;
+        x = candidateX;
+        y = candidateY;
+        z = candidateZ;
+        found = true;
+    }
+    return found;
 }
 
 bool GetPointAwayFrom(Player* bot, float centerX, float centerY, float safeDistance, float& x, float& y, float& z)

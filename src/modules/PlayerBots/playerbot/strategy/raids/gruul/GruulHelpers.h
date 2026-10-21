@@ -34,6 +34,8 @@ namespace ai
             // Gruul the Dragonkiller
             SPELL_GROUND_SLAM_1         = 33525,
             SPELL_GROUND_SLAM_2         = 39187,    // triggered by 33525
+            SPELL_GRONN_LORDS_GRASP     = 33572,
+            SPELL_STONED               = 33652,
             SPELL_CAVE_IN               = 36240,
         };
 
@@ -66,6 +68,12 @@ namespace ai
         Unit* FindKiggler(PlayerbotAI* ai);
         Unit* FindBlindeye(PlayerbotAI* ai);
         Unit* FindGruul(PlayerbotAI* ai);
+        bool IsGruulsLairEncounterInProgress(Player* bot);
+        bool IsCouncilMember(Unit* unit);
+        Unit* GetCasterRoleTarget(PlayerbotAI* ai);
+        Unit* GetPrepareTarget(PlayerbotAI* ai, float& range);
+        bool IsPrepared(Player* bot, Unit* target, float range);
+        bool GetPreparePosition(PlayerbotAI* ai, Unit* target, float range, float& x, float& y, float& z);
 
         bool IsMaulgarTank(Player* bot);
         bool IsOlmTank(Player* bot);
@@ -97,6 +105,7 @@ namespace ai
         bool IsNearCaveIn(Player* bot, float radius);
         bool IsInCaveIn(Player* bot);
         bool HasGroundSlam(Player* bot);
+        bool GetShatterSpreadPosition(Player* bot, float& x, float& y, float& z);
 
         // Point at safeDistance from (centerX, centerY), as straight away from it as the terrain allows
         // (replaces MoveAway / FleePosition of mod-playerbots). False if no reachable point was found.

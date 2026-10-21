@@ -45,7 +45,17 @@ namespace ai
     REACH_ACTION(CastInterceptAction, "intercept", 8.0f);
     ENEMY_HEALER_ACTION(CastInterceptOnEnemyHealerAction, "intercept");
     SNARE_ACTION(CastInterceptOnSnareTargetAction, "intercept");
-    MELEE_ACTION(CastSlamAction, "slam");
+    bool CanUseTbcSlam(PlayerbotAI* ai);
+
+    class CastSlamAction : public CastMeleeSpellAction
+    {
+    public:
+        CastSlamAction(PlayerbotAI* ai) : CastMeleeSpellAction(ai, "slam") {}
+        bool isUseful() override
+        {
+            return CastMeleeSpellAction::isUseful() && CanUseTbcSlam(ai);
+        }
+    };
     BUFF_ACTION(CastBerserkerRageAction, "berserker rage");
     MELEE_ACTION(CastWhirlwindAction, "whirlwind");
     MELEE_ACTION(CastPummelAction, "pummel");
@@ -162,7 +172,9 @@ namespace ai
 
             if (shieldSlam)
             {
-                return !bot->IsSpellReady(shieldSlam);
+                // A ready cooldown alone does not mean Shield Slam can be used:
+                // rage, equipment and target checks must pass as well.
+                return !bot->IsSpellReady(shieldSlam) || !ai->CanCastSpell(shieldSlam, target, 0);
             }
 
             return true;

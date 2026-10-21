@@ -84,8 +84,11 @@ float SscHydrossDisableTankActionsMultiplier::GetValue(Action* action)
     if (!hydross)
         return 1.0f;
 
+    if (dynamic_cast<SscHydrossPositionFrostTankAction*>(action) || dynamic_cast<SscHydrossPositionNatureTankAction*>(action))
+        return 1.0f;
+
     // The positioning / taunting of the "tbc raid" table would fight the fixed tank spots
-    if (IsActionNamed(action, { "tank assist", "tbc raid hydross tank", "tbc raid taunt" }) || IsFormationMove(action))
+    if (IsActionNamed(action, { "tank assist", "tbc raid hydross tank", "tbc raid taunt", "tank face", "set behind", "follow" }) || IsFormationMove(action))
         return 0.0f;
 
     const bool corrupted = hydross->HasAura(SPELL_CORRUPTION);
@@ -93,9 +96,7 @@ float SscHydrossDisableTankActionsMultiplier::GetValue(Action* action)
         return 1.0f;
 
     // The wrong tank for the current form waits at its spot
-    if (IsReachSpell(action) || IsReachMelee(action) ||
-        (dynamic_cast<AttackAction*>(action) && !dynamic_cast<SscHydrossPositionFrostTankAction*>(action) &&
-         !dynamic_cast<SscHydrossPositionNatureTankAction*>(action)))
+    if (IsReachSpell(action) || IsReachMelee(action) || IsDamageAction(action))
         return 0.0f;
 
     return 1.0f;
@@ -112,33 +113,17 @@ float SscHydrossWaitForDpsMultiplier::GetValue(Action* action)
         (FindSscUnit(ai, NPC_PURE_SPAWN_OF_HYDROSS) || FindSscUnit(ai, NPC_TAINTED_SPAWN_OF_HYDROSS)))
         return 1.0f;
 
-    if (dynamic_cast<SscHydrossMisdirectBossToTankAction*>(action) || !IsDamageAction(action))
+    if (dynamic_cast<SscHydrossMisdirectBossToTankAction*>(action) ||
+        dynamic_cast<SscHydrossPositionFrostTankAction*>(action) || dynamic_cast<SscHydrossPositionNatureTankAction*>(action) ||
+        !IsDamageAction(action))
         return 1.0f;
 
-    const SscInstanceState state = GetState(bot);
-    const time_t now = time(nullptr);
-    constexpr time_t phaseChangeWaitSeconds = 1;
-    constexpr time_t dpsWaitSeconds = 5;
+    const bool nature = hydross->HasAura(SPELL_CORRUPTION);
+    if ((!nature && raidboss::IsMainTank(bot)) || (nature && raidboss::IsAssistTank(bot, 0)))
+        return 1.0f;
 
-    if (!hydross->HasAura(SPELL_CORRUPTION) && !raidboss::IsMainTank(bot))
-    {
-        const bool justChanged = !state.hydrossFrostDpsWait || now - state.hydrossFrostDpsWait < dpsWaitSeconds;
-        const bool aboutToChange = state.hydrossChangeToFrostPhase && now - state.hydrossChangeToFrostPhase > phaseChangeWaitSeconds;
-        if (justChanged || aboutToChange)
-            return 0.0f;
-    }
-
-    if (hydross->HasAura(SPELL_CORRUPTION) && !raidboss::IsAssistTank(bot, 0))
-    {
-        const bool justChanged = !state.hydrossNatureDpsWait || now - state.hydrossNatureDpsWait < dpsWaitSeconds;
-        const bool aboutToChange = state.hydrossChangeToNaturePhase && now - state.hydrossChangeToNaturePhase > phaseChangeWaitSeconds;
-        if (justChanged || aboutToChange)
-            return 0.0f;
-    }
-
-    return 1.0f;
+    return ShouldPauseHydrossDps(ai) ? 0.0f : 1.0f;
 }
-
 float SscHydrossControlMisdirectionMultiplier::GetValue(Action* action)
 {
     if (bot->getClass() == CLASS_HUNTER && IsActionNamed(action, { "misdirection on party tank" }) && Engaged(ai, NPC_HYDROSS))
@@ -238,6 +223,10 @@ float SscLeotherasFocusOnInnerDemonMultiplier::GetValue(Action* action)
 {
     if (!bot->HasAura(SPELL_INSIDIOUS_WHISPER))
         return 1.0f;
+
+    Unit* demon = GetMyInnerDemon(bot);
+    if (!demon || dynamic_cast<SscLeotherasDestroyInnerDemonAction*>(action)) return 1.0f;
+    if (dynamic_cast<AttackAction*>(action) && action->GetTarget() != demon) return 0.0f;
 
     if (dynamic_cast<TankAssistAction*>(action) || dynamic_cast<DpsAssistAction*>(action) ||
         dynamic_cast<CastHealingSpellAction*>(action) || dynamic_cast<CastCureSpellAction*>(action) ||
@@ -342,6 +331,20 @@ float SscKarathressWaitForDpsMultiplier::GetValue(Action* action)
 {
     if (PlayerbotAI::IsTank(bot))
         return 1.0f;
+
+    Unit* totem = FindSscUnit(ai, NPC_SPITFIRE_TOTEM, 100.0f);
+    if (totem && raidboss::IsDps(bot))
+    {
+        if (dynamic_cast<SscKarathressAssignDpsPriorityAction*>(action))
+            return 1.0f;
+        if (raidboss::IsAttackTargetAction(action) || IsActionNamed(action, { "tbc raid attack priority target" }))
+            return 0.0f;
+        // Allow damage to the totem even during the initial council threat wait.
+        if (AI_VALUE(ObjectGuid, "current target") == totem->GetObjectGuid())
+            return 1.0f;
+        if (IsDamageAction(action))
+            return 0.0f;
+    }
 
     // The table kill order of "tbc raid" contradicts the one of this strategy
     if (IsActionNamed(action, { "tbc raid attack priority target" }) && Engaged(ai, NPC_KARATHRESS))

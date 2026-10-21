@@ -143,7 +143,8 @@ bool KarazhanWizardOfOzNeedTargetPriorityTrigger::IsActive()
 
 bool KarazhanWizardOfOzStrawmanIsVulnerableToFireTrigger::IsActive()
 {
-    return bot->getClass() == CLASS_MAGE && GetKaraUnit(ai, NPC_STRAWMAN);
+    return (bot->getClass() == CLASS_MAGE || bot->getClass() == CLASS_WARLOCK) &&
+        GetKaraUnit(ai, NPC_STRAWMAN);
 }
 
 // The Curator
@@ -175,12 +176,13 @@ bool KarazhanIllhoofShouldPrioritizeChainsTrigger::IsActive()
 bool KarazhanAranArcaneExplosionIsCastingTrigger::IsActive()
 {
     Unit* aran = GetKaraUnit(ai, NPC_SHADE_OF_ARAN);
-    return aran && IsAranCastingArcaneExplosion(aran) && !IsFlameWreathActive(ai);
+    return aran && IsAranCastingArcaneExplosion(aran) && !IsFlameWreathActive(ai) &&
+        raidboss::ExactDist2d(bot, aran) < ARAN_ESCAPE_DISTANCE;
 }
 
 bool KarazhanAranFlameWreathIsActiveTrigger::IsActive()
 {
-    return IsFlameWreathActive(ai);
+    return IsFlameWreathActive(ai) && bot->IsMoving();
 }
 
 bool KarazhanAranConjuredElementalsSummonedTrigger::IsActive()
@@ -213,7 +215,12 @@ namespace
         if (!netherspite || IsBanishPhase(netherspite))
             return false;
 
-        return GetKaraUnit(ai, portalEntry) != nullptr;
+        if (!GetKaraUnit(ai, portalEntry))
+            return false;
+        const auto blockers = GetCurrentBeamBlockers(ai->GetBot());
+        Player* assigned = portalEntry == NPC_RED_PORTAL ? blockers.red :
+            portalEntry == NPC_BLUE_PORTAL ? blockers.blue : blockers.green;
+        return assigned == ai->GetBot();
     }
 }
 
@@ -257,7 +264,7 @@ bool KarazhanNetherspiteManageTimersAndTrackersTrigger::IsActive()
 
 bool KarazhanMalchezaarBotIsEnfeebledTrigger::IsActive()
 {
-    return bot->HasAura(SPELL_ENFEEBLE) && GetKaraUnit(ai, NPC_PRINCE_MALCHEZAAR);
+    return bot->HasAura(SPELL_ENFEEBLE) && NeedsEmergencyEscape(ai);
 }
 
 bool KarazhanMalchezaarEngagedByNonTanksTrigger::IsActive()

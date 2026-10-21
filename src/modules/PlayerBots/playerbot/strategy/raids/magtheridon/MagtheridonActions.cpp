@@ -1,6 +1,7 @@
 // Ported from mod-playerbots (src/Ai/Raid/Mag, GPL v2+) and adapted for this core.
 #include "playerbot/playerbot.h"
 #include "MagtheridonActions.h"
+#include "playerbot/strategy/raids/RaidBossStrategies.h"
 #include "playerbot/strategy/raids/RaidBossHelpers.h"
 #include <cmath>
 #include <limits>
@@ -130,34 +131,64 @@ bool MagtheridonAssignDpsPriorityAction::Execute(Event& /*event*/)
     return raidboss::MarkTargetWithSkull(bot, channeler);
 }
 
-// Establish a Banish rotation for Burning Abyssals and a Fear rotation for any Burning Abyssals
-// that exceed the number of warlocks in the raid.
+bool MagtheridonInterruptChannelerAction::isUseful()
+{
+    std::string spell;
+    return GetChannelerInterruptTarget(ai, spell) != nullptr;
+}
+
+Unit* MagtheridonInterruptChannelerAction::GetTarget()
+{
+    std::string spell;
+    return GetChannelerInterruptTarget(ai, spell);
+}
+
+bool MagtheridonInterruptChannelerAction::Execute(Event& /*event*/)
+{
+    std::string spell;
+    Unit* target = GetChannelerInterruptTarget(ai, spell);
+    if (!target)
+        return false;
+    uint32 duration = 0;
+    if (!ai->CastSpell(spell, target, nullptr, true, &duration))
+        return false;
+    SetDuration(duration);
+    return true;
+}
+
+bool MagtheridonWarlockCcBurningAbyssalAction::isUseful()
+{
+    std::string spell;
+    return GetAssignedAbyssalCcTarget(ai, spell) != nullptr;
+}
+
+Unit* MagtheridonWarlockCcBurningAbyssalAction::GetTarget()
+{
+    std::string spell;
+    return GetAssignedAbyssalCcTarget(ai, spell);
+}
+
 bool MagtheridonWarlockCcBurningAbyssalAction::Execute(Event& /*event*/)
 {
-    const std::vector<Unit*> abyssals = GetBurningAbyssals(ai);
-    const std::vector<Player*> warlocks = GetGroupBotsOfClass(bot, CLASS_WARLOCK);
-    const int warlockIndex = raidboss::GetIndexOf(bot, warlocks);
-    if (warlockIndex < 0)
+    std::string spell;
+    Unit* target = GetAssignedAbyssalCcTarget(ai, spell);
+    if (!target)
         return false;
-
-    if (warlockIndex < int(abyssals.size()))
+    if (ai->CanCastSpell(spell, target, 0))
     {
-        Unit* assignedAbyssal = abyssals[warlockIndex];
-        if (!ai->HasAura("banish", assignedAbyssal) && raidboss::TryCast(ai, "banish", assignedAbyssal))
-            return true;
+        uint32 duration = 0;
+        if (!ai->CastSpell(spell, target, nullptr, true, &duration))
+            return false;
+        SetDuration(duration);
+        return true;
     }
 
-    for (size_t i = warlocks.size() + warlockIndex; i < abyssals.size(); i += warlocks.size())
-    {
-        Unit* excessAbyssal = abyssals[i];
-        if (!ai->HasAura("banish", excessAbyssal) && !ai->HasAura("fear", excessAbyssal) &&
-            raidboss::TryCast(ai, "fear", excessAbyssal))
-        {
-            return true;
-        }
-    }
-
-    return false;
+    // The old action only tried casting: an assigned add outside spell range
+    // remained uncontrolled forever. Approach without changing the DPS target.
+    if (ai->HasStrategy("stay", ai->GetState()))
+        return false;
+    SetDuration(200);
+    return MoveNear(target, 20.0f);
 }
 
 bool MagtheridonMainTankPositionBossAction::Execute(Event& /*event*/)
@@ -170,7 +201,7 @@ bool MagtheridonMainTankPositionBossAction::Execute(Event& /*event*/)
         return Attack(GetMaster(), magtheridon);
 
     const float stopForHealHealthPct = 50.0f;
-    if (magtheridon->GetVictim() != bot || !bot->CanReachWithMeleeAttack(magtheridon) ||
+    if (magtheridon->GetVictim() != bot ||
         bot->GetHealthPercent() < stopForHealHealthPct)
     {
         return false;
@@ -187,26 +218,26 @@ bool MagtheridonMainTankPositionBossAction::Execute(Event& /*event*/)
 
 bool MagtheridonSpreadRangedAction::Execute(Event& /*event*/)
 {
-    Unit* magtheridon = FindMagtheridon(ai);
-    if (!magtheridon)
-        return false;
-
-    float x, y, z;
-
-    // This 20y distance is sort of a cheap way to stay out of Magtheridon's Cleave.
-    const float safeDistFromBoss = 20.0f;
-    if (raidboss::ExactDist2d(bot, magtheridon) < safeDistFromBoss &&
-        GetPointAwayFrom(bot, magtheridon->GetPositionX(), magtheridon->GetPositionY(), safeDistFromBoss, x, y, z))
-    {
-        return MoveTo(MAG_MAP_ID, x, y, z, false, false, false, true);
-    }
-
-    const float safeDistFromPlayer = 6.0f;
-    Player* nearestPlayer = raidboss::GetNearestPlayerInRadius(bot, safeDistFromPlayer);
-    if (!nearestPlayer || !GetPointAwayFrom(bot, nearestPlayer->GetPositionX(), nearestPlayer->GetPositionY(), safeDistFromPlayer, x, y, z))
-        return false;
-
-    return MoveTo(MAG_MAP_ID, x, y, z, false, false, false, true);
+    Unit* boss = FindMagtheridon(ai);
+    if (!boss || bot->HasAura(SPELL_SHADOW_GRASP)) return false;
+    std::vector<Player*> ranged;
+    for (Player* member : raidboss::GetGroupMembers(bot, 150.0f, true))
+        if (raidboss::IsRangedPlayer(member) && member != boss->GetVictim()) ranged.push_back(member);
+    const int index = raidboss::GetIndexOf(bot, ranged);
+    if (index < 0) return false;
+    // Stable slots in two rear semicircles; pairwise repulsion made crowded raids keep moving.
+    const float radius = 25.0f + 7.0f * (index / 10);
+    const float angle = boss->GetOrientation() + M_PI_F / 2.0f + M_PI_F * ((index % 10) + 0.5f) / 10.0f;
+    const float x = boss->GetPositionX() + radius * std::cos(angle);
+    const float y = boss->GetPositionY() + radius * std::sin(angle);
+    if (raidboss::ExactDist2d(bot, x, y) <= 3.0f ||
+        IsPositionInActiveDebris(bot, x, y) || IsPositionInActiveConflagration(bot, x, y)) return false;
+    if (bot->IsNonMeleeSpellCasted(true) && raidboss::ExactDist2d(bot, boss) >= 15.0f) return false;
+    float z = bot->GetMap()->GetHeight(x, y, boss->GetPositionZ() + 5.0f);
+    if (z <= INVALID_HEIGHT) return false;
+    const bool moved = MoveTo(MAG_MAP_ID, x, y, z, false, false, false, true);
+    if (moved) SetDuration(200);
+    return moved;
 }
 
 bool MagtheridonUseManticronCubeAction::Execute(Event& /*event*/)
@@ -215,6 +246,14 @@ bool MagtheridonUseManticronCubeAction::Execute(Event& /*event*/)
     if (!magtheridon)
         return false;
 
+    SetDuration(200);
+    if (bot->HasAura(SPELL_SHADOW_GRASP))
+    {
+        if (IsBlastNovaCasting(magtheridon))
+            return true;
+        return HandleCubeRelease(magtheridon);
+    }
+
     CubeInfo cubeInfo;
     if (!GetAssignedCube(bot, cubeInfo))
         return false;
@@ -222,6 +261,17 @@ bool MagtheridonUseManticronCubeAction::Execute(Event& /*event*/)
     GameObject* cube = ai->GetGameObject(cubeInfo.guid);
     if (!cube)
         return false;
+
+    auto* debug = dynamic_cast<RaidBossDebugValue*>(context->GetUntypedValue("raid boss debug"));
+    if (debug && debug->Get() && time(nullptr) - debug->lastLog["cube"] >= 2)
+    {
+        debug->lastLog["cube"] = time(nullptr);
+        sLog.outString("[RaidCube] bot=%s instance=%u cube=%u distance=%.2f zDelta=%.2f interact=%u nova=%u preparing=%u channel=%u exhausted=%u hp=%.2f pos=(%.2f,%.2f,%.2f)",
+            bot->GetName(), bot->GetInstanceId(), cube->GetObjectGuid().GetCounter(), raidboss::ExactDist2d(bot, cubeInfo.x, cubeInfo.y),
+            bot->GetPositionZ() - cubeInfo.z, cube->IsAtInteractDistance(bot), IsBlastNovaCasting(magtheridon), IsBlastNovaSoon(bot),
+            bot->HasAura(SPELL_SHADOW_GRASP), bot->HasAura(SPELL_MIND_EXHAUSTION), bot->GetHealthPercent(),
+            bot->GetPositionX(), bot->GetPositionY(), bot->GetPositionZ());
+    }
 
     // Release the cube after Blast Nova is interrupted.
     if (HandleCubeRelease(magtheridon))
@@ -276,7 +326,7 @@ bool MagtheridonUseManticronCubeAction::HandleCubeInteraction(GameObject* cube)
         bot->StopMoving();
         bot->SetFacingToObject(cube);
         cube->Use(bot);
-        return true;
+        return bot->HasAura(SPELL_SHADOW_GRASP) || bot->FindCurrentSpellBySpellId(SPELL_SHADOW_GRASP);
     }
 
     // Run to the side of the cube facing the bot
@@ -301,8 +351,9 @@ bool MagtheridonUseManticronCubeAction::HandleWaitingPhase(const CubeInfo& cubeI
 
     // If a hazard appears at the waiting position, find a new waiting position at the same distance
     // from the cube.
-    const float safeWaitDistance = 10.0f;
-    const bool onRing = std::fabs(raidboss::ExactDist2d(bot, cubeInfo.x, cubeInfo.y) - safeWaitDistance) <= 1.0f;
+    const float safeWaitDistance = 2.0f;
+    const bool onRing = raidboss::ExactDist2d(bot, cubeInfo.x, cubeInfo.y) <= 3.0f &&
+        std::fabs(bot->GetPositionZ() - cubeInfo.z) < 3.0f;
     const bool inHazard = IsPositionInActiveDebris(bot, bot->GetPositionX(), bot->GetPositionY()) ||
                           IsPositionInActiveConflagration(bot, bot->GetPositionX(), bot->GetPositionY());
     if (onRing && !inHazard)
@@ -315,7 +366,9 @@ bool MagtheridonUseManticronCubeAction::HandleWaitingPhase(const CubeInfo& cubeI
     if (bot->IsNonMeleeSpellCasted(true))
         bot->InterruptNonMeleeSpells(true);
 
-    return MoveTo(MAG_MAP_ID, x, y, bot->GetPositionZ(), false, false, false, true);
+    float z = bot->GetMap()->GetHeight(x, y, cubeInfo.z + 5.0f);
+    if (z <= INVALID_HEIGHT) z = cubeInfo.z;
+    return MoveTo(MAG_MAP_ID, x, y, z, false, false, false, true);
 }
 
 bool MagtheridonUseManticronCubeAction::FindSafePositionNearCube(const CubeInfo& cubeInfo, float preferredDistance, float& outX, float& outY)

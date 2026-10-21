@@ -29,6 +29,7 @@ namespace ai
             creators["magtheridon misdirect hellfire channelers to main tank"] = [](PlayerbotAI* ai) { return new MagtheridonMisdirectHellfireChannelersToMainTankAction(ai); };
             creators["magtheridon assign dps priority"] = [](PlayerbotAI* ai) { return new MagtheridonAssignDpsPriorityAction(ai); };
             creators["magtheridon warlock cc burning abyssal"] = [](PlayerbotAI* ai) { return new MagtheridonWarlockCcBurningAbyssalAction(ai); };
+            creators["magtheridon interrupt channeler"] = [](PlayerbotAI* ai) { return new MagtheridonInterruptChannelerAction(ai); };
             creators["magtheridon main tank position boss"] = [](PlayerbotAI* ai) { return new MagtheridonMainTankPositionBossAction(ai); };
             creators["magtheridon spread ranged"] = [](PlayerbotAI* ai) { return new MagtheridonSpreadRangedAction(ai); };
             creators["magtheridon move out of debris"] = [](PlayerbotAI* ai) { return new MagtheridonMoveOutOfDebrisAction(ai); };
@@ -48,6 +49,7 @@ namespace ai
             creators["magtheridon pulling west and east channelers"] = [](PlayerbotAI* ai) { return new MagtheridonPullingWestAndEastChannelersTrigger(ai); };
             creators["magtheridon determining kill order"] = [](PlayerbotAI* ai) { return new MagtheridonDeterminingKillOrderTrigger(ai); };
             creators["magtheridon burning abyssal spawned"] = [](PlayerbotAI* ai) { return new MagtheridonBurningAbyssalSpawnedTrigger(ai); };
+            creators["magtheridon channeler needs interrupt"] = [](PlayerbotAI* ai) { return new MagtheridonChannelerNeedsInterruptTrigger(ai); };
             creators["magtheridon should be tanked"] = [](PlayerbotAI* ai) { return new MagtheridonShouldBeTankedTrigger(ai); };
             creators["magtheridon should spread ranged"] = [](PlayerbotAI* ai) { return new MagtheridonShouldSpreadRangedTrigger(ai); };
             creators["magtheridon standing in debris"] = [](PlayerbotAI* ai) { return new MagtheridonStandingInDebrisTrigger(ai); };

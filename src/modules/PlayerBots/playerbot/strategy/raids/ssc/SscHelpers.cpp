@@ -88,6 +88,38 @@ SscInstanceState GetState(Player* bot)
     return states[bot->GetInstanceId()];
 }
 
+bool NeedsStateReset(PlayerbotAI* ai)
+{
+    Player* bot = ai->GetBot();
+    if (bot->GetMapId() != SSC_MAP_ID || bot->IsInCombat())
+        return false;
+
+    const SscInstanceState state = GetState(bot);
+    const bool dirty = state.hydrossFrostDpsWait || state.hydrossNatureDpsWait ||
+        state.hydrossChangeToFrostPhase || state.hydrossChangeToNaturePhase || state.lurkerSpoutEnd ||
+        state.leotherasHumanFormDpsWait || state.leotherasDemonFormDpsWait || state.leotherasFinalPhaseDpsWait ||
+        state.karathressDpsWait || state.lastCoreThrow || !state.vashjGenerator.IsEmpty() ||
+        !state.lurkerRangedPositions.empty() || !state.tidewalkerTankStep.empty() ||
+        !state.tidewalkerRangedStep.empty() || !state.hasReachedVashjRangedPosition.empty() ||
+        !state.intendedLineup.empty() || !state.lastCoreInInventoryTime.empty();
+    if (!dirty)
+        return false;
+
+    // A resurrected or distant bot must not erase the shared state of a live pull.
+    if (Group* group = bot->GetGroup())
+        for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
+            if (Player* member = ref->getSource())
+                if (member->IsInWorld() && member->GetMap() == bot->GetMap() && member->IsInCombat())
+                    return false;
+
+    for (uint32 entry : { NPC_HYDROSS, NPC_LURKER_BELOW, NPC_LEOTHERAS, NPC_KARATHRESS, NPC_MOROGRIM, NPC_LADY_VASHJ })
+        if (Unit* boss = FindSscUnit(ai, entry))
+            if (boss->IsInCombat())
+                return false;
+
+    return true;
+}
+
 Unit* FindSscUnit(PlayerbotAI* ai, uint32 entry, float range)
 {
     struct CacheEntry
@@ -248,8 +280,58 @@ bool HasNoMarkOfCorruption(Player* bot)
                               SPELL_MARK_OF_CORRUPTION_100, SPELL_MARK_OF_CORRUPTION_250, SPELL_MARK_OF_CORRUPTION_500 });
 }
 
-// The Lurker Below
+bool UpdateHydrossState(PlayerbotAI* ai)
+{
+    Player* bot = ai->GetBot();
+    Unit* hydross = FindSscUnit(ai, NPC_HYDROSS);
+    if (!hydross || !hydross->IsInCombat())
+        return false;
 
+    const bool nature = hydross->HasAura(SPELL_CORRUPTION);
+    Player* tank = nature ? raidboss::GetGroupAssistTank(bot, 0) : raidboss::GetGroupMainTank(bot);
+    const bool marked = tank && (nature ? HasMarkOfCorruptionAt100Percent(tank) : HasMarkOfHydrossAt100Percent(tank));
+    const time_t now = time(nullptr);
+    bool changed = false;
+    WithState(bot, [&](SscInstanceState& state)
+    {
+        time_t& started = nature ? state.hydrossNatureDpsWait : state.hydrossFrostDpsWait;
+        time_t& previous = nature ? state.hydrossFrostDpsWait : state.hydrossNatureDpsWait;
+        time_t& transition = nature ? state.hydrossChangeToFrostPhase : state.hydrossChangeToNaturePhase;
+        time_t& previousTransition = nature ? state.hydrossChangeToNaturePhase : state.hydrossChangeToFrostPhase;
+        if (!started || previous)
+        {
+            started = now;
+            previous = previousTransition = transition = 0;
+            changed = true;
+        }
+        // Read the active tank's marks, not the tracker bot's (which may be out of aura range).
+        // Ignore marks left over from the previous visit to this form.
+        if (marked && now - started >= 30 && !transition)
+        {
+            transition = now;
+            changed = true;
+        }
+    });
+    return changed;
+}
+
+bool ShouldPauseHydrossDps(PlayerbotAI* ai)
+{
+    Unit* hydross = FindSscUnit(ai, NPC_HYDROSS);
+    if (!hydross || !hydross->IsInCombat())
+        return false;
+
+    UpdateHydrossState(ai);
+    Player* bot = ai->GetBot();
+    const bool nature = hydross->HasAura(SPELL_CORRUPTION);
+    Player* tank = nature ? raidboss::GetGroupAssistTank(bot, 0) : raidboss::GetGroupMainTank(bot);
+    const SscInstanceState state = GetState(bot);
+    const time_t started = nature ? state.hydrossNatureDpsWait : state.hydrossFrostDpsWait;
+    const time_t transition = nature ? state.hydrossChangeToFrostPhase : state.hydrossChangeToNaturePhase;
+    return transition || !started || time(nullptr) - started < 5 || !tank || hydross->GetVictim() != tank;
+}
+
+// The Lurker Below
 // This core casts Spout (37431) and then turns the boss with the 37429 / 37430 auras for 16 seconds
 bool IsLurkerSpouting(Unit* lurker)
 {
@@ -328,6 +410,7 @@ Player* GetLeotherasDemonFormTank(Player* bot)
 // The Inner Demon summoned for the bot (only its summoner can damage it)
 Unit* GetMyInnerDemon(Player* bot)
 {
+    if (!bot->HasAura(SPELL_INSIDIOUS_WHISPER)) return nullptr;
     for (Unit* unit : raidboss::FindUnits(bot, NPC_INNER_DEMON, 80.0f))
     {
         if (unit->GetSpawnerGuid() == bot->GetObjectGuid())
@@ -335,6 +418,17 @@ Unit* GetMyInnerDemon(Player* bot)
     }
 
     return nullptr;
+}
+
+bool CanUseLeotherasMovement(PlayerbotAI* ai, const std::string& action)
+{
+    Player* bot = ai->GetBot();
+    if (!bot->IsInWorld() || bot->IsBeingTeleported() || bot->GetMapId() != SSC_MAP_ID || !bot->IsInCombat()) return true;
+    if (GetMyInnerDemon(bot))
+        return action == "leotheras the blind destroy inner demon" || action == "reach melee" || action == "reach spell";
+    Unit* boss = GetLeotherasHuman(ai);
+    if (!boss || PlayerbotAI::IsTank(bot) || (!boss->HasAura(SPELL_WHIRLWIND) && !boss->HasAura(SPELL_WHIRLWIND_CHANNEL))) return true;
+    return action == "leotheras the blind run away from whirlwind";
 }
 
 // Lady Vashj <Coilfang Matron>

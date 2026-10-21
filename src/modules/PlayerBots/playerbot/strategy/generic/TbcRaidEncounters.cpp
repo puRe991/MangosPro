@@ -1,5 +1,6 @@
 #include "playerbot/playerbot.h"
 #include "TbcRaidEncounters.h"
+#include "playerbot/strategy/raids/dungeons/DungeonBossStrategy.h"
 
 using namespace ai;
 using namespace ai::tbcraid;
@@ -61,7 +62,7 @@ const Encounter* EncounterRegistry::FindByCreature(uint32 mapId, uint32 entry) c
 const Encounter* EncounterRegistry::FindNearby(PlayerbotAI* ai) const
 {
     Player* bot = ai->GetBot();
-    if (!IsRaidMap(bot->GetMapId()))
+    if (!IsEncounterMap(bot->GetMapId()))
         return nullptr;
 
     for (ObjectGuid guid : ai->GetAiObjectContext()->GetValue<std::list<ObjectGuid>>("possible attack targets")->Get())
@@ -79,7 +80,20 @@ const Encounter* EncounterRegistry::FindNearby(PlayerbotAI* ai) const
 
 bool EncounterRegistry::IsRaidMap(uint32 mapId) const
 {
+    return !IsDungeonBossMap(mapId) && !IsClassicRaidBossMap(mapId) && IsEncounterMap(mapId);
+}
+
+bool EncounterRegistry::IsEncounterMap(uint32 mapId) const
+{
     return std::find(raidMaps.begin(), raidMaps.end(), mapId) != raidMaps.end();
+}
+
+size_t EncounterRegistry::GetEncounterCount(uint32 mapId) const
+{
+    return std::count_if(encounters.begin(), encounters.end(), [mapId](const Encounter* encounter)
+    {
+        return encounter->mapId == mapId;
+    });
 }
 
 uint8 tbcraid::GetRole(PlayerbotAI* ai, Player* player)
@@ -97,6 +111,7 @@ uint8 tbcraid::GetRole(PlayerbotAI* ai, Player* player)
 // Warcraft Tavern, Wowhead) and the boss scripts of this core for the exact ids.
 EncounterRegistry::EncounterRegistry()
 {
+    RegisterDungeons();
     // ---------------------------------------------------------------------
     // Karazhan (bosses without a dedicated strategy)
     // ---------------------------------------------------------------------

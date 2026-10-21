@@ -123,3 +123,19 @@ void TkStrategy::InitNonCombatMultipliers(std::list<Multiplier*>& multipliers)
 {
     AddMultipliers(ai, multipliers);
 }
+
+void TkStrategy::InitReactionTriggers(std::list<TriggerNode*>& triggers)
+{
+    triggers.push_back(Node("al'ar incoming flame quills", "al'ar jump from platform", Emergency(7)));
+    triggers.push_back(Node("al'ar rising from the ashes", "al'ar move away from rebirth", Emergency(7)));
+    triggers.push_back(Node("void reaver arcane orb is incoming", "void reaver avoid arcane orb", Emergency(1)));
+    triggers.push_back(Node("high astromancer solarian wrath of the astromancer", "high astromancer solarian move away from group", Emergency(6)));
+    triggers.push_back(Node("kael'thas sunstrider chased by thaladred", "kael'thas sunstrider kite thaladred", Emergency(6)));
+    triggers.push_back(Node("al'ar in phase 2", "al'ar avoid flame patches and dive bombs", Emergency(1)));
+    triggers.push_back(Node("kael'thas sunstrider has entered the fight", "kael'thas sunstrider avoid flame strike", Emergency(8)));
+}
+
+void TkStrategy::InitReactionMultipliers(std::list<Multiplier*>& multipliers)
+{
+    AddMultipliers(ai, multipliers);
+}

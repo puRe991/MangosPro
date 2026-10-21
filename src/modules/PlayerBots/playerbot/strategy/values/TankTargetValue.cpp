@@ -2,6 +2,9 @@
 #include "playerbot/playerbot.h"
 #include "TankTargetValue.h"
 #include "PossibleAttackTargetsValue.h"
+#include "playerbot/strategy/raids/karazhan/KarazhanHelpers.h"
+#include "playerbot/strategy/raids/magtheridon/MagtheridonHelpers.h"
+#include "playerbot/strategy/raids/ssc/SscHelpers.h"
 
 using namespace ai;
 
@@ -43,6 +46,13 @@ protected:
 
 ObjectGuid TankTargetValue::Calculate()
 {
+    if (bot->GetMapId() == 548)
+    {
+        if (Unit* demon = ssc::GetMyInnerDemon(bot)) return demon->GetObjectGuid();
+        if (ssc::GetPhase2LeotherasDemon(ai) && ssc::GetLeotherasDemonFormTank(bot)) return ObjectGuid();
+    }
+    if (Unit* assigned = karazhan::GetIllhoofTarget(ai, true))
+        return assigned->GetObjectGuid();
     ObjectGuid rti = RtiTargetValue::Calculate();
     if (rti) return rti;
 

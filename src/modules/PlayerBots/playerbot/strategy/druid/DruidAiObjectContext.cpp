@@ -236,6 +236,8 @@ namespace ai
                 creators["enrage"] = [](PlayerbotAI* ai) { return new EnrageTrigger(ai); };
                 creators["demoralizing roar"] = [](PlayerbotAI* ai) { return new DemoralizingRoarTrigger(ai); };
                 creators["lacerate"] = [](PlayerbotAI* ai) { return new LacerateTrigger(ai); };
+                creators["mangle (bear) ready"] = [](PlayerbotAI* ai) { return new SpellCanBeCastedTrigger(ai, "mangle (bear)"); };
+                creators["maul ready"] = [](PlayerbotAI* ai) { return new SpellCanBeCastedTrigger(ai, "maul"); };
                 creators["unstealth"] = [](PlayerbotAI* ai) { return new DruidUnstealthTrigger(ai); };
                 creators["in stealth"] = [](PlayerbotAI* ai) { return new InStealthTrigger(ai); };
                 creators["no stealth"] = [](PlayerbotAI* ai) { return new NoStealthTrigger(ai); };

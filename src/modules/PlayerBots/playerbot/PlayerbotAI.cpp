@@ -4478,7 +4478,10 @@ bool PlayerbotAI::CanCastSpell(uint32 spellid, Unit* target, uint8 effectMask, b
 	{
         // Consider neutral spells (spells that are neither positive or negative (e.g. feign death, hunter traps, ...)
         const std::list<uint32> neutralSpells = { 1499, 5384, 13795, 13809, 13813, 14302, 14303, 14304, 14305, 14310, 14311, 14316, 14317, 27023, 27025, 34600, 49055, 49056, 49066, 49067 };
-        const bool neutralSpell = std::find(neutralSpells.begin(), neutralSpells.end(), spellid) != neutralSpells.end();
+        // Soulshatter is a hostile area threat effect cast on the caster.
+        // Let CheckCast validate this spell instead of rejecting its self target.
+        const bool neutralSpell = (spellid == 29858 && target == bot) ||
+            std::find(neutralSpells.begin(), neutralSpells.end(), spellid) != neutralSpells.end();
         if(!neutralSpell)
         {
             const bool positiveSpell = IsPositiveSpell(spellInfo);
@@ -4905,6 +4908,11 @@ bool PlayerbotAI::CastSpell(uint32 spellId, Unit* target, Item* itemTarget, bool
     }
 
 	ObjectGuid oldSel = bot->GetSelectionGuid();
+    struct RestoreSelection
+    {
+        Player* player; ObjectGuid selection;
+        ~RestoreSelection() { player->SetSelectionGuid(selection); }
+    } restoreSelection{bot, oldSel};
 	bot->SetSelectionGuid(target->GetObjectGuid());
 
     WorldObject* faceTo = target;

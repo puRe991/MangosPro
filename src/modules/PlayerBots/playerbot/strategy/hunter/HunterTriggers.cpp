@@ -5,6 +5,11 @@
 
 using namespace ai;
 
+bool HunterRecoverRangedDistanceTrigger::IsActive()
+{
+    return HunterNeedsRangedDistance(ai);
+}
+
 bool SteadyShotCanCastTrigger::IsActive()
 {
     if (!SpellCanBeCastedTrigger::IsActive())
