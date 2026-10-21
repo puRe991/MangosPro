@@ -146,11 +146,12 @@ bool PartyMemberValue::Check(Unit* player)
         bot->IsWithinDistInMap(player, sPlayerbotAIConfig.sightDistance, false);
 }
 
-bool PartyMemberValue::IsTargetOfSpellCast(Player* target, SpellEntryPredicate &predicate)
+bool PartyMemberValue::IsTargetOfSpellCast(Unit* target, SpellEntryPredicate &predicate)
 {
     std::list<ObjectGuid> nearestPlayers = AI_VALUE(std::list<ObjectGuid>, "nearest friendly players");
     ObjectGuid targetGuid = target ? target->GetObjectGuid() : bot->GetObjectGuid();
-    ObjectGuid corpseGuid = target && target->GetCorpse() ? target->GetCorpse()->GetObjectGuid() : ObjectGuid();
+    Player* targetPlayer = dynamic_cast<Player*>(target);
+    ObjectGuid corpseGuid = targetPlayer && targetPlayer->GetCorpse() ? targetPlayer->GetCorpse()->GetObjectGuid() : ObjectGuid();
 
     for (std::list<ObjectGuid>::iterator i = nearestPlayers.begin(); i != nearestPlayers.end(); ++i)
     {
