@@ -2506,6 +2506,30 @@ uint32 RandomItemMgr::ItemStatWeight(Player* player, Item* item)
     return ItemStatWeight(player, itemQualifier);
 }
 
+uint32 RandomItemMgr::ItemBaseStatWeight(Player* player, ItemQualifier& qualifier)
+{
+    ItemPrototype const* proto = qualifier.GetProto();
+    if (!proto)
+        return 0;
+
+    const uint8 spec = GetPlayerSpecId(player);
+    ItemSpecType itSpec;
+    // Includes the value of the empty sockets
+    uint32 weight = CalculateStatWeight(player->getClass(), spec, proto, itSpec);
+    if (!weight)
+        return 0;
+
+    if (qualifier.GetRandomPropertyId())
+        weight += CalculateRandomPropertyWeight(player->getClass(), spec, qualifier.GetRandomPropertyId());
+
+#ifndef MANGOSBOT_ZERO
+    if (proto->socketBonus)
+        weight += CalculateEnchantWeight(player->getClass(), spec, proto->socketBonus);
+#endif
+
+    return weight;
+}
+
 uint32 RandomItemMgr::CalculateSingleStatWeight(uint8 playerclass, uint8 spec, std::string stat, uint32 value)
 {
     uint32 statWeight = 0;

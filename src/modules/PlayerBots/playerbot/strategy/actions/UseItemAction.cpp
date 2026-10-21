@@ -7,6 +7,7 @@
 #include "playerbot/ServerFacade.h"
 #include "playerbot/strategy/values/ItemUsageValue.h"
 #include "playerbot/TravelMgr.h"
+#include "playerbot/AiFactory.h"
 #include "CheckMountStateAction.h"
 #include "TellLosAction.h"
 #include "playerbot/strategy/values/ItemUsageValue.h"
@@ -1491,3 +1492,120 @@ bool UseRandomQuestItemAction::Execute(Event& event)
 
     return success;
 }
+
+#ifndef MANGOSBOT_ZERO
+namespace
+{
+    enum class RaidConsumableRole { Tank, Healer, PhysicalDps, CasterDps };
+
+    RaidConsumableRole GetRaidConsumableRole(Player* bot)
+    {
+        if (PlayerbotAI::IsTank(bot))
+            return RaidConsumableRole::Tank;
+
+        if (PlayerbotAI::IsHeal(bot))
+            return RaidConsumableRole::Healer;
+
+        const int tab = AiFactory::GetPlayerSpecTab(bot);
+        switch (bot->getClass())
+        {
+        case CLASS_WARRIOR:
+        case CLASS_ROGUE:
+        case CLASS_HUNTER:
+            return RaidConsumableRole::PhysicalDps;
+        case CLASS_PALADIN:
+            return tab == 2 ? RaidConsumableRole::PhysicalDps : RaidConsumableRole::CasterDps;
+        case CLASS_SHAMAN:
+        case CLASS_DRUID:
+            return tab == 1 ? RaidConsumableRole::PhysicalDps : RaidConsumableRole::CasterDps;
+        default:
+            return RaidConsumableRole::CasterDps;
+        }
+    }
+
+    // A raid boss (world boss rank) the bot is fighting
+    Creature* GetRaidBossTarget(PlayerbotAI* ai, Player* bot)
+    {
+        if (!bot->IsInCombat() || !bot->GetMap()->IsRaid())
+            return nullptr;
+
+        Unit* target = ai->GetUnit(ai->GetAiObjectContext()->GetValue<ObjectGuid>("current target")->Get());
+        if (!target || !target->IsAlive() || target->GetTypeId() != TYPEID_UNIT || !target->IsInCombat())
+            return nullptr;
+
+        Creature* creature = static_cast<Creature*>(target);
+        return creature->IsWorldBoss() ? creature : nullptr;
+    }
+
+    bool CanUseRaidItem(Player* bot, uint32 itemId)
+    {
+        const ItemPrototype* proto = sObjectMgr.GetItemPrototype(itemId);
+        return proto && bot->GetLevel() >= proto->RequiredLevel;
+    }
+}
+
+uint32 UseBossPotionAction::GetItemId()
+{
+    switch (GetRaidConsumableRole(bot))
+    {
+    case RaidConsumableRole::Tank: return 22849;        // Ironshield Potion
+    case RaidConsumableRole::PhysicalDps: return 22838; // Haste Potion
+    case RaidConsumableRole::CasterDps: return 22839;   // Destruction Potion
+    default: return 0;
+    }
+}
+
+bool UseBossPotionAction::isUseful()
+{
+    if (bot->InArena() || ai->IsInPvp() || GetRaidConsumableRole(bot) == RaidConsumableRole::Healer)
+        return false;
+
+    // A hurt bot keeps the shared potion cooldown for a healing potion
+    if (bot->GetHealthPercent() < 40.0f)
+        return false;
+
+    Creature* boss = GetRaidBossTarget(ai, bot);
+    if (!boss)
+        return false;
+
+    const float bossHealth = boss->GetHealthPercent();
+    if (bossHealth < 90.0f && bossHealth > 30.0f)
+        return false;
+
+    return CanUseRaidItem(bot, GetItemId()) && UseItemIdAction::isUseful();
+}
+
+uint32 UseRaidFlaskAction::GetItemId()
+{
+    switch (GetRaidConsumableRole(bot))
+    {
+    case RaidConsumableRole::Tank: return 22851;        // Flask of Fortification
+    case RaidConsumableRole::Healer: return 22853;      // Flask of Mighty Restoration
+    case RaidConsumableRole::PhysicalDps: return 22854; // Flask of Relentless Assault
+    default: break;
+    }
+
+    // Arcane, holy and nature casters take Blinding Light, shadow, fire and frost casters Pure Death
+    const int tab = AiFactory::GetPlayerSpecTab(bot);
+    const bool blindingLight = bot->getClass() == CLASS_SHAMAN || bot->getClass() == CLASS_DRUID ||
+        bot->getClass() == CLASS_PALADIN || (bot->getClass() == CLASS_MAGE && tab == 0);
+    return blindingLight ? 22861 : 22866;
+}
+
+bool UseRaidFlaskAction::isUseful()
+{
+    if (bot->IsInCombat() || !bot->IsAlive() || bot->IsMounted() || bot->IsTaxiFlying() || !bot->GetMap()->IsRaid())
+        return false;
+
+    const uint32 itemId = GetItemId();
+    const ItemPrototype* proto = sObjectMgr.GetItemPrototype(itemId);
+    if (!proto || !CanUseRaidItem(bot, itemId))
+        return false;
+
+    const uint32 flaskSpell = proto->Spells[0].SpellId;
+    if (!flaskSpell || bot->HasAura(flaskSpell))
+        return false;
+
+    return UseItemIdAction::isUseful();
+}
+#endif

@@ -710,6 +710,21 @@ ItemUsage ItemUsageValue::QueryItemUsageForEquip(ItemQualifier& itemQualifier, P
     }
 
     uint32 oldStatWeight = sRandomItemMgr.ItemStatWeight(bot, oldItem);
+
+    // Gems and enchant are added to an upgrade when it is equipped, so compare the items without them;
+    // otherwise gemmed T4 beats ungemmed T5 and the upgrade rots in the bags or gets sold.
+    if (sPlayerbotAIConfig.autoGemUpgradeLoot && sPlayerbotAIConfig.autoEnchantUpgradeLoot && bot->GetLevel() >= sPlayerbotAIConfig.minEnchantingBotLevel)
+    {
+        ItemQualifier oldQualifier(oldItem);
+        const uint32 baseWeight = sRandomItemMgr.ItemBaseStatWeight(bot, itemQualifier);
+        const uint32 oldBaseWeight = sRandomItemMgr.ItemBaseStatWeight(bot, oldQualifier);
+        if (baseWeight && oldBaseWeight)
+        {
+            statWeight = baseWeight;
+            oldStatWeight = oldBaseWeight;
+        }
+    }
+
     if (statWeight && oldStatWeight)
     {
         shouldEquip = statWeight >= oldStatWeight;

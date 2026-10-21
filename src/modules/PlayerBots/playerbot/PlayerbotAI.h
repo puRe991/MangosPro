@@ -525,6 +525,10 @@ public:
     Item * FindBandage() const;
     Item* FindStoneFor(Item* weapon) const;
     Item* FindOilFor(Item* weapon) const;
+#ifdef MANGOSBOT_ONE
+    // Puts one consumable into the bags (item cheat only, null when the level is too low or the bags are full)
+    Item* CreateCheatConsumable(uint32 itemId) const;
+#endif
 #ifdef MANGOSBOT_ZERO
     void ImbueItem(Item* item, uint16 targetFlag, ObjectGuid targetGUID);
 #else
@@ -791,6 +795,7 @@ protected:
     bool isWaiting = false;
     BotCheatMask cheatMask = BotCheatMask::none;
     WorldPosition jumpDestination;
+    WorldPosition knockbackOrigin; // ground the knockback started from, guards the fall simulation against ceilings
     uint32 jumpTime;
     bool fallAfterJump;
     uint32 faceTargetUpdateDelay;
