@@ -23,6 +23,7 @@ EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "serpent_shrine.h"
+#include "Config/Config.h"
 
 /* Serpentshrine cavern encounters:
 0 - Hydross The Unstable event
@@ -59,6 +60,10 @@ void instance_serpentshrine_cavern::OnCreatureCreate(Creature* pCreature)
 {
     switch (pCreature->GetEntry())
     {
+        case NPC_COILFANG_FRENZY:
+            if (sConfig.GetBoolDefault("SSC.DisableCoilfangFrenzy", false))
+                pCreature->ForcedDespawn(1);
+            break;
         case NPC_KARATHRESS:
         case NPC_LADYVASHJ:
         case NPC_SHARKKIS:

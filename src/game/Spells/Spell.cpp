@@ -8882,7 +8882,8 @@ bool Spell::OnCheckTarget(Unit* target, SpellEffectIndex eff) const
                 return false;
             break;
         case 43657:                             // Electrical Storm - Akil'zon
-            if (target->HasAura(44007)) // Electrical Storm - Safe within eye
+            // The lifted storm target can be above its ground-level safe zone.
+            if (target->HasAura(44007) || target->HasAura(43648))
                 return false;
             break;
         case 39992:                             // Needle Spine Targeting - Najentus

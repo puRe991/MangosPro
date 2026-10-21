@@ -4801,6 +4801,13 @@ void Player::DurabilityPointsLossAll(int32 points, bool inventory)
 
 void Player::DurabilityPointsLoss(Item* item, int32 points)
 {
+#ifdef ENABLE_PLAYERBOTS
+    // All durability damage (combat, death and spells) passes through here.
+    // Keep negative values available for effects that restore durability.
+    if (points > 0 && GetPlayerbotAI())
+        return;
+#endif
+
     int32 pMaxDurability = item->GetUInt32Value(ITEM_FIELD_MAXDURABILITY);
     int32 pOldDurability = item->GetUInt32Value(ITEM_FIELD_DURABILITY);
     int32 pNewDurability = pOldDurability - points;

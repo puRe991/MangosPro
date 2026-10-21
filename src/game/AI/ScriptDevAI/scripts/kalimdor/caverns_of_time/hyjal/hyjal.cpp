@@ -24,6 +24,7 @@ EndScriptData */
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "hyjal.h"
 #include "Entities/TemporarySpawn.h"
+#include "Config/Config.h"
 
 /* Battle of Mount Hyjal encounters:
 0 - Rage Winterchill event
@@ -961,7 +962,9 @@ void instance_mount_hyjal::OnCreatureCreate(Creature* creature)
         {
             ObjectGuid spawner = creature->GetSpawnerGuid(); // not loaded in map - guid is enough
             // Overrun mobs are not counted
-            if (spawner && spawner.GetEntry() != NPC_HYJAL_DESPAWN_TRIGGER && instance->GetVariableManager().GetVariable(WORLD_STATE_MOUNT_HYJAL_ENABLE))
+            if (spawner && spawner.GetEntry() != NPC_HYJAL_DESPAWN_TRIGGER &&
+                (instance->GetVariableManager().GetVariable(WORLD_STATE_MOUNT_HYJAL_ENABLE) ||
+                 sConfig.GetBoolDefault("Hyjal.SkipTrashWaves", false)))
                 m_waveSpawns.push_back(creature->GetObjectGuid());
             break;
         }
@@ -1103,6 +1106,9 @@ void instance_mount_hyjal::OnCreatureDeath(Creature* creature)
         case NPC_AZGALOR:
         {
             SetData(TYPE_AZGALOR, DONE);
+            // Boss rush does not require the camp-retreat sequence to unlock the final boss.
+            if (sConfig.GetBoolDefault("Hyjal.SkipTrashWaves", false))
+                SpawnArchimonde();
             if (GameObject* nelfGate = GetSingleGameObjectFromStorage(GO_NIGHT_ELF_VILLAGE_PORTAL))
                 nelfGate->RemoveFlag(GAMEOBJECT_FLAGS, GO_FLAG_LOCKED);
             if (Creature* thrall = GetSingleCreatureFromStorage(NPC_THRALL))
@@ -1303,6 +1309,17 @@ void instance_mount_hyjal::SpawnNextInvasionWave()
 
 void instance_mount_hyjal::SpawnWave(uint32 index, bool setTimer)
 {
+    if (index >= MAX_WAVES)
+        return;
+
+    if (sConfig.GetBoolDefault("Hyjal.SkipTrashWaves", false))
+    {
+        // Each encounter has eight trash waves followed by its boss.
+        index += 8 - index % 9;
+        m_hyjalWaves = index;
+        instance->GetVariableManager().SetVariable(WORLD_STATE_MOUNT_HYJAL_ENABLE, 0);
+    }
+
     uint32 newSpawns = m_hyjalWavesData[index].waveMobs.size();
     newSpawns += GetInfernalsPerWave(index);
     Creature* spawner;
@@ -1430,6 +1447,13 @@ void instance_mount_hyjal::SpawnOres(BaseArea index)
 
 void instance_mount_hyjal::SpawnInvasionWave(uint32 index, bool setTimer)
 {
+    if (sConfig.GetBoolDefault("Hyjal.SkipTrashWaves", false))
+    {
+        // Suppress camp-overrun/Archimonde-event trash, not boss abilities.
+        m_nextInvasionWaveTimer = 0;
+        return;
+    }
+
     uint32 newSpawns = m_invasionWavesData[index].waveMobs.size();
     Creature* spawner;
     spawner = GetSingleCreatureFromStorage(NPC_HYJAL_DESPAWN_TRIGGER);

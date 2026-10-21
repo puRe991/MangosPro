@@ -85,6 +85,11 @@ struct npc_jaina_proudmooreAI : public hyjalAI
 
 bool GossipSelect_npc_jaina_proudmoore(Player* player, Creature* creature, uint32 /*uiSender*/, uint32 action)
 {
+#ifdef ENABLE_PLAYERBOTS
+    // RPG gossip must never start a raid encounter or order a camp retreat.
+    if (player->GetPlayerbotAI())
+        return true;
+#endif
     if (instance_mount_hyjal* instance = (instance_mount_hyjal*)creature->GetInstanceData())
     {
         if (hyjalAI* jainaAI = dynamic_cast<hyjalAI*>(creature->AI()))
@@ -183,6 +188,10 @@ struct npc_thrallAI : public hyjalAI
 
 bool GossipSelect_npc_thrall(Player* player, Creature* creature, uint32 /*uiSender*/, uint32 action)
 {
+#ifdef ENABLE_PLAYERBOTS
+    if (player->GetPlayerbotAI())
+        return true;
+#endif
     if (instance_mount_hyjal* instance = (instance_mount_hyjal*)creature->GetInstanceData())
     {
         if (hyjalAI* thrallAI = dynamic_cast<hyjalAI*>(creature->AI()))

@@ -1925,3 +1925,16 @@ Metric.Password = ""
 
 Dummy.Debug1 = 0
 Dummy.Debug2 = 0
+
+# Hyjal.SkipTrashWaves
+#   0: Normal Mount Hyjal waves (default).
+#   1: Jaina/Thrall events summon their boss immediately, without trash waves.
+#      Camp-overrun and Archimonde-event invasion waves are also disabled.
+#      Boss combat abilities and summons remain active. Start a fresh event
+#      after changing this option; already spawned creatures are not removed.
+Hyjal.SkipTrashWaves = 0
+
+# SSC.DisableCoilfangFrenzy
+#   1: Disable Coilfang Frenzy fish in Serpentshrine Cavern water.
+#      Other water effects and encounter adds are unchanged.
+SSC.DisableCoilfangFrenzy = 0
