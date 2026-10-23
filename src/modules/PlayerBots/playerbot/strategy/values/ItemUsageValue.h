@@ -89,6 +89,8 @@ namespace ai
         static uint32 GetAhDepositCost(ItemPrototype const* proto, uint32 count = 1);
         static Item* CurrentItem(ItemPrototype const* proto, Player* bot);
         static Item* CurrentItemInSlot(ItemPrototype const* proto, Player* bot);
+        // Rings and trinkets: the core picks the first slot when both are used, compare against the weaker one instead
+        static uint16 WeakerEquipDest(Player* bot, ItemPrototype const* proto, uint16 dest);
         static uint32 ItemCreatedFrom(uint32 wantItemId);
         static bool IsNeededForQuest(Player* player, uint32 itemId, bool ignoreInventory = false);
     private:        

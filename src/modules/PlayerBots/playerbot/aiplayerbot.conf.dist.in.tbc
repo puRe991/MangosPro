@@ -852,6 +852,13 @@ AiPlayerbot.PremadeSpecLink.11.12.70 = 01-500232130322125331251-05503001
 # Darkmoon Faire - Elwynn Forest	Sayge's Dark Fortune of Damage
 # AiPlayerbot.WorldBuff.0.0.0.0.0.4 = 23768
 
+# Applies permanent buffs to bots inside raid instances only (same key format as AiPlayerbot.WorldBuff).
+# World buffs: Rallying Cry of the Dragonslayer, Warchief's Blessing, Spirit of Zandalar, Songflower Serenade,
+#              Fengus' Ferocity, Mol'dar's Moxie, Slip'kik's Savvy, Sayge's Dark Fortune of Damage
+# Class buffs: Prayer of Fortitude/Spirit/Shadow Protection, Gift of the Wild, Arcane Brilliance,
+#              Greater Blessing of Kings (one blessing only: blessings from the same caster replace each other)
+# AiPlayerbot.RaidBuff = 22888,16609,24425,15366,22817,22818,22820,23768,25392,32999,39374,26991,27127,25898
+
 # Prefix for bot chat commands (e.g. follow, stay)
 #AiPlayerbot.CommandPrefix =
 

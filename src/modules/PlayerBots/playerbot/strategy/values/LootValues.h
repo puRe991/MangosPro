@@ -236,7 +236,7 @@ namespace ai
     {
     public:
         ActiveRolls(PlayerbotAI* ai) : ManualSetValue(ai, {}, "active rolls") {}
-        static void CleanUp(Player* bot, LootRollMap& value, ObjectGuid guid = ObjectGuid(), uint32 slot = 0);
+        static void CleanUp(Player* bot, LootRollMap& value, ObjectGuid guid = ObjectGuid(), int32 slot = -1);
         virtual std::string Format() override;
 
 #ifdef GenerateBotHelp

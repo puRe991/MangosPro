@@ -28,7 +28,7 @@ static float GetUpgradePct(Player* player, ItemQualifier& itemQualifier)
         if (RandomPlayerbotMgr::CanEquipUnseenItem(player, NULL_SLOT, dest, tokenReward) != EQUIP_ERR_OK)
             return -1.0f;
 
-        Item* oldItem = player->GetItemByPos(dest);
+        Item* oldItem = player->GetItemByPos(ItemUsageValue::WeakerEquipDest(player, rewardQualifier.GetProto(), dest));
         const uint32 oldWeight = oldItem ? sRandomItemMgr.ItemStatWeight(player, oldItem) : 0;
         if (!oldWeight)
             return 100.0f;
@@ -44,7 +44,7 @@ static float GetUpgradePct(Player* player, ItemQualifier& itemQualifier)
     if (RandomPlayerbotMgr::CanEquipUnseenItem(player, NULL_SLOT, dest, itemQualifier.GetId()) != EQUIP_ERR_OK)
         return -1.0f;
 
-    Item* oldItem = player->GetItemByPos(dest);
+    Item* oldItem = player->GetItemByPos(ItemUsageValue::WeakerEquipDest(player, itemQualifier.GetProto(), dest));
     const uint32 oldWeight = oldItem ? sRandomItemMgr.ItemStatWeight(player, oldItem) : 0;
     if (!oldWeight)
         return 100.0f;
@@ -334,7 +334,7 @@ bool RollAction::RollOnItemInSlot(RollVote vote, ObjectGuid lootGuid, uint32 slo
     {
         LootRollMap lootRolls = AI_VALUE(LootRollMap, "active rolls");
 
-        ActiveRolls::CleanUp(bot, lootRolls, lootGuid, slot);
+        ActiveRolls::CleanUp(bot, lootRolls, lootGuid, int32(slot));
 
         SET_AI_VALUE(LootRollMap, "active rolls", lootRolls);
     }
@@ -368,6 +368,15 @@ bool LootRollAction::Execute(Event& event)
 bool AutoLootRollAction::Execute(Event& event)
 {
     LootRollMap lootRolls = AI_VALUE(LootRollMap, "active rolls");
+
+    // Drop rolls that already ended, otherwise the random pick keeps hitting them
+    const size_t oldSize = lootRolls.size();
+    ActiveRolls::CleanUp(bot, lootRolls);
+    if (lootRolls.size() != oldSize)
+        SET_AI_VALUE(LootRollMap, "active rolls", lootRolls);
+
+    if (lootRolls.empty())
+        return false;
 
     auto currentRoll = lootRolls.begin();
 

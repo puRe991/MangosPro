@@ -2,6 +2,7 @@
 #include "playerbot/playerbot.h"
 #include "LootTriggers.h"
 #include "playerbot/LootObjectStack.h"
+#include "playerbot/strategy/values/LootValues.h"
 
 #include "playerbot/ServerFacade.h"
 using namespace ai;
@@ -30,4 +31,9 @@ bool FarFromCurrentLootTrigger::IsActive()
 bool CanLootTrigger::IsActive()
 {
     return AI_VALUE(bool, "can loot");
+}
+
+bool ActiveLootRollsTrigger::IsActive()
+{
+    return !AI_VALUE(LootRollMap, "active rolls").empty();
 }

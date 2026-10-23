@@ -395,6 +395,7 @@ public:
         uint32 minLevel = 0;
         uint32 maxLevel = 0;
         uint32 eventId = 0;
+        bool raidOnly = false; // AiPlayerbot.RaidBuff: only inside raid instances
     };
 
     std::vector<worldBuff> worldBuffs;

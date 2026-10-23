@@ -45,6 +45,9 @@ namespace ai
             creators["seldom"] = [](PlayerbotAI* ai) { return new RandomTrigger(ai, "seldom", 300); };
             creators["often"] = [](PlayerbotAI* ai) { return new RandomTrigger(ai, "often", 5); };
             creators["very often"] = [](PlayerbotAI* ai) { return new TimeTrigger(ai, "very often", 5); };
+            // Own timer for the reaction engine: trigger objects are shared between engines, so sharing "very often"
+            // with the reaction engine (which runs first every tick) starved the combat and non combat engines
+            creators["consumables timer"] = [](PlayerbotAI* ai) { return new TimeTrigger(ai, "consumables timer", 5); };
 
             creators["target critical health"] = [](PlayerbotAI* ai) { return new TargetCriticalHealthTrigger(ai); };
 
@@ -154,6 +157,7 @@ namespace ai
 
             creators["far from loot target"] = [](PlayerbotAI* ai) { return new FarFromCurrentLootTrigger(ai); };
             creators["can loot"] = [](PlayerbotAI* ai) { return new CanLootTrigger(ai); };
+            creators["active loot rolls"] = [](PlayerbotAI* ai) { return new ActiveLootRollsTrigger(ai); };
             creators["swimming"] = [](PlayerbotAI* ai) { return new IsSwimmingTrigger(ai); };
             creators["target changed"] = [](PlayerbotAI* ai) { return new TargetChangedTrigger(ai); };
 

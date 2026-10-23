@@ -287,6 +287,7 @@ void EquipAction::EquipItem(PlayerbotAI* ai, Player* requester, Item* item, bool
     Item* oldOffhand = nullptr;
     if (result == EQUIP_ERR_OK)
     {
+        dest = ItemUsageValue::WeakerEquipDest(bot, item->GetProto(), dest);
         oldItem = bot->GetItemByPos(dest);
 
         if (oldItem && oldItem->GetSlot() == EQUIPMENT_SLOT_MAINHAND && item->GetProto()->InventoryType == INVTYPE_2HWEAPON)
@@ -321,7 +322,12 @@ void EquipAction::EquipItem(PlayerbotAI* ai, Player* requester, Item* item, bool
             }
         }
 
-        if (!equipedBag) 
+        // Auto equip always takes the first ring/trinket slot, so swap into the weaker second slot explicitly
+        const uint8 destSlot = dest & 255;
+        const bool intoSecondSlot = result == EQUIP_ERR_OK && oldItem && (destSlot == EQUIPMENT_SLOT_FINGER2 || destSlot == EQUIPMENT_SLOT_TRINKET2);
+        if (!equipedBag && intoSecondSlot)
+            bot->SwapItem((bagIndex << 8) | slot, dest);
+        else if (!equipedBag)
         {
             WorldPacket packet(CMSG_AUTOEQUIP_ITEM, 2);
             packet << bagIndex << slot;

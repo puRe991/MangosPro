@@ -50,6 +50,9 @@ std::vector<uint32> WorldBuffAction::NeedWorldBuffs(Unit* unit)
         if (wb.eventId != 0 && !sGameEventMgr.IsActiveEvent(wb.eventId))
             continue;
 
+        if (wb.raidOnly && !(unit->IsInWorld() && unit->GetMap()->IsRaid()))
+            continue;
+
         if (unit->HasAura(wb.spellId))
             continue;
 
