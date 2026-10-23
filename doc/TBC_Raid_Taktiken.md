@@ -34,7 +34,7 @@ Code:
 - **The Crone** – Zyklon meiden.
 
 ### Gruul's Lair
-- **High King Maulgar** – Kill-Order Blindeye → Olm (+ Felhunter) → Kiggler → Krosh (nur Fernkampf) → Maulgar. Raus aus Maulgars Wirbelwind und Kroshs Blast Wave, nicht vor Maulgar stehen.
+- **High King Maulgar** – Kill-Order Blindeye → Olm (+ Felhunter), danach Nahkampf auf Maulgar (Totenkopf), Fernkampf Kiggler → Krosh → Maulgar (Kreuz). Nahkampf nie auf Kiggler (Arcane Explosion) oder Krosh (Blast Wave). Raus aus Maulgars Wirbelwind und Kroshs Blast Wave, nicht vor Maulgar stehen.
 - **Gruul** – der Off-Tank bleibt im Nahkampf auf Platz 2 der Bedrohung (Hurtful Strike) und spottet nicht. Fernkampf immer 10 m verteilt; mit Gronn Lord's Grasp/Stoned verteilen sich **alle** auf 15 m (Shatter), raus aus Cave In.
 
 ### Magtheridon's Lair
@@ -43,7 +43,7 @@ Code:
 ### Serpentshrine Cavern
 - **Hydross** – Tank 1 hält ihn im 20-m-Reinigungskreis (Frostform). Hat der Raid 100 % Mark of Hydross, zieht er ihn hinaus. Tank 2 spottet sofort und hält die verderbte Form draußen. Bei 100 % Mark of Corruption zieht Tank 2 ihn zurück in den Kreis. Pure/Tainted Spawns sterben zuerst.
 - **Lurker Below** – bei **Spout** springen alle Bots ins Wasser (nächstes ausreichend tiefes Wasser). Ambusher (Fernkampf) und Guardians (Nahkampf) töten, raus aus Whirl und Geysir.
-- **Leotheras** – jeder tötet seinen **eigenen Inner Demon**, raus aus dem Wirbelwind, Nahkampf weg von der Dämonenform, Shadow of Leotheras töten.
+- **Leotheras** – jeder tötet seinen **eigenen Inner Demon**, raus aus dem Wirbelwind, Nahkampf weg von der Dämonenform, Shadow of Leotheras töten. Nach jedem Wirbelwind ca. 4 s DPS-Pause und Misdirection auf den Main-Tank; Fernkampf in Menschenform 8 m verteilt. Warlock-Tank nach Feuerresistenz/HP, zwei feste Heiler auf ihn. Bloodlust und DPS-Cooldowns erst unter 15 %. Gedankenkontrollierte Spieler (Consuming Madness) werden mit Mond markiert und getötet.
 - **Karathress** – Spitfire Totem sofort, dann Tidalvess → Sharkkis → Caribdis → Karathress; Zyklone meiden.
 - **Morogrim** – Water Globules meiden, nicht vor dem Boss (Tidal Wave).
 - **Lady Vashj** – Static Charge → raus. Tainted Elemental → Enchanted Elemental → Coilfang Elite/Sporebats. **Tainted Cores:** Der nächste Bot mit Plünderrecht lootet den Kern (er ist dann gelähmt). Steht er an einem aktiven Schildgenerator, benutzt er ihn. Sonst wirft er den Kern zum Raidmitglied, das näher am nächsten aktiven Generator steht. So wandert der Kern per Kette bis zum Generator. Striders (Fear) und Toxic Spores meiden.
@@ -59,11 +59,11 @@ Code:
 - **Anetheron** – Infernals nur von Tanks, nicht vor dem Boss (Carrion Swarm).
 - **Kaz'rogal** – Mark of Kaz'rogal + wenig Mana → raus aus dem Raid.
 - **Azgalor** – raus aus Rain of Fire, Doom → raus aus dem Raid.
-- **Archimonde** – Doomfire meiden, Caster verteilen sich (Air Burst).
+- **Archimonde** – Doomfire meiden, Caster verteilen sich (Air Burst). Bei Air Burst Slowfall (Tears of the Goddess). Mages/Caster-Druiden entfluchen Grip of the Legion, Ranged bleiben im Tremor-Totem ihrer Gruppe, Melee verteilen sich 6 m um den Boss, der Tank zieht ihn von Doomfire weg. Unter 35 % HP Defensiv-CDs, Healthstone, Heiltrank; ab Minute 8 erneut Bloodlust (Hand of Death).
 
 ### Black Temple
-- **Naj'entus** – Caster verteilen sich; der nächste freie Bot zieht den Impaling Spine aus dem Opfer und wirft ihn bei Tidal Shield auf den Boss.
-- **Supremus** – Gaze-Ziel kitet den Boss, Volcanos und Molten Flame meiden.
+- **Naj'entus** – Ranged und Heiler stehen auf eigenen Plätzen auf einem Ring (20 m, ab 16 Spielern zweiter Ring auf 30 m, immer mehr als 6 m Abstand für Needle Spine); Nahkämpfer teilen sich in zwei Gruppen an den hinteren Flanken. Der nächste freie Bot zieht den Impaling Spine aus dem Opfer. Bei Tidal Shield wirft genau ein Spine-Träger, sobald der Raid im Schnitt bei 85 % Leben ist, spätestens nach 10 s. Ein Paladin hält Frostresistenz-Aura.
+- **Supremus** – Phase 1: Tanks bleiben gestapelt am Boss (Hateful Strike trifft den Nahkämpfer mit den meisten Leben außer dem Haupttank), Fernkämpfer halten 8 m Abstand, das Molten-Flame-Ziel (kein Tank) läuft von der Gruppe weg. Phase 2: Gaze-Ziel kitet den Boss außerhalb seiner Schlagreichweite (combat reach 24 m, trifft bis ~29,5 m Mittelpunktabstand; Bots laufen ab < 39,5 m los und tun dann nichts anderes), alle meiden Volcanos (15 m). Threat-Reset bei jedem Wechsel: drei Jäger legen Misdirection auf die drei Tanks beim Pull und bei jeder Rückkehr zu Phase 1 (2 Min Abklingzeit, daher nicht beim Wechsel zu Phase 2), DDs warten danach 5 s.
 - **Shade of Akama** – Sorcerer → Channeler → Spiritbinder → Elementalist → Rogue → Defender.
 - **Teron Gorefiend** – Wer nach Shadow of Death den **Vengeful Spirit** steuert, greift damit die Shadowy Constructs an: bei mehreren Constructs Spirit Volley, sonst Spirit Chains, Spirit Lance und im Nahkampf Spirit Strike. Normale Angriffe des Raids schaden den Constructs nicht.
 - **Gurtogg Bloodboil** – nur Tanks vorne (Arcing Smash), Caster verteilen sich. **Bloodboil-Rotation:** Fernkämpfer und Heiler mit 2+ Stapeln kommen auf ~14 m heran, damit Spieler ohne Stapel die nächsten Bloodboils (5 entfernteste Spieler) bekommen.

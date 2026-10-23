@@ -584,6 +584,12 @@ void DestructionWarlockBuffRaidStrategy::InitNonCombatTriggers(std::list<Trigger
 {
     DestructionWarlockBuffStrategy::InitNonCombatTriggers(triggers);
     WarlockBuffRaidStrategy::InitNonCombatTriggers(triggers);
+
+    // Imp for a fire build (Burning Wish), Succubus for a shadow build (Touch of Shadow)
+    const bool fire = std::string(TbcDestructionFiller(ai)) == "incinerate";
+    triggers.push_back(new TriggerNode(
+        "demonic sacrifice",
+        NextAction::array(0, new NextAction(fire ? "demonic sacrifice fire" : "demonic sacrifice shadow", ACTION_HIGH), NULL)));
 }
 
 void DestructionWarlockBoostStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)

@@ -396,6 +396,14 @@ ai::NextAction** DemonologyWarlockStrategy::GetDefaultCombatActions()
 void DemonologyWarlockStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
 {
     WarlockStrategy::InitCombatTriggers(triggers);
+
+    triggers.push_back(new TriggerNode(
+        "corruption",
+        NextAction::array(0, new NextAction("corruption", ACTION_NORMAL + 1), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "immolate",
+        NextAction::array(0, new NextAction("immolate", ACTION_NORMAL), NULL)));
 }
 
 void DemonologyWarlockStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
@@ -733,6 +741,11 @@ void DemonologyWarlockPetRaidStrategy::InitNonCombatTriggers(std::list<TriggerNo
     DemonologyWarlockPetStrategy::InitNonCombatTriggers(triggers);
     WarlockPetRaidStrategy::InitNonCombatTriggers(triggers);
     */
+
+    // A Felguard build keeps its Felguard, other builds sacrifice through "demonic sacrifice raid"
+    triggers.push_back(new TriggerNode(
+        "no demon",
+        NextAction::array(0, new NextAction("summon felguard", ACTION_NORMAL + 2), NULL)));
 }
 
 void DemonologyWarlockCursesStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)

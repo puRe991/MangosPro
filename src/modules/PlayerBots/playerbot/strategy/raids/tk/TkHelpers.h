@@ -215,7 +215,7 @@ namespace ai
         // CombatReach is 15 yards
 
         // Actual hazard range is 20 yards; the rest is buffer for the escape & multiplier.
-        constexpr float ARCANE_ORB_SAFE_DISTANCE = 22.0f;
+        constexpr float ARCANE_ORB_SAFE_DISTANCE = 21.0f;  // explosion radius 20 yards
         constexpr float ARCANE_ORB_BUFFER_DISTANCE = 30.0f;
 
         // Center of the room

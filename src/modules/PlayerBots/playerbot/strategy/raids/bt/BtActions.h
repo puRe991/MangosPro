@@ -168,6 +168,13 @@ namespace ai
         bool Execute(Event& event) override;
     };
 
+    class HighWarlordNajentusSpreadMeleeAction : public BtMovementAction
+    {
+    public:
+        HighWarlordNajentusSpreadMeleeAction(PlayerbotAI* ai) : BtMovementAction(ai, "high warlord naj'entus spread melee") {}
+        bool Execute(Event& event) override;
+    };
+
     class HighWarlordNajentusThrowImpalingSpineAction : public BtMovementAction
     {
     public:
@@ -207,6 +214,13 @@ namespace ai
     private:
         bool FindSafestNearbyPosition(const std::vector<Unit*>& volcanos, float maxRadius, float hazardRadius, float& outX, float& outY);
         bool IsPathSafe(float endX, float endY, const std::vector<Unit*>& volcanos, float hazardRadius);
+    };
+
+    class SupremusLeadMoltenFlameAwayAction : public BtMovementAction
+    {
+    public:
+        SupremusLeadMoltenFlameAwayAction(PlayerbotAI* ai) : BtMovementAction(ai, "supremus lead molten flame away") {}
+        bool Execute(Event& event) override;
     };
 
     class SupremusManagePhaseTimerAction : public Action

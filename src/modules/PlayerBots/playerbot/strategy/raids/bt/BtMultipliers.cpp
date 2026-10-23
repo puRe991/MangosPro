@@ -3,6 +3,7 @@
 #include "BtMultipliers.h"
 #include "BtActions.h"
 #include "BtHelpers.h"
+#include "BtSupremusRules.h"
 #include "playerbot/strategy/raids/RaidBossHelpers.h"
 #include "playerbot/strategy/actions/ChooseTargetActions.h"
 #include "playerbot/strategy/actions/GenericSpellActions.h"
@@ -58,18 +59,51 @@ float BlackTempleDelayDpsCooldownsMultiplier::GetValue(Action* action)
 
 float HighWarlordNajentusDisableCombatFormationMoveMultiplier::GetValue(Action* action)
 {
-    return IsFormationMoveAction(action) && FindBoss(ai, NPC_NAJENTUS) ? 0.0f : 1.0f;
+    if (!action || !FindBoss(ai, NPC_NAJENTUS))
+        return 1.0f;
+
+    if (IsFormationMoveAction(action))
+        return 0.0f;
+
+    // Melee keep their flank group, "set behind" would pull them back into one pile
+    if (action->getName() == "set behind" && raidboss::IsMeleePlayer(bot) && !PlayerbotAI::IsTank(bot))
+        return 0.0f;
+
+    return 1.0f;
 }
 
 // Supremus
 
+// The Gaze target only kites: other movement is blocked, and while the boss is close nothing else may delay the
+// next kite step (a cast would let him walk into his 29 yard melee reach)
 float SupremusFocusOnAvoidanceInPhase2Multiplier::GetValue(Action* action)
 {
-    if (!IsMovement(action) || dynamic_cast<SupremusKiteBossAction*>(action) || dynamic_cast<SupremusMoveAwayFromVolcanosAction*>(action))
+    if (!action || dynamic_cast<SupremusKiteBossAction*>(action) || dynamic_cast<SupremusMoveAwayFromVolcanosAction*>(action))
         return 1.0f;
 
     Unit* supremus = FindBoss(ai, NPC_SUPREMUS);
-    return supremus && supremus->GetVictim() == bot && supremus->HasAura(SPELL_SNARE_SELF) ? 0.0f : 1.0f;
+    if (!supremus || supremus->GetVictim() != bot || !supremus->HasAura(SPELL_SNARE_SELF))
+        return 1.0f;
+
+    if (IsMovement(action))
+        return 0.0f;
+
+    const bool close = bt::supremus::NeedsToKite(raidboss::ExactDist2d(bot, supremus), GetSupremusMeleeReach(bot, supremus));
+    return close ? 0.0f : 1.0f;
+}
+
+// Threat is reset when the tank phase starts again: only tanks and the misdirecting hunters act for a few seconds
+float SupremusWaitForTanksAfterThreatResetMultiplier::GetValue(Action* action)
+{
+    if (!IsAttackOrSpellAction(action) || PlayerbotAI::IsTank(bot) || dynamic_cast<SupremusMisdirectBossToMainTankAction*>(action))
+        return 1.0f;
+
+    Unit* supremus = FindBoss(ai, NPC_SUPREMUS);
+    if (!supremus)
+        return 1.0f;
+
+    const int64 elapsed = GetTimerElapsed(BtState::SupremusPhaseTimer, supremus->GetInstanceId());
+    return bt::supremus::IsDpsWaitAfterThreatReset(elapsed) ? 0.0f : 1.0f;
 }
 
 float SupremusHitboxIsBuggedMultiplier::GetValue(Action* action)

@@ -119,7 +119,7 @@ ObjectGuid PartyMemberToHeal::Calculate()
             if (pet && CanHealPet(pet) && sServerFacade.IsAlive(pet) && Check(pet))
             {
                 health = pet->GetHealthPercent();
-                if (health < sPlayerbotAIConfig.almostFullHealth && !IsTargetOfSpellCast(player, predicate))
+                if (health < sPlayerbotAIConfig.almostFullHealth && !IsTargetOfSpellCast(pet, predicate))
                 {
                     needHeals.push_back(pet);
                 }

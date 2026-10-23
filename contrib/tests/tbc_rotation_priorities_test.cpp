@@ -1,41 +1,19 @@
-"""Compile the actual TBC strategy bodies against an offline queue fixture.
-
-No world/login server or database is started. Run from the repository root
-with MSVC's INCLUDE/LIB environment configured.
-"""
-from pathlib import Path
-import os
-import subprocess
-
-root = Path("src/modules/PlayerBots/playerbot/strategy")
-out = Path("build/tbc-rotation-priorities-test")
-out.mkdir(exist_ok=True)
-
-def body(text, signature):
-    start = text.index(signature)
-    pos = text.index("{", start) + 1
-    depth = 1
-    while depth:
-        depth += (text[pos] == "{") - (text[pos] == "}")
-        pos += 1
-    return text[start:pos]
-
-source = r"""
+// Actual TBC strategy trigger lists against an offline queue fixture: the highest possible action wins.
+// Run with contrib/tests/run_tests.pl.
 #include <cassert>
 #include <cstdarg>
 #include <iostream>
 #include <list>
 #include <set>
 #include <string>
-"""
-source += body((root / "Strategy.h").read_text(), "enum ActionPriority") + ";\n"
-source += r"""
+//@extract Strategy.h | enum ActionPriority
+;
 struct NextAction {
     std::string name; float priority;
     NextAction(const char* n, float p) : name(n), priority(p) {}
-    static NextAction** array(int, ...) {
+    static NextAction** array(int first, ...) {
         auto result = new NextAction*[32]{};
-        va_list args; va_start(args, 0);
+        va_list args; va_start(args, first);
         int i = 0;
         while (auto action = va_arg(args, NextAction*)) result[i++] = action;
         va_end(args);
@@ -54,18 +32,19 @@ struct BaseStrategy { static void InitCombatTriggers(std::list<TriggerNode*>&) {
 using DruidStrategy = BaseStrategy;
 using WarriorStrategy = BaseStrategy;
 using RogueStrategy = BaseStrategy;
-"""
-for file, cls in [
-    ("druid/RestorationDruidStrategy.cpp", "RestorationDruidStrategy"),
-    ("druid/TankFeralDruidStrategy.cpp", "TankFeralDruidStrategy"),
-    ("warrior/ArmsWarriorStrategy.cpp", "ArmsWarriorStrategy"),
-    ("rogue/CombatRogueStrategy.cpp", "CombatRogueStrategy"),
-]:
-    source += f"struct {cls} {{ void InitCombatTriggers(std::list<TriggerNode*>&); }};\n"
-    text = (root / file).read_text().split("#ifdef MANGOSBOT_ONE // TBC", 1)[1]
-    source += body(text, f"void {cls}::InitCombatTriggers") + "\n"
-
-source += r"""
+using WarlockStrategy = BaseStrategy;
+struct RestorationDruidStrategy { void InitCombatTriggers(std::list<TriggerNode*>&); };
+//@extract druid/RestorationDruidStrategy.cpp | void RestorationDruidStrategy::InitCombatTriggers | #ifdef MANGOSBOT_ONE // TBC
+struct TankFeralDruidStrategy { void InitCombatTriggers(std::list<TriggerNode*>&); };
+//@extract druid/TankFeralDruidStrategy.cpp | void TankFeralDruidStrategy::InitCombatTriggers | #ifdef MANGOSBOT_ONE // TBC
+struct ArmsWarriorStrategy { void InitCombatTriggers(std::list<TriggerNode*>&); };
+//@extract warrior/ArmsWarriorStrategy.cpp | void ArmsWarriorStrategy::InitCombatTriggers | #ifdef MANGOSBOT_ONE // TBC
+struct CombatRogueStrategy { void InitCombatTriggers(std::list<TriggerNode*>&); };
+//@extract rogue/CombatRogueStrategy.cpp | void CombatRogueStrategy::InitCombatTriggers | #ifdef MANGOSBOT_ONE // TBC
+struct AfflictionWarlockStrategy { void InitCombatTriggers(std::list<TriggerNode*>&); };
+//@extract warlock/AfflictionWarlockStrategy.cpp | void AfflictionWarlockStrategy::InitCombatTriggers | #ifdef MANGOSBOT_ONE // TBC
+struct DemonologyWarlockStrategy { void InitCombatTriggers(std::list<TriggerNode*>&); };
+//@extract warlock/DemonologyWarlockStrategy.cpp | void DemonologyWarlockStrategy::InitCombatTriggers | #ifdef MANGOSBOT_ONE // TBC
 template<class Strategy>
 std::string choose(std::set<std::string> active, std::set<std::string> possible) {
     std::list<TriggerNode*> triggers;
@@ -105,16 +84,15 @@ int main() {
         {"slam", "mortal strike", "whirlwind", "heroic strike"}) == "slam");
     assert(choose<ArmsWarriorStrategy>({"mortal strike", "whirlwind", "heroic strike"},
         {"mortal strike", "whirlwind", "heroic strike"}) == "mortal strike");
-    std::cout << "PASS: 11 scenarios using actual TBC strategy bodies\n";
+    // Affliction: UA > Corruption > Siphon Life > Immolate > Shadow Bolt filler
+    const std::set<std::string> afflictionDots{"unstable affliction", "corruption", "siphon life", "immolate"};
+    assert(choose<AfflictionWarlockStrategy>(afflictionDots, afflictionDots) == "unstable affliction");
+    assert(choose<AfflictionWarlockStrategy>({"corruption", "siphon life", "immolate"},
+        {"corruption", "siphon life", "immolate"}) == "corruption");
+    assert(choose<AfflictionWarlockStrategy>({"siphon life", "immolate"}, {"siphon life", "immolate"}) == "siphon life");
+    assert(choose<AfflictionWarlockStrategy>({"immolate"}, {"immolate"}) == "immolate");
+    // Demonology: Corruption > Immolate
+    assert(choose<DemonologyWarlockStrategy>({"corruption", "immolate"}, {"corruption", "immolate"}) == "corruption");
+    assert(choose<DemonologyWarlockStrategy>({"immolate"}, {"immolate"}) == "immolate");
+    std::cout << "PASS: 17 scenarios using actual TBC strategy bodies\n";
 }
-"""
-# A named last parameter is required for va_start on all supported compilers.
-source = source.replace("array(int, ...)", "array(int first, ...)").replace("va_start(args, 0)", "va_start(args, first)")
-cpp = out / "test.cpp"
-cpp.write_text(source)
-compiler = Path(os.environ.get("TBC_TEST_CL",
-    "C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/cl.exe"))
-exe = out / "test.exe"
-subprocess.run([str(compiler), "/nologo", "/EHsc", "/std:c++17", str(cpp),
-                "/Fo:" + str(out / "test.obj"), "/Fe:" + str(exe)], check=True)
-subprocess.run([str(exe.resolve())], check=True)

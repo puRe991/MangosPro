@@ -31,7 +31,7 @@ namespace ai
     SSC_MULTIPLIER(SscLeotherasMeleeDpsAvoidChaosBlastMultiplier, "ssc leotheras melee dps avoid chaos blast")
     SSC_MULTIPLIER(SscLeotherasFocusOnInnerDemonMultiplier, "ssc leotheras focus on inner demon")
     SSC_MULTIPLIER(SscLeotherasWaitForDpsMultiplier, "ssc leotheras wait for dps")
-    SSC_MULTIPLIER(SscLeotherasDelayBloodlustAndHeroismMultiplier, "ssc leotheras delay bloodlust and heroism")
+    SSC_MULTIPLIER(SscLeotherasSaveCooldownsForFinalPhaseMultiplier, "ssc leotheras save cooldowns for final phase")
 
     // Fathom-Lord Karathress
     SSC_MULTIPLIER(SscKarathressDisableTankActionsMultiplier, "ssc karathress disable tank actions")

@@ -266,6 +266,24 @@ bool HasSupremusVolcanoNearby(Player* bot)
     return !GetSupremusVolcanos(bot, 20.0f).empty();
 }
 
+// Centre distance at which Supremus hits a running player (his combat reach alone is 24 yards)
+float GetSupremusMeleeReach(Player* bot, Unit* supremus)
+{
+    return supremus->GetCombinedCombatReach(bot, true) + MELEE_LEEWAY;
+}
+
+// The Molten Punch stalker gets a huge amount of threat on its target and leaves the flame trail behind it
+Unit* GetSupremusMoltenFlameChasingBot(Player* bot)
+{
+    for (Unit* flame : raidboss::FindUnits(bot, NPC_SUPREMUS_MOLTEN_FLAME, 50.0f))
+    {
+        if (flame->GetVictim() == bot)
+            return flame;
+    }
+
+    return nullptr;
+}
+
 // ---------------------------------------------------------------------------
 // Gurtogg Bloodboil
 // ---------------------------------------------------------------------------

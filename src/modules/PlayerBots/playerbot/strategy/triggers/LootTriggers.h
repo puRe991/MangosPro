@@ -27,4 +27,12 @@ namespace ai
 
         virtual bool IsActive() override;
     };
+
+    class ActiveLootRollsTrigger : public Trigger
+    {
+    public:
+        ActiveLootRollsTrigger(PlayerbotAI* ai) : Trigger(ai, "active loot rolls", 2) {}
+
+        virtual bool IsActive() override;
+    };
 }

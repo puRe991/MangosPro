@@ -67,6 +67,17 @@ void HyjalBossStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
     AddTrigger(triggers, "archimonde ranged should spread", "archimonde spread ranged", RAID);
     AddTrigger(triggers, "archimonde near doomfire", "archimonde avoid doomfire", ACTION_EMERGENCY + 6);
     AddTrigger(triggers, "archimonde stood in doomfire", "hyjal remove dangerous dot", ACTION_EMERGENCY + 7);
+    AddTrigger(triggers, "archimonde knocked into the air", "archimonde use tears of the goddess", ACTION_EMERGENCY + 9);
+    AddTrigger(triggers, "archimonde grip of the legion", "archimonde decurse grip of the legion", RAID + 2);
+    AddTrigger(triggers, "archimonde out of tremor totem range", "archimonde stay near tremor totem", RAID + 1);
+    AddTrigger(triggers, "archimonde boss near doomfire", "archimonde move boss away from doomfire", RAID + 2);
+    AddTrigger(triggers, "archimonde melee should spread", "archimonde spread melee", RAID);
+    AddTrigger(triggers, "archimonde hand of death soon", "archimonde burn before hand of death", RAID + 1);
+    // Defensive cooldown first, then healthstone and healing potion
+    triggers.push_back(new TriggerNode("archimonde bot in danger of dying", NextAction::array(0,
+        new NextAction("archimonde stay alive", ACTION_EMERGENCY + 3),
+        new NextAction("healthstone", ACTION_EMERGENCY + 2),
+        new NextAction("healing potion", ACTION_EMERGENCY + 1), NULL)));
 }
 
 void HyjalBossStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
@@ -81,6 +92,7 @@ void HyjalBossStrategy::InitReactionTriggers(std::list<TriggerNode*>& triggers)
     AddTrigger(triggers, "anetheron near inferno target", "anetheron move away from inferno target", ACTION_EMERGENCY + 6);
     AddTrigger(triggers, "archimonde casting air burst", "archimonde keep air burst away from tank", ACTION_EMERGENCY + 8);
     AddTrigger(triggers, "archimonde near doomfire", "archimonde avoid doomfire", ACTION_EMERGENCY + 6);
+    AddTrigger(triggers, "archimonde knocked into the air", "archimonde use tears of the goddess", ACTION_EMERGENCY + 9);
 }
 
 void HyjalBossStrategy::InitCombatMultipliers(std::list<Multiplier*>& multipliers)
@@ -88,6 +100,7 @@ void HyjalBossStrategy::InitCombatMultipliers(std::list<Multiplier*>& multiplier
     // General
     multipliers.push_back(new HyjalDelayDpsCooldownsMultiplier(ai));
     multipliers.push_back(new HyjalDisableDisperseAndTankFaceMultiplier(ai));
+    multipliers.push_back(new HyjalMainTankNoImmunityMultiplier(ai));
 
     // Rage Winterchill
     multipliers.push_back(new RageWinterchillMeleeControlAvoidanceMultiplier(ai));
@@ -99,6 +112,7 @@ void HyjalBossStrategy::InitCombatMultipliers(std::list<Multiplier*>& multiplier
     multipliers.push_back(new AnetheronInfernalTargetRunToPositionMultiplier(ai));
     multipliers.push_back(new AnetheronControlMovementMultiplier(ai));
     multipliers.push_back(new AnetheronControlMisdirectionMultiplier(ai));
+    multipliers.push_back(new AnetheronControlTauntMultiplier(ai));
 
     // Kaz'rogal
     multipliers.push_back(new KazrogalControlLowManaMovementMultiplier(ai));

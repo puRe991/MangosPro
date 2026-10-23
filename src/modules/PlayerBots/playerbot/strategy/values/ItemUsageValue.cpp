@@ -581,6 +581,8 @@ ItemUsage ItemUsageValue::QueryItemUsageForEquip(ItemQualifier& itemQualifier, P
     if (result != EQUIP_ERR_OK)
         return ItemUsage::ITEM_USAGE_NONE;
 
+    dest = WeakerEquipDest(bot, itemProto, dest);
+
     if (itemProto->Class == ITEM_CLASS_QUIVER)
     {
         Item* equippedRangedWeapon = bot->GetWeaponForAttack(WeaponAttackType::RANGED_ATTACK, false, false);
@@ -710,6 +712,21 @@ ItemUsage ItemUsageValue::QueryItemUsageForEquip(ItemQualifier& itemQualifier, P
     }
 
     uint32 oldStatWeight = sRandomItemMgr.ItemStatWeight(bot, oldItem);
+
+    // Gems and enchant are added to an upgrade when it is equipped, so compare the items without them;
+    // otherwise gemmed T4 beats ungemmed T5 and the upgrade rots in the bags or gets sold.
+    if (sPlayerbotAIConfig.autoGemUpgradeLoot && sPlayerbotAIConfig.autoEnchantUpgradeLoot && bot->GetLevel() >= sPlayerbotAIConfig.minEnchantingBotLevel)
+    {
+        ItemQualifier oldQualifier(oldItem);
+        const uint32 baseWeight = sRandomItemMgr.ItemBaseStatWeight(bot, itemQualifier);
+        const uint32 oldBaseWeight = sRandomItemMgr.ItemBaseStatWeight(bot, oldQualifier);
+        if (baseWeight && oldBaseWeight)
+        {
+            statWeight = baseWeight;
+            oldStatWeight = oldBaseWeight;
+        }
+    }
+
     if (statWeight && oldStatWeight)
     {
         shouldEquip = statWeight >= oldStatWeight;
@@ -1119,7 +1136,33 @@ Item* ItemUsageValue::CurrentItemInSlot(ItemPrototype const* proto, Player* bot)
     if (result != EQUIP_ERR_OK)
         return nullptr;
 
-    return bot->GetItemByPos(dest);    
+    return bot->GetItemByPos(WeakerEquipDest(bot, proto, dest));
+}
+
+uint16 ItemUsageValue::WeakerEquipDest(Player* bot, ItemPrototype const* proto, uint16 dest)
+{
+    uint8 otherSlot;
+    switch (dest & 255)
+    {
+    case EQUIPMENT_SLOT_FINGER1: otherSlot = EQUIPMENT_SLOT_FINGER2; break;
+    case EQUIPMENT_SLOT_TRINKET1: otherSlot = EQUIPMENT_SLOT_TRINKET2; break;
+    default: return dest;
+    }
+
+    Item* firstItem = bot->GetItemByPos(dest);
+    Item* otherItem = bot->GetItemByPos(INVENTORY_SLOT_BAG_0, otherSlot);
+    if (!firstItem || !otherItem)
+        return dest;
+
+    // Unique-equipped items can not go next to their twin
+    uint16 otherDest;
+    if (RandomPlayerbotMgr::CanEquipUnseenItem(bot, otherSlot, otherDest, proto->ItemId) != EQUIP_ERR_OK || (otherDest & 255) != otherSlot)
+        return dest;
+
+    if (sRandomItemMgr.ItemStatWeight(bot, otherItem) < sRandomItemMgr.ItemStatWeight(bot, firstItem))
+        return otherDest;
+
+    return dest;
 }
 
 float ItemUsageValue::CurrentStacks(PlayerbotAI* ai, ItemPrototype const* proto)

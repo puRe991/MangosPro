@@ -433,7 +433,7 @@ bool ShouldLootObject::Calculate()
 	return false;
 }
 
-void ActiveRolls::CleanUp(Player* bot, LootRollMap& rollMap, ObjectGuid guid, uint32 slot)
+void ActiveRolls::CleanUp(Player* bot, LootRollMap& rollMap, ObjectGuid guid, int32 slot)
 {
 	for (auto roll = rollMap.begin(); roll != rollMap.end();)
 	{
@@ -443,7 +443,7 @@ void ActiveRolls::CleanUp(Player* bot, LootRollMap& rollMap, ObjectGuid guid, ui
 			continue;
 		}
 
-		if (slot && roll->second != slot)
+		if (slot >= 0 && roll->second != uint32(slot))
 		{
 			++roll;
 			continue;

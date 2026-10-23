@@ -305,9 +305,9 @@ bool PlayerbotAIConfig::Initialize()
         loginCriteria.push_back({ "arena" });
         loginCriteria.push_back({ "bg" });
         loginCriteria.push_back({ "guild" });
-        loginCriteria.push_back({ "logoff,classrace,level,online" });
-        loginCriteria.push_back({ "logoff,classrace,level" });
-        loginCriteria.push_back({ "logoff,classrace" });
+        loginCriteria.push_back({ "logoff", "classrace", "level", "online" });
+        loginCriteria.push_back({ "logoff", "classrace", "level" });
+        loginCriteria.push_back({ "logoff", "classrace" });
     }
 
 #ifdef GenerateBotTests
@@ -466,36 +466,39 @@ bool PlayerbotAIConfig::Initialize()
 
     worldBuffs.clear();
 
-    //Get all config values starting with AiPlayerbot.WorldBuff
-    std::vector<std::string> values = configA->GetValues("AiPlayerbot.WorldBuff");
-
-    if (values.size())
+    //Get all config values starting with AiPlayerbot.WorldBuff, and AiPlayerbot.RaidBuff for buffs given only in raids
+    for (const bool raidOnly : { false, true })
     {
-        sLog.outString("Loading WorldBuffs");
-        BarGoLink wbuffBar(values.size());
+        std::vector<std::string> values = configA->GetValues(raidOnly ? "AiPlayerbot.RaidBuff" : "AiPlayerbot.WorldBuff");
 
-        for (auto value : values)
+        if (values.size())
         {
-            std::vector<std::string> ids = split(value, '.');
-            std::vector<uint32> params = { 0,0,0,0,0,0 };
+            sLog.outString(raidOnly ? "Loading RaidBuffs" : "Loading WorldBuffs");
+            BarGoLink wbuffBar(values.size());
 
-            //Extract faction, class, spec, minlevel, maxlevel
-            for (uint8 i = 0; i < 6; i++)
-                if (ids.size() > i + 2)
-                    params[i] = stoi(ids[i + 2]);
-
-            //Get list of buffs for this combination.
-            std::list<uint32> buffs;
-            LoadList<std::list<uint32>>(config.GetStringDefault(value, ""), buffs);
-
-            //Store buffs for later application.
-            for (auto buff : buffs)
+            for (auto value : values)
             {
-                worldBuff wb = { buff, params[0], params[1], params[2], params[3], params[4], params[5] };
-                worldBuffs.push_back(wb);
-            }
+                std::vector<std::string> ids = split(value, '.');
+                std::vector<uint32> params = { 0,0,0,0,0,0 };
 
-            wbuffBar.step();
+                //Extract faction, class, spec, minlevel, maxlevel
+                for (uint8 i = 0; i < 6; i++)
+                    if (ids.size() > i + 2)
+                        params[i] = stoi(ids[i + 2]);
+
+                //Get list of buffs for this combination.
+                std::list<uint32> buffs;
+                LoadList<std::list<uint32>>(config.GetStringDefault(value, ""), buffs);
+
+                //Store buffs for later application.
+                for (auto buff : buffs)
+                {
+                    worldBuff wb = { buff, params[0], params[1], params[2], params[3], params[4], params[5], raidOnly };
+                    worldBuffs.push_back(wb);
+                }
+
+                wbuffBar.step();
+            }
         }
     }
 

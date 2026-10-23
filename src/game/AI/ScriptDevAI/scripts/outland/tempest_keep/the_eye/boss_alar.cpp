@@ -33,6 +33,7 @@ Patches
 #include "the_eye.h"
 #include "AI/ScriptDevAI/base/CombatAI.h"
 #include "Spells/Scripts/SpellScript.h"
+#include "Movement/MoveSpline.h"
 
 enum
 {
@@ -113,7 +114,11 @@ enum AlarActions
     ALAR_ACTION_MAX,
     ALAR_REBIRTH,
     ALAR_DIVE_BOMB_TIMER,
+    ALAR_MOVE_WATCHDOG,
 };
+
+static const uint32 ALAR_MOVE_WATCHDOG_INTERVAL = 2000;
+static const uint32 ALAR_MOVE_MAX_TIME = 25000;
 
 struct boss_alarAI : public CombatAI
 {
@@ -129,6 +134,7 @@ struct boss_alarAI : public CombatAI
         AddCombatAction(ALAR_CHARGE, true);
         AddCustomAction(ALAR_REBIRTH, true, [&]() { HandleRebirth(); });
         AddCustomAction(ALAR_DIVE_BOMB_TIMER, true, [&]() { HandleDiveBomb(); });
+        AddCustomAction(ALAR_MOVE_WATCHDOG, true, [&]() { HandleMoveWatchdog(); });
         Reset();
     }
     
@@ -145,9 +151,16 @@ struct boss_alarAI : public CombatAI
 
     bool m_firstPlatform;
 
+    // Point movement the script is waiting for; the whole encounter stalls if it never arrives
+    int32 m_pendingPointId;
+    Position m_pendingPos;
+    uint32 m_pendingMoveTime;
+
     void Reset() override
     {
         CombatAI::Reset();
+        m_pendingPointId = -1;
+        m_pendingMoveTime = 0;
         // Start phase one and move to Platform 1
         m_phase = PHASE_ONE;
         SetCombatMovement(false);
@@ -173,7 +186,9 @@ struct boss_alarAI : public CombatAI
         m_uiCurrentPlatformId   = 0;
 
         m_creature->RemoveAurasDueToSpell(SPELL_FLIGHT_MODE);
+        m_creature->RemoveAurasDueToSpell(SPELL_EMBER_BLAST);
         m_creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_UNINTERACTIBLE);
+        m_creature->SetStandState(UNIT_STAND_STATE_STAND);
 
         DespawnGuids(m_spawns);
 
@@ -192,7 +207,38 @@ struct boss_alarAI : public CombatAI
 
         // The boss will always move to the first platform from the left side; also set the movement to idle to stop the DB movement
         m_creature->GetMotionMaster()->MoveIdle();
-        m_creature->GetMotionMaster()->MovePoint(POINT_ID_PLATFORM, aPlatformLocation[m_uiCurrentPlatformId].x, aPlatformLocation[m_uiCurrentPlatformId].y, aPlatformLocation[m_uiCurrentPlatformId].z);
+        m_creature->SetHover(true);
+        m_creature->SetLevitate(true);
+        FlyTo(POINT_ID_PLATFORM, aPlatformLocation[m_uiCurrentPlatformId]);
+    }
+
+    // Straight flight without a ground path: a navmesh path for the flying boss can end in mid air and never arrive
+    void FlyTo(uint32 pointId, Position const& pos, ForcedMovement forcedMovement = FORCED_MOVEMENT_NONE)
+    {
+        m_creature->GetMotionMaster()->MovePoint(pointId, pos.x, pos.y, pos.z, forcedMovement, false);
+        m_pendingPointId = int32(pointId);
+        m_pendingPos = pos;
+        m_pendingMoveTime = 0;
+        ResetTimer(ALAR_MOVE_WATCHDOG, ALAR_MOVE_WATCHDOG_INTERVAL);
+    }
+
+    void HandleMoveWatchdog()
+    {
+        if (m_pendingPointId < 0)
+            return;
+
+        m_pendingMoveTime += ALAR_MOVE_WATCHDOG_INTERVAL;
+        if (!m_creature->movespline->Finalized() && m_pendingMoveTime < ALAR_MOVE_MAX_TIME)
+        {
+            ResetTimer(ALAR_MOVE_WATCHDOG, ALAR_MOVE_WATCHDOG_INTERVAL);
+            return;
+        }
+
+        // The movement stopped (or takes far too long) without reaching its point: finish it here
+        uint32 pointId = uint32(m_pendingPointId);
+        if (!m_creature->IsWithinDist3d(m_pendingPos.x, m_pendingPos.y, m_pendingPos.z, 3.0f))
+            m_creature->NearTeleportTo(m_pendingPos.x, m_pendingPos.y, m_pendingPos.z, m_creature->GetOrientation());
+        MovementInform(POINT_MOTION_TYPE, pointId);
     }
 
     void JustReachedHome() override
@@ -203,6 +249,10 @@ struct boss_alarAI : public CombatAI
 
     void JustDied(Unit* /*killer*/) override
     {
+        // A kill during the rebirth transition (e.g. an instakill) would otherwise leave an untargetable, unlootable corpse
+        m_creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_UNINTERACTIBLE);
+        m_creature->SetDisplayId(m_creature->GetNativeDisplayId());
+
         if (m_instance)
         {
             m_instance->SetData(TYPE_ALAR, DONE);
@@ -254,11 +304,11 @@ struct boss_alarAI : public CombatAI
     void DoFlameQuills()
     {
         // Move to Flame Quills position; stop range check, platform moving and ember summoning
-        m_creature->GetMotionMaster()->MovePoint(POINT_ID_QUILLS, aCenterLocation[0].x, aCenterLocation[0].y, aCenterLocation[0].z);
         SetCombatScriptStatus(true);
         m_creature->SetTarget(nullptr);
         m_creature->SetHover(true);
         m_creature->SetLevitate(true);
+        FlyTo(POINT_ID_QUILLS, aCenterLocation[0]);
     }
     
     void DoPlatformMove(bool summon)
@@ -275,7 +325,10 @@ struct boss_alarAI : public CombatAI
 #endif
         }
         m_firstPlatform = false;
-        m_creature->GetMotionMaster()->MovePoint(POINT_ID_PLATFORM, aPlatformLocation[m_uiFuturePlatformId].x, aPlatformLocation[m_uiFuturePlatformId].y, aPlatformLocation[m_uiFuturePlatformId].z);
+        // Landing on a platform turns hover and levitate off; without them he flies as a ground unit and gets stuck between platforms
+        m_creature->SetHover(true);
+        m_creature->SetLevitate(true);
+        FlyTo(POINT_ID_PLATFORM, aPlatformLocation[m_uiFuturePlatformId]);
 
 #ifdef PRENERF_2_0_3
         // plan next platform
@@ -299,6 +352,9 @@ struct boss_alarAI : public CombatAI
         if (motionType != POINT_MOTION_TYPE)
             return;
 
+        if (int32(pointId) == m_pendingPointId)
+            m_pendingPointId = -1;
+
         switch (pointId)
         {
             case POINT_ID_QUILLS:
@@ -312,8 +368,8 @@ struct boss_alarAI : public CombatAI
                 m_creature->SetLevitate(false);
                 break;
             case POINT_ID_RESSURRECT:
-                m_rebirthState = 0;
-                ResetTimer(ALAR_REBIRTH, 10000);
+                if (m_rebirthState == 0) // the fallback timer may already have started the rebirth
+                    ResetTimer(ALAR_REBIRTH, 10000);
                 break;
             case POINT_ID_DIVE_BOMB:
                 if (DoCastSpellIfCan(m_creature, SPELL_DIVE_BOMB_VISUAL) == CAST_OK)
@@ -361,11 +417,13 @@ struct boss_alarAI : public CombatAI
 
         m_creature->CastSpell(nullptr, SPELL_CLEAR_ALL_DEBUFFS, TRIGGERED_OLD_TRIGGERED);
 
-        if (DoCastSpellIfCan(nullptr, SPELL_EMBER_BLAST) == CAST_OK)
-        {
-            // Move to the center of the hall and ressurrect
-            m_creature->GetMotionMaster()->MovePoint(POINT_ID_RESSURRECT, aCenterLocation[1].x, aCenterLocation[1].y, aCenterLocation[1].z, FORCED_MOVEMENT_RUN);
-        }
+        // Always move to the center and ressurrect: if Ember Blast fails the boss would stay uninteractible and unkillable forever
+        m_creature->CastSpell(nullptr, SPELL_EMBER_BLAST, TRIGGERED_OLD_TRIGGERED);
+        FlyTo(POINT_ID_RESSURRECT, aCenterLocation[1], FORCED_MOVEMENT_RUN);
+
+        // Fallback in case the center is never reached; reaching it restarts this timer at 10 seconds
+        m_rebirthState = 0;
+        ResetTimer(ALAR_REBIRTH, 20000);
     }
 
     void HandleRebirth()
@@ -511,7 +569,7 @@ struct boss_alarAI : public CombatAI
                 m_creature->SetTarget(nullptr);
                 m_creature->SetHover(true);
                 m_creature->SetLevitate(true);
-                m_creature->GetMotionMaster()->MovePoint(POINT_ID_DIVE_BOMB, aCenterLocation[2].x, aCenterLocation[2].y, aCenterLocation[2].z);
+                FlyTo(POINT_ID_DIVE_BOMB, aCenterLocation[2]);
                 SetDeathPrevention(true);
                 ResetCombatAction(action, urand(50000, 60000));
                 break;

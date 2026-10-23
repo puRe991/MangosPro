@@ -6,6 +6,8 @@
 #include <sstream>
 #include <filesystem>
 #include <mutex>
+#include <map>
+#include <algorithm>
 
 using namespace ai;
 
@@ -46,10 +48,72 @@ std::string RaidBossMapStrategies::GetStrategy(uint32 mapId)
     return "";
 }
 
+namespace
+{
+    // Hybrid bots get "offheal" (dps) or "offdps" (healers) by default. In a raid the dps left their
+    // form to heal (moonkin lost Kiggler at Maulgar) and healers attacked instead of healing, so both
+    // are dropped inside raid instances and restored afterwards.
+    const std::vector<std::string> raidOffSpecStrategies = { "offheal", "offdps" };
+    std::mutex offSpecMutex;
+    std::map<uint32, std::vector<std::string>> offSpecRemoved;
+
+    bool InRaidInstance(Player* bot)
+    {
+        return bot->GetMap() && bot->GetMap()->IsRaid();
+    }
+
+    bool NeedsOffSpecSync(PlayerbotAI* ai, Player* bot)
+    {
+        if (InRaidInstance(bot))
+        {
+            for (const std::string& strategy : raidOffSpecStrategies)
+                if (ai->HasStrategy(strategy, BotState::BOT_STATE_COMBAT))
+                    return true;
+            return false;
+        }
+
+        std::lock_guard<std::mutex> lock(offSpecMutex);
+        return offSpecRemoved.count(bot->GetGUIDLow()) > 0;
+    }
+
+    bool SyncOffSpecStrategies(PlayerbotAI* ai, Player* bot)
+    {
+        bool changed = false;
+        std::lock_guard<std::mutex> lock(offSpecMutex);
+        if (InRaidInstance(bot))
+        {
+            for (const std::string& strategy : raidOffSpecStrategies)
+            {
+                if (!ai->HasStrategy(strategy, BotState::BOT_STATE_COMBAT))
+                    continue;
+
+                ai->ChangeStrategy("-" + strategy, BotState::BOT_STATE_COMBAT);
+                std::vector<std::string>& removed = offSpecRemoved[bot->GetGUIDLow()];
+                if (std::find(removed.begin(), removed.end(), strategy) == removed.end())
+                    removed.push_back(strategy);
+                changed = true;
+            }
+            return changed;
+        }
+
+        auto it = offSpecRemoved.find(bot->GetGUIDLow());
+        if (it == offSpecRemoved.end())
+            return false;
+
+        for (const std::string& strategy : it->second)
+            ai->ChangeStrategy("+" + strategy, BotState::BOT_STATE_COMBAT);
+        offSpecRemoved.erase(it);
+        return true;
+    }
+}
+
 bool RaidBossMapStrategyTrigger::IsActive()
 {
     if (!bot->IsInWorld() || bot->IsBeingTeleported())
         return false;
+
+    if (NeedsOffSpecSync(ai, bot))
+        return true;
 
     const std::string wanted = RaidBossMapStrategies::GetStrategy(bot->GetMapId());
     for (const auto& entry : RaidBossMapStrategies::GetAll())
@@ -72,7 +136,7 @@ bool UpdateRaidBossMapStrategyAction::Execute(Event& event)
 {
     const std::string wanted = RaidBossMapStrategies::GetStrategy(bot->GetMapId());
 
-    bool changed = false;
+    bool changed = SyncOffSpecStrategies(ai, bot);
     for (const auto& entry : RaidBossMapStrategies::GetAll())
     {
         if (!ai->GetAiObjectContext()->GetStrategy(entry.second))
@@ -133,6 +197,10 @@ void RaidBossMapStrategies::Trace(PlayerbotAI* ai, BotState state, const std::st
     if (!found->second.count(source))
         return;
 
+    // Failed housekeeping out of combat (timer resets etc.) flooded the console of every bot and lagged the server
+    if (!executed && state != BotState::BOT_STATE_COMBAT && state != BotState::BOT_STATE_REACTION)
+        return;
+
     // Keep failed attempts visible too. Repeated position checks must not flood the log.
     const std::string key = std::to_string(uint8(state)) + action + (executed ? ":ok" : ":failed");
     const time_t now = time(nullptr);
@@ -149,6 +217,27 @@ void RaidBossMapStrategies::Trace(PlayerbotAI* ai, BotState state, const std::st
 
 namespace
 {
+    // 32 segments of 64 MiB: older runs filled the disk until logging paused
+    const size_t MAX_DECISION_LOG_FILES = 32;
+
+    void PruneDecisionLogs(const std::filesystem::path& directory)
+    {
+        std::error_code error;
+        std::vector<std::pair<std::filesystem::file_time_type, std::filesystem::path>> logs;
+        for (const auto& entry : std::filesystem::directory_iterator(directory, error))
+        {
+            const std::string name = entry.path().filename().string();
+            if (name.rfind("raid-ai-", 0) == 0 && entry.path().extension() == ".log" && entry.is_regular_file(error))
+                logs.emplace_back(entry.last_write_time(error), entry.path());
+        }
+        if (logs.size() <= MAX_DECISION_LOG_FILES)
+            return;
+
+        std::sort(logs.begin(), logs.end());
+        for (size_t i = 0; i + MAX_DECISION_LOG_FILES < logs.size(); ++i)
+            std::filesystem::remove(logs[i].second, error);
+    }
+
     void WriteDecisionLog(const std::string& line)
     {
         static std::mutex mutex;
@@ -182,6 +271,7 @@ namespace
         }
         if (!file)
         {
+            PruneDecisionLogs(directory);
             const auto path = directory / ("raid-ai-" + run + "-" + std::to_string(segment) + ".log");
             file = fopen(path.string().c_str(), "a");
             if (!file)
@@ -418,8 +508,8 @@ bool RaidBossMapStrategies::Debug(PlayerbotAI* ai, Player* requester, const std:
     if (bot->GetMapId() == gruul::GRUUL_MAP_ID)
     {
         auto name = [](Player* player) { return player ? std::string(player->GetName()) : std::string("FEHLT"); };
-        tell("Maulgar=" + name(raidboss::GetGroupMainTank(bot)) + " Olm=" + name(raidboss::GetGroupAssistTank(bot, 0)) +
-             " Blindeye=" + name(raidboss::GetGroupAssistTank(bot, 1)));
+        tell("Maulgar=" + name(raidboss::GetGroupMainTank(bot)) + " Olm=" + name(raidboss::GetGroupAssistTankOrStandIn(bot, 0)) +
+             " Blindeye=" + name(raidboss::GetGroupAssistTankOrStandIn(bot, 1)));
         tell("Krosh-Magier=" + name(gruul::GetKroshMageTank(ai)) + " Kiggler-Eule=" + name(gruul::GetKigglerMoonkinTank(ai)) +
              " Heiler=" + std::to_string(raidboss::GetGroupHealers(bot).size()));
         tell("Maulgar sichtbar=" + std::string(gruul::FindMaulgar(ai) ? "JA" : "NEIN") +

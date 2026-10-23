@@ -110,9 +110,18 @@ bool EquipAction::IsEnchantable(Item* item, uint32 spellid)
    if (!spellInfo)
       return false;
 
-    return ((1 << item->GetProto()->SubClass) & spellInfo->EquippedItemSubClassMask) &&
-      ((1 << item->GetProto()->InventoryType) & spellInfo->EquippedItemInventoryTypeMask);
+    const ItemPrototype* proto = item->GetProto();
+    if (spellInfo->EquippedItemClass >= 0 && int32(proto->Class) != spellInfo->EquippedItemClass)
+        return false;
 
+    // A mask of 0 means no restriction: weapon, shield and scope enchants have no inventory type mask
+    if (spellInfo->EquippedItemSubClassMask && !((1 << proto->SubClass) & spellInfo->EquippedItemSubClassMask))
+        return false;
+
+    if (spellInfo->EquippedItemInventoryTypeMask && !((1 << proto->InventoryType) & spellInfo->EquippedItemInventoryTypeMask))
+        return false;
+
+    return true;
 }
 
 void EquipAction::EnchantItem(Item* item)
@@ -278,6 +287,7 @@ void EquipAction::EquipItem(PlayerbotAI* ai, Player* requester, Item* item, bool
     Item* oldOffhand = nullptr;
     if (result == EQUIP_ERR_OK)
     {
+        dest = ItemUsageValue::WeakerEquipDest(bot, item->GetProto(), dest);
         oldItem = bot->GetItemByPos(dest);
 
         if (oldItem && oldItem->GetSlot() == EQUIPMENT_SLOT_MAINHAND && item->GetProto()->InventoryType == INVTYPE_2HWEAPON)
@@ -312,7 +322,12 @@ void EquipAction::EquipItem(PlayerbotAI* ai, Player* requester, Item* item, bool
             }
         }
 
-        if (!equipedBag) 
+        // Auto equip always takes the first ring/trinket slot, so swap into the weaker second slot explicitly
+        const uint8 destSlot = dest & 255;
+        const bool intoSecondSlot = result == EQUIP_ERR_OK && oldItem && (destSlot == EQUIPMENT_SLOT_FINGER2 || destSlot == EQUIPMENT_SLOT_TRINKET2);
+        if (!equipedBag && intoSecondSlot)
+            bot->SwapItem((bagIndex << 8) | slot, dest);
+        else if (!equipedBag)
         {
             WorldPacket packet(CMSG_AUTOEQUIP_ITEM, 2);
             packet << bagIndex << slot;
@@ -483,6 +498,37 @@ bool EquipUpgradesAction::Execute(Event& event)
 
                 sLog.outDetail("Bot #%d <%s> swapped MH/OH weapons to put higher top-end damage (%.1f) in main hand",
                     bot->GetGUIDLow(), bot->GetName(), ohMaxDmg);
+            }
+        }
+    }
+
+    // Equipped gear without a permanent enchant (equipped before, swapped above or traded) gets one too
+    if (sPlayerbotAIConfig.autoEnchantUpgradeLoot && bot->GetLevel() >= sPlayerbotAIConfig.minEnchantingBotLevel)
+    {
+        for (uint8 slot = EQUIPMENT_SLOT_START; slot < EQUIPMENT_SLOT_END; ++slot)
+        {
+            Item* equipped = bot->GetItemByPos(INVENTORY_SLOT_BAG_0, slot);
+            if (equipped && !equipped->GetEnchantmentId(PERM_ENCHANTMENT_SLOT))
+                EnchantItem(equipped);
+        }
+    }
+
+    // Same for empty sockets; SocketItem keeps gems that are already in place
+    if (sPlayerbotAIConfig.autoGemUpgradeLoot)
+    {
+        for (uint8 slot = EQUIPMENT_SLOT_START; slot < EQUIPMENT_SLOT_END; ++slot)
+        {
+            Item* equipped = bot->GetItemByPos(INVENTORY_SLOT_BAG_0, slot);
+            if (!equipped)
+                continue;
+
+            for (int i = 0; i < MAX_GEM_SOCKETS; ++i)
+            {
+                if (equipped->GetProto()->Socket[i].Color && !equipped->GetEnchantmentId(EnchantmentSlot(SOCK_ENCHANTMENT_SLOT + i)))
+                {
+                    botgear::SocketItem(bot, equipped);
+                    break;
+                }
             }
         }
     }

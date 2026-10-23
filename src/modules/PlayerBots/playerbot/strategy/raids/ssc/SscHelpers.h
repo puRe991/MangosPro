@@ -57,6 +57,7 @@ namespace ai
             SPELL_METAMORPHOSIS          = 37673,
             SPELL_CHAOS_BLAST            = 37675,   // stacking debuff triggered by 37674
             SPELL_INSIDIOUS_WHISPER      = 37676,
+            SPELL_CONSUMING_MADNESS      = 37749,   // mind control when an Inner Demon survives
 
             // Lady Vashj
             SPELL_MAGIC_BARRIER          = 38112,
@@ -148,6 +149,10 @@ namespace ai
         Unit* GetPhase3LeotherasDemon(PlayerbotAI* ai);
         Unit* GetActiveLeotherasDemon(PlayerbotAI* ai);
         Player* GetLeotherasDemonFormTank(Player* bot);
+        // Group member mind controlled by Consuming Madness, nearest first
+        Player* GetLeotherasMindControlledPlayer(Player* bot);
+        // Threat is wiped when Whirlwind ends: true for a few seconds afterwards
+        bool IsLeotherasWhirlwindAggroReset(Player* bot);
         Unit* GetMyInnerDemon(Player* bot);
         bool CanUseLeotherasMovement(PlayerbotAI* ai, const std::string& action);
 
@@ -158,6 +163,9 @@ namespace ai
         extern const WorldPosition CARIBDIS_TANK_POSITION;
         extern const WorldPosition CARIBDIS_HEALER_POSITION;
         extern const WorldPosition CARIBDIS_RANGED_DPS_POSITION;
+        // Living council members without an own tank, in dps kill order, followed by Karathress.
+        // With fewer than four tanks the main tank holds these together at the Karathress spot.
+        std::vector<Unit*> GetKarathressMainTankUnits(PlayerbotAI* ai);
 
         // Morogrim Tidewalker
         extern const WorldPosition TIDEWALKER_PHASE_1_TANK_POSITION;
@@ -193,6 +201,9 @@ namespace ai
             time_t leotherasHumanFormDpsWait = 0;
             time_t leotherasDemonFormDpsWait = 0;
             time_t leotherasFinalPhaseDpsWait = 0;
+            time_t leotherasWhirlwindEnd = 0;
+            bool leotherasWhirlwindActive = false;
+            ObjectGuid leotherasDemonTank;  // chosen once per fight: resistances change with buffs and range
             time_t karathressDpsWait = 0;
             time_t lastCoreThrow = 0;
             ObjectGuid vashjGenerator;
@@ -224,6 +235,10 @@ namespace ai
         WorldPosition GetPointAwayFrom(Player* bot, float fromX, float fromY, float distance);
         // One step of at most maxStep yards towards a position
         WorldPosition GetStepTowards(Player* bot, const WorldPosition& position, float maxStep);
+        // Ranged spread: a spot near the bot that keeps spreadDistance from the group (as far as possible)
+        // and stays within [minAnchorDistance, maxAnchorDistance] of the anchor. False if no better spot.
+        bool GetRangedSpreadPosition(Player* bot, Unit* anchor, float spreadDistance, float minAnchorDistance,
+                                     float maxAnchorDistance, WorldPosition& position);
 
         bool IsActionNamed(Action* action, std::initializer_list<const char*> names);
         bool IsTbcRaidAction(Action* action);

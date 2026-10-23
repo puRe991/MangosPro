@@ -104,6 +104,24 @@ namespace ai
     HYJAL_TRIGGER(ArchimondeRangedShouldSpreadTrigger, "archimonde ranged should spread")
     HYJAL_TRIGGER(ArchimondeNearDoomfireTrigger, "archimonde near doomfire")
     HYJAL_TRIGGER(ArchimondeStoodInDoomfireTrigger, "archimonde stood in doomfire")
+    HYJAL_TRIGGER(ArchimondeKnockedIntoTheAirTrigger, "archimonde knocked into the air")
+    HYJAL_TRIGGER(ArchimondeGripOfTheLegionTrigger, "archimonde grip of the legion")
+    HYJAL_TRIGGER(ArchimondeOutOfTremorTotemRangeTrigger, "archimonde out of tremor totem range")
+    HYJAL_TRIGGER(ArchimondeBossNearDoomfireTrigger, "archimonde boss near doomfire")
+    HYJAL_TRIGGER(ArchimondeMeleeShouldSpreadTrigger, "archimonde melee should spread")
+    HYJAL_TRIGGER(ArchimondeBotInDangerOfDyingTrigger, "archimonde bot in danger of dying")
+
+    // Remembers the pull of the bot's own view of the fight (each bot has its own trigger object)
+    class ArchimondeHandOfDeathSoonTrigger : public HyjalEncounterTrigger
+    {
+    public:
+        ArchimondeHandOfDeathSoonTrigger(PlayerbotAI* ai) : HyjalEncounterTrigger(ai, "archimonde hand of death soon") {}
+    protected:
+        bool IsActiveInEncounter() override;
+    private:
+        time_t pullTime = 0;
+        time_t lastSeen = 0;
+    };
 
 #undef HYJAL_TRIGGER
 }

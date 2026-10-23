@@ -1,28 +1,5 @@
-"""Compile and exercise the production SSC state/handoff and lust trigger functions.
-
-The small world fixture supplies clock, raid roles and GUID lookup; the functions
-under test are extracted unchanged from the production sources.
-Run from the repository root with Python in a Visual C++ developer environment.
-"""
-from pathlib import Path
-import subprocess
-
-ROOT = Path(__file__).resolve().parents[2]
-STRATEGY = ROOT / 'src/modules/PlayerBots/playerbot/strategy'
-
-
-def function(file, signature):
-    source = (STRATEGY / file).read_text()
-    start = source.index(signature)
-    end = source.index('{', start) + 1
-    depth = 1
-    while depth:
-        depth += (source[end] == '{') - (source[end] == '}')
-        end += 1
-    return source[start:end] + '\n'
-
-
-fixture = r'''
+// Production SSC state/handoff and Vashj lust trigger functions against a small world fixture
+// (clock, raid roles, GUID lookup). Run with contrib/tests/run_tests.pl.
 #include <cassert>
 #include <ctime>
 #include <functional>
@@ -85,6 +62,7 @@ bool HasMarkOfCorruptionAt100Percent(Player* p){return p->marked;}
 struct SscInstanceState {
  time_t hydrossFrostDpsWait=0,hydrossNatureDpsWait=0,hydrossChangeToFrostPhase=0,hydrossChangeToNaturePhase=0;
  time_t lurkerSpoutEnd=0,leotherasHumanFormDpsWait=0,leotherasDemonFormDpsWait=0,leotherasFinalPhaseDpsWait=0;
+ time_t leotherasWhirlwindEnd=0; bool leotherasWhirlwindActive=false; ObjectGuid leotherasDemonTank;
  time_t karathressDpsWait=0,lastCoreThrow=0; ObjectGuid vashjGenerator;
  std::map<int,int> lurkerRangedPositions,tidewalkerTankStep,tidewalkerRangedStep,hasReachedVashjRangedPosition,intendedLineup,lastCoreInInventoryTime;
 } state;
@@ -109,14 +87,13 @@ namespace tbcraid {
   const Encounter* FindNearby(PlayerbotAI*){return &encounter;}
  };
 }
-'''
 
-for signature in ['bool NeedsStateReset', 'bool UpdateHydrossState', 'bool ShouldPauseHydrossDps']:
-    fixture += function('raids/ssc/SscHelpers.cpp', signature)
-for signature in ['bool SscHydrossPositionFrostTankAction::Execute', 'bool SscHydrossPositionNatureTankAction::Execute']:
-    fixture += function('raids/ssc/SscActions.cpp', signature)
-fixture += function('shaman/ShamanTriggers.cpp', 'static bool IsLustAllowed')
-fixture += r'''
+//@extract raids/ssc/SscHelpers.cpp | bool NeedsStateReset
+//@extract raids/ssc/SscHelpers.cpp | bool UpdateHydrossState
+//@extract raids/ssc/SscHelpers.cpp | bool ShouldPauseHydrossDps
+//@extract raids/ssc/SscActions.cpp | bool SscHydrossPositionFrostTankAction::Execute
+//@extract raids/ssc/SscActions.cpp | bool SscHydrossPositionNatureTankAction::Execute
+//@extract shaman/ShamanTriggers.cpp | static bool IsLustAllowed
 int main() {
  Player frost,nature,dps; frostTank=&frost; natureTank=&nature;
  Unit boss; hydross=&boss; boss.victim=&frost;
@@ -159,6 +136,11 @@ int main() {
  GroupReference member{&frost};Group group{&member};dps.group=&group;
  frost.combat=true;assert(!NeedsStateReset(&ai));frost.combat=false;
  boss.combat=true;assert(!NeedsStateReset(&ai));boss.combat=false;assert(NeedsStateReset(&ai));
+ // Leotheras Whirlwind and demon tank state is cleaned up after the fight as well.
+ state={};assert(!NeedsStateReset(&ai));
+ state.leotherasWhirlwindEnd=42;assert(NeedsStateReset(&ai));state={};
+ state.leotherasWhirlwindActive=true;assert(NeedsStateReset(&ai));state={};
+ state.leotherasDemonTank.n=7;assert(NeedsStateReset(&ai));state={};
  // Vashj pull: empty/stale targets are safe; threshold and hold-lust still work.
  Unit vashj;vashj.entry=21212;ai.resolved=&vashj;
  assert(!IsLustAllowed(&ai));ai.context.value.guid.n=1;
@@ -168,12 +150,3 @@ int main() {
  ai.lust=true;assert(!IsLustAllowed(&ai));
  std::cout << "SSC state, tank handoff and Vashj lust regression tests passed\n";
 }
-'''
-
-build = ROOT / 'build'
-source = build / 'ssc-hyjal-regressions.cpp'
-exe = build / 'ssc-hyjal-regressions.exe'
-source.write_text(fixture)
-subprocess.run(['cl', '/nologo', '/std:c++17', '/EHsc', str(source),
-                '/Fo' + str(build / 'ssc-hyjal-regressions.obj'), '/Fe' + str(exe)], check=True)
-subprocess.run([str(exe)], check=True)

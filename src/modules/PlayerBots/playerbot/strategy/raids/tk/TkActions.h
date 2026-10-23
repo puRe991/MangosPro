@@ -57,12 +57,50 @@ namespace ai
             return tk::GetPointInside(this->bot, center, radius, point) && MoveToPosition(point);
         }
 
-        // Jump off a balcony down to a ground position
+        // Jump off a balcony down to a ground position. MotionMaster::MoveJump never got a bot off the balcony
+        // (the spline was restarted every tick and stopped by the bot movement handling), so the drop uses the
+        // bots' own jump simulation like a knockback: PlayerbotAI lands the bot at the jump time.
         bool JumpTo(const tk::TkPos& position)
         {
-            this->bot->InterruptNonMeleeSpells(false);
-            this->bot->GetMotionMaster()->Clear();
-            this->bot->GetMotionMaster()->MoveJump(position.x, position.y, position.z, 20.0f, 3.0f);
+            Player* bot = this->bot;
+            PlayerbotAI* ai = this->ai;
+            if (ai->IsJumping())
+                return true; // keep the running drop, restarting it would hold the bot on the balcony
+
+            bot->InterruptNonMeleeSpells(false);
+            ai->StopMoving();
+
+            const float dx = position.x - bot->GetPositionX();
+            const float dy = position.y - bot->GetPositionY();
+            const float distance = std::sqrt(dx * dx + dy * dy);
+            const float height = std::max(0.0f, bot->GetPositionZ() - position.z);
+            const float angle = std::atan2(dy, dx);
+            constexpr float gravity = 19.2911f;
+            const float timeToLand = std::max(std::sqrt(2.0f * height / gravity), distance / bot->GetSpeed(MOVE_RUN));
+
+            float landX = position.x, landY = position.y, landZ = position.z + 0.5f;
+            bot->UpdateAllowedPositionZ(landX, landY, landZ);
+            ai->SetJumpDestination(WorldPosition(bot->GetMapId(), landX, landY, landZ));
+            bot->SetFallInformation(0, bot->GetPositionZ());
+
+            bot->SetOrientation(angle);
+            bot->m_movementInfo.jump.zspeed = 0.0f;
+            bot->m_movementInfo.jump.cosAngle = std::cos(angle);
+            bot->m_movementInfo.jump.sinAngle = std::sin(angle);
+            bot->m_movementInfo.jump.xyspeed = timeToLand > 0.0f ? distance / timeToLand : 0.0f;
+            bot->m_movementInfo.SetMovementFlags(MovementFlags(MOVEFLAG_FALLING | MOVEFLAG_FORWARD));
+
+            WorldPacket jump(MSG_MOVE_JUMP);
+            jump << bot->m_movementInfo;
+            ai->QueuePacket(jump);
+            ai->SetJumpTime(sWorld.GetCurrentMSTime() + sWorld.GetAverageDiff() * 2 + uint32(timeToLand * IN_MILLISECONDS));
+
+            // Leave the balcony right away: Flame Quills hits whoever is still standing up there
+            const float midX = bot->GetPositionX() + dx * 0.5f;
+            const float midY = bot->GetPositionY() + dy * 0.5f;
+            const float midZ = bot->GetPositionZ() - height * 0.25f;
+            if (bot->GetMap()->IsInLineOfSight(bot->GetPositionX(), bot->GetPositionY(), bot->GetPositionZ() + 2.0f, midX, midY, midZ + 2.0f, true))
+                bot->Relocate(midX, midY, midZ);
             return true;
         }
     };
@@ -218,6 +256,9 @@ namespace ai
     public:
         TkVoidReaverRangedBackOffAndSpreadAction(PlayerbotAI* ai) : TkMovementAction(ai, "void reaver ranged back off and spread") {}
         bool Execute(Event& event) override;
+
+    private:
+        bool GetRangedSlot(Unit* voidReaver, float radius, WorldPosition& slot);
     };
 
     class TkVoidReaverAvoidArcaneOrbAction : public TkMovementAction

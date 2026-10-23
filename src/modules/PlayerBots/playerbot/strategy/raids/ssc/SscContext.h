@@ -44,6 +44,8 @@ namespace ai
             creators["leotheras the blind final phase assign dps priority"] = [](PlayerbotAI* ai) { return new SscLeotherasFinalPhaseAssignDpsPriorityAction(ai); };
             creators["leotheras the blind misdirect boss to demon form tank"] = [](PlayerbotAI* ai) { return new SscLeotherasMisdirectBossToDemonFormTankAction(ai); };
             creators["leotheras the blind manage dps wait timers"] = [](PlayerbotAI* ai) { return new SscLeotherasManageDpsWaitTimersAction(ai); };
+            creators["leotheras the blind heal demon form tank"] = [](PlayerbotAI* ai) { return new SscLeotherasHealDemonFormTankAction(ai); };
+            creators["leotheras the blind attack mind controlled player"] = [](PlayerbotAI* ai) { return new SscLeotherasAttackMindControlledPlayerAction(ai); };
             creators["fathom-lord karathress main tank position boss"] = [](PlayerbotAI* ai) { return new SscKarathressMainTankPositionBossAction(ai); };
             creators["fathom-lord karathress first assist tank position caribdis"] = [](PlayerbotAI* ai) { return new SscKarathressFirstAssistTankPositionCaribdisAction(ai); };
             creators["fathom-lord karathress second assist tank position sharkkis"] = [](PlayerbotAI* ai) { return new SscKarathressSecondAssistTankPositionSharkkisAction(ai); };
@@ -103,6 +105,8 @@ namespace ai
             creators["leotheras the blind entered final phase"] = [](PlayerbotAI* ai) { return new SscLeotherasEnteredFinalPhaseTrigger(ai); };
             creators["leotheras the blind demon form tank needs aggro"] = [](PlayerbotAI* ai) { return new SscLeotherasDemonFormTankNeedsAggroTrigger(ai); };
             creators["leotheras the blind boss wipes aggro upon phase change"] = [](PlayerbotAI* ai) { return new SscLeotherasBossWipesAggroUponPhaseChangeTrigger(ai); };
+            creators["leotheras the blind demon form tank needs healing"] = [](PlayerbotAI* ai) { return new SscLeotherasDemonFormTankNeedsHealingTrigger(ai); };
+            creators["leotheras the blind player is mind controlled"] = [](PlayerbotAI* ai) { return new SscLeotherasPlayerIsMindControlledTrigger(ai); };
             creators["fathom-lord karathress boss engaged by main tank"] = [](PlayerbotAI* ai) { return new SscKarathressBossEngagedByMainTankTrigger(ai); };
             creators["fathom-lord karathress caribdis engaged by first assist tank"] = [](PlayerbotAI* ai) { return new SscKarathressCaribdisEngagedByFirstAssistTankTrigger(ai); };
             creators["fathom-lord karathress sharkkis engaged by second assist tank"] = [](PlayerbotAI* ai) { return new SscKarathressSharkkisEngagedBySecondAssistTankTrigger(ai); };

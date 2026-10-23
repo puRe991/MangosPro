@@ -495,8 +495,23 @@ bool TkVoidReaverRangedBackOffAndSpreadAction::Execute(Event& event)
         return false;
 
     constexpr float minDistFromBoss = 38.5f;    // 22 yards between the bounding radii
+    constexpr float tolerance = 2.5f;           // don't walk back out for every small step inwards
+    constexpr float slotTolerance = 3.0f;
+
+    // Every ranged bot owns a fixed spot on a wide circle around the boss. Dodging an orb only steps
+    // aside and the bot walks back to its spot afterwards, instead of the ranged drifting around the
+    // boss in a clump from one orb dodge to the next.
+    WorldPosition slot;
+    if (GetRangedSlot(voidReaver, minDistFromBoss, slot))
+    {
+        if (raidboss::ExactDist2d(bot, slot.getX(), slot.getY()) <= slotTolerance)
+            return false;
+
+        return MoveToPosition(slot);
+    }
+
     const float distance = raidboss::ExactDist2d(bot, voidReaver);
-    if (distance < minDistFromBoss)
+    if (distance < minDistFromBoss - tolerance)
         return MoveAwayFrom(voidReaver, minDistFromBoss - distance);
 
     if (voidReaver->GetHealthPercent() > 90.0f)
@@ -506,6 +521,49 @@ bool TkVoidReaverRangedBackOffAndSpreadAction::Execute(Event& event)
     constexpr float minDistFromPlayer = 3.0f;
     Player* nearestPlayer = raidboss::GetNearestPlayerInRadius(bot, minDistFromPlayer);
     return nearestPlayer && MoveAwayFrom(nearestPlayer, minDistFromPlayer);
+}
+
+bool TkVoidReaverRangedBackOffAndSpreadAction::GetRangedSlot(Unit* voidReaver, float radius, WorldPosition& slot)
+{
+    // The ranged bots in a fixed order (by guid) so every bot computes the same spot assignment
+    std::vector<Player*> ranged;
+    for (Player* member : raidboss::GetGroupMembers(bot, 200.0f, true))
+    {
+        if (member->IsAlive() && raidboss::IsRangedPlayer(member) && !PlayerbotAI::IsTank(member))
+            ranged.push_back(member);
+    }
+
+    std::sort(ranged.begin(), ranged.end(), [](Player* a, Player* b) { return a->GetObjectGuid().GetCounter() < b->GetObjectGuid().GetCounter(); });
+    const int index = raidboss::GetIndexOf(bot, ranged);
+    if (index < 0)
+        return false;
+
+    // Spots blocked by walls or off the floor are left out, the rest is shared out evenly
+    constexpr uint8 numAngles = 36;
+    const float bossX = voidReaver->GetPositionX();
+    const float bossY = voidReaver->GetPositionY();
+    const float bossZ = voidReaver->GetPositionZ();
+    std::vector<WorldPosition> spots;
+    for (uint8 i = 0; i < numAngles; ++i)
+    {
+        const float angle = 2.0f * M_PI_F * i / numAngles;
+        const float x = bossX + radius * std::cos(angle);
+        const float y = bossY + radius * std::sin(angle);
+        const float z = bot->GetMap()->GetHeight(x, y, bossZ + 5.0f);
+        if (z <= INVALID_HEIGHT || std::fabs(z - bossZ) > 5.0f)
+            continue;
+
+        if (!bot->GetMap()->IsInLineOfSight(bossX, bossY, bossZ + 2.0f, x, y, z + 2.0f, true))
+            continue;
+
+        spots.push_back(WorldPosition(bot->GetMapId(), x, y, z));
+    }
+
+    if (spots.empty())
+        return false;
+
+    slot = spots[(size_t(index) * spots.size() / ranged.size()) % spots.size()];
+    return true;
 }
 
 bool TkVoidReaverAvoidArcaneOrbAction::Execute(Event& event)
@@ -521,8 +579,9 @@ bool TkVoidReaverAvoidArcaneOrbAction::Execute(Event& event)
     constexpr float searchStep = M_PI_F / 12.0f;
     constexpr float minSearchDist = 1.0f;
     constexpr float searchDistStep = 1.0f;
-    constexpr float minDistFromBoss = 35.5f;
-    constexpr float maxDistFromBoss = 43.5f;
+    // Same band the ranged back off to, so a dodge does not trigger another back-off move right after
+    constexpr float minDistFromBoss = 36.0f;
+    constexpr float maxDistFromBoss = 44.0f;
     constexpr uint8 numAngles = 24;
     constexpr uint8 numDistSteps = 39;
     constexpr float safeDistanceSq = ARCANE_ORB_SAFE_DISTANCE * ARCANE_ORB_SAFE_DISTANCE;
@@ -580,7 +639,31 @@ bool TkVoidReaverAvoidArcaneOrbAction::Execute(Event& event)
     bot->InterruptNonMeleeSpells(false);
 
     if (!bestCandidates.empty())
-        return MoveToPosition(bestCandidates[urand(0, bestCandidates.size() - 1)]);
+    {
+        // Of the equally short moves take the one farthest from other players: bots dodging to the
+        // same orb edge clump up, and the next orb then sends the whole clump running again.
+        const std::vector<Player*> members = raidboss::GetGroupMembers(bot, 80.0f, false);
+        const WorldPosition* best = &bestCandidates.front();
+        float bestSpread = -1.0f;
+        for (const WorldPosition& candidate : bestCandidates)
+        {
+            float nearestSq = std::numeric_limits<float>::max();
+            for (Player* member : members)
+            {
+                const float dx = candidate.getX() - member->GetPositionX();
+                const float dy = candidate.getY() - member->GetPositionY();
+                nearestSq = std::min(nearestSq, dx * dx + dy * dy);
+            }
+
+            if (nearestSq > bestSpread)
+            {
+                bestSpread = nearestSq;
+                best = &candidate;
+            }
+        }
+
+        return MoveToPosition(*best);
+    }
 
     const WorldPosition& orb = activeOrbs.front();
     return MoveAwayFrom(orb.getX(), orb.getY(), ARCANE_ORB_SAFE_DISTANCE - raidboss::ExactDist2d(bot, orb.getX(), orb.getY()));

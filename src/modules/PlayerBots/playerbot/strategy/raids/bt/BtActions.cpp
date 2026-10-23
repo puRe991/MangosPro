@@ -1,6 +1,8 @@
 // Ported from mod-playerbots (AzerothCore, GPL v2+, src/Ai/Raid/BT/BTActions) and adapted for this core.
 #include "playerbot/playerbot.h"
 #include "BtActions.h"
+#include "BtNajentusRules.h"
+#include "BtSupremusRules.h"
 #include "playerbot/strategy/generic/TbcRaidStrategy.h"
 #include <algorithm>
 #include <cmath>
@@ -97,6 +99,8 @@ bool BlackTempleEraseTimersAndTrackersAction::Execute(Event& event)
     const uint32 instanceId = bot->GetInstanceId();
     if (!IsBossInCombat(bot, NPC_SUPREMUS))
         erased |= EraseState(BtState::SupremusPhaseTimer, instanceId);
+    if (!IsBossInCombat(bot, NPC_NAJENTUS))
+        erased |= EraseState(BtState::NajentusShieldTimer, instanceId);
     if (!IsBossInCombat(bot, NPC_GURTOGG_BLOODBOIL))
         erased |= EraseState(BtState::GurtoggPhaseTimer, instanceId);
     if (!IsBossInCombat(bot, NPC_GATHIOS))
@@ -144,13 +148,67 @@ bool HighWarlordNajentusDisperseRangedAction::Execute(Event& event)
     if (!najentus)
         return false;
 
-    if (FleeFrom(najentus->GetPositionX(), najentus->GetPositionY(), 10.0f, 1000))
-        return true;
+    // Each ranged player gets an own slot on a ring around the boss, a second ring once the first one gets
+    // crowded. Fleeing from the nearest player within 7 yards never settled with 20+ ranged and they spent
+    // the fight moving instead of casting.
+    std::vector<Player*> ranged;
+    for (Player* member : raidboss::GetGroupMembers(bot, 200.0f, true))
+    {
+        if (raidboss::IsRangedPlayer(member))
+            ranged.push_back(member);
+    }
 
-    if (Player* nearest = raidboss::GetNearestPlayerInRadius(bot, 7.0f))
-        return FleeFrom(nearest->GetPositionX(), nearest->GetPositionY(), 7.0f, 1000);
+    const int index = raidboss::GetIndexOf(bot, ranged);
+    if (index < 0)
+        return false;
 
-    return false;
+    float ringRadius, angle;
+    najentus::RangedSlot(index, int(ranged.size()), ringRadius, angle);
+    const float slotX = najentus->GetPositionX() + ringRadius * std::cos(angle);
+    const float slotY = najentus->GetPositionY() + ringRadius * std::sin(angle);
+
+    const float arrivalTolerance = 4.0f;
+    if (raidboss::ExactDist2d(bot, slotX, slotY) <= arrivalTolerance)
+        return false;
+
+    float stepX, stepY, stepZ;
+    if (!raidboss::CanTakeStepTowards(bot, slotX, slotY, 8.0f, stepX, stepY, stepZ))
+        return false;
+
+    return MoveTo(bot->GetMapId(), stepX, stepY, stepZ, false, false, false, true);
+}
+
+bool HighWarlordNajentusSpreadMeleeAction::Execute(Event& event)
+{
+    Unit* najentus = FindBoss(ai, NPC_NAJENTUS);
+    if (!najentus)
+        return false;
+
+    // Two groups on the rear flanks instead of one pile, so a Needle Spine splash only hits half of the melee
+    std::vector<Player*> melee;
+    for (Player* member : raidboss::GetGroupMembers(bot, 200.0f, true))
+    {
+        if (raidboss::IsMeleePlayer(member) && !PlayerbotAI::IsTank(member))
+            melee.push_back(member);
+    }
+
+    const int index = raidboss::GetIndexOf(bot, melee);
+    if (index < 0)
+        return false;
+
+    const float angle = najentus::MeleeGroupAngle(index, najentus->GetOrientation());
+    const float radius = najentus::MeleeRadius(najentus->GetCombatReach());
+    const float slotX = najentus->GetPositionX() + radius * std::cos(angle);
+    const float slotY = najentus->GetPositionY() + radius * std::sin(angle);
+
+    if (raidboss::ExactDist2d(bot, slotX, slotY) <= 2.0f)
+        return false;
+
+    float stepX, stepY, stepZ;
+    if (!raidboss::CanTakeStepTowards(bot, slotX, slotY, 8.0f, stepX, stepY, stepZ))
+        return false;
+
+    return MoveTo(bot->GetMapId(), stepX, stepY, stepZ, false, false, false, true);
 }
 
 bool HighWarlordNajentusRemoveImpalingSpineAction::Execute(Event& event)
@@ -247,8 +305,11 @@ bool SupremusKiteBossAction::Execute(Event& event)
     if (!supremus)
         return false;
 
-    const float current = raidboss::ExactDist2d(bot, supremus);
-    return current < 25.0f && MoveAwayFrom(supremus, 25.0f - current);
+    const float reach = GetSupremusMeleeReach(bot, supremus);
+    if (!bt::supremus::NeedsToKite(raidboss::ExactDist2d(bot, supremus), reach))
+        return false;
+
+    return FleeFrom(supremus->GetPositionX(), supremus->GetPositionY(), bt::supremus::KiteFleeDistance(reach));
 }
 
 bool SupremusMoveAwayFromVolcanosAction::Execute(Event& event)
@@ -339,6 +400,20 @@ bool SupremusMoveAwayFromVolcanosAction::IsPathSafe(float endX, float endY, cons
     }
 
     return true;
+}
+
+// The chased player leaves the group so the flame trail only hits one person
+bool SupremusLeadMoltenFlameAwayAction::Execute(Event& event)
+{
+    Unit* flame = GetSupremusMoltenFlameChasingBot(bot);
+    if (!flame)
+        return false;
+
+    if (Player* nearest = raidboss::GetNearestPlayerInRadius(bot, 12.0f))
+        return FleeFrom(nearest->GetPositionX(), nearest->GetPositionY(), 12.0f, 1000);
+
+    const float current = raidboss::ExactDist2d(bot, flame);
+    return current < 8.0f && MoveAwayFrom(flame, 8.0f - current);
 }
 
 bool SupremusManagePhaseTimerAction::Execute(Event& event)

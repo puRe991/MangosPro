@@ -448,6 +448,7 @@ void PlayerbotAI::UpdateAI(uint32 elapsed, bool minimal)
             jumpTime = 0;
             fallAfterJump = false;
             ResetJumpDestination();
+            knockbackOrigin = WorldPosition();
 
             bot->InterruptMoving();
         }
@@ -474,6 +475,14 @@ void PlayerbotAI::UpdateAI(uint32 elapsed, bool minimal)
             {
                 float landingHeight = bot->m_movementInfo.pos.z;
                 bot->UpdateAllowedPositionZ(bot->m_movementInfo.pos.x, bot->m_movementInfo.pos.y, landingHeight);
+
+                // A "landing" far above the knockback start is a roof or ledge found from inside the ceiling:
+                // search the ground again from the start height
+                if (knockbackOrigin && landingHeight > knockbackOrigin.getZ() + 5.0f)
+                {
+                    const float groundZ = bot->GetMap()->GetHeight(bot->m_movementInfo.pos.x, bot->m_movementInfo.pos.y, knockbackOrigin.getZ() + 3.0f);
+                    landingHeight = groundZ > INVALID_HEIGHT && std::fabs(groundZ - knockbackOrigin.getZ()) < 10.0f ? groundZ : knockbackOrigin.getZ();
+                }
 
                 // calculate fall time
                 float gravity = 19.2911f;
@@ -1583,6 +1592,7 @@ void PlayerbotAI::Reset(bool full)
         jumpTime = 0;
         fallAfterJump = false;
         ResetJumpDestination();
+        knockbackOrigin = WorldPosition();
 
         WorldSession* botWorldSessionPtr = bot->GetSession();
         bool logout = botWorldSessionPtr->ShouldLogOut(time(nullptr));
@@ -2148,6 +2158,18 @@ void PlayerbotAI::HandleBotOutgoingPacket(const WorldPacket& packet)
         // stop movement
         StopMoving();
 
+        // Quake pulses every second, so a knockback can arrive while the bot still hangs at the top of the
+        // previous arc: start the new arc from the ground below, otherwise every pulse stacks height on the last
+        if (jumpTime && knockbackOrigin)
+        {
+            float groundZ = bot->GetMap()->GetHeight(bot->GetPositionX(), bot->GetPositionY(), knockbackOrigin.getZ() + 3.0f);
+            if (groundZ <= INVALID_HEIGHT || std::fabs(groundZ - knockbackOrigin.getZ()) >= 10.0f)
+                groundZ = knockbackOrigin.getZ();
+            bot->Relocate(bot->GetPositionX(), bot->GetPositionY(), groundZ);
+        }
+        else
+            knockbackOrigin = WorldPosition(bot);
+
         float timeToLand, distToLand, maxHeight;
         bool goodLanding = true;
         float angleRadian = (vsin > 0) ? acos(vcos) : -acos(vcos);
@@ -2223,7 +2245,11 @@ void PlayerbotAI::HandleBotOutgoingPacket(const WorldPacket& packet)
                 highestPoint = point;
         }
 
-        bot->Relocate(highestPoint.getX(), highestPoint.getY(), highestPoint.getZ());
+        // The arc is not collision checked: under a ceiling (Magtheridon's Lair) its top lies inside or above
+        // the roof and the fall simulation then "landed" the bot on it, stuck in the air for the rest of the fight
+        if (bot->GetMap()->IsInLineOfSight(bot->GetPositionX(), bot->GetPositionY(), bot->GetPositionZ() + 2.0f,
+            highestPoint.getX(), highestPoint.getY(), highestPoint.getZ() + 2.0f, true))
+            bot->Relocate(highestPoint.getX(), highestPoint.getY(), highestPoint.getZ());
         //bot->m_movementInfo.ChangePosition(dest_calculated.getX(), dest_calculated.getY(), dest_calculated.getZ(), bot->GetOrientation());
         sLog.outDetail("%s: KNOCKBACK x: %f, y: %f, z: %f, time: %f, dist: %f, maxHeight: %f inPlace: %u, landTime: %u", bot->GetName(), dest_calculated.getX(), dest_calculated.getY(), dest_calculated.getZ(), timeToLand, distToLand, maxHeight, jumpInPlace, jumpTime);
         return;
@@ -8460,7 +8486,20 @@ Item* PlayerbotAI::FindStoneFor(Item* weapon) const
             if (stone)
                 return stone;
         }
+
+#ifdef MANGOSBOT_ONE
+        if (HasCheat(BotCheatMask::item))
+            return CreateCheatConsumable(28421); // Adamantite Weightstone
+#endif
+        return nullptr;
     }
+
+#ifdef MANGOSBOT_ONE
+    if (pProto && pProto->Class == ITEM_CLASS_WEAPON && (pProto->SubClass == ITEM_SUBCLASS_WEAPON_SWORD || pProto->SubClass == ITEM_SUBCLASS_WEAPON_SWORD2
+        || pProto->SubClass == ITEM_SUBCLASS_WEAPON_AXE || pProto->SubClass == ITEM_SUBCLASS_WEAPON_AXE2
+        || pProto->SubClass == ITEM_SUBCLASS_WEAPON_DAGGER) && HasCheat(BotCheatMask::item))
+        return CreateCheatConsumable(23529); // Adamantite Sharpening Stone
+#endif
 
     return nullptr;
 }
@@ -8516,8 +8555,31 @@ Item* PlayerbotAI::FindOilFor(Item* weapon) const
         }
     }
 
+#ifdef MANGOSBOT_ONE
+    // Nothing refills the bags of level 70 bots: with the item cheat the best TBC oil is created
+    if (!oil && pProto && HasCheat(BotCheatMask::item))
+    {
+        const bool manaOil = pProto->SubClass == ITEM_SUBCLASS_WEAPON_MACE || pProto->SubClass == ITEM_SUBCLASS_WEAPON_MACE2;
+        const bool wizardOil = pProto->SubClass == ITEM_SUBCLASS_WEAPON_SWORD || pProto->SubClass == ITEM_SUBCLASS_WEAPON_STAFF ||
+            pProto->SubClass == ITEM_SUBCLASS_WEAPON_DAGGER;
+        if (manaOil || wizardOil)
+            oil = CreateCheatConsumable(manaOil ? 22521 : 22522); // Superior Mana Oil / Superior Wizard Oil
+    }
+#endif
+
     return oil;
 }
+
+#ifdef MANGOSBOT_ONE
+Item* PlayerbotAI::CreateCheatConsumable(uint32 itemId) const
+{
+    const ItemPrototype* proto = sObjectMgr.GetItemPrototype(itemId);
+    if (!proto || bot->GetLevel() < proto->RequiredLevel)
+        return nullptr;
+
+    return bot->StoreNewItemInInventorySlot(itemId, 1);
+}
+#endif
 
 //  on self
 void PlayerbotAI::ImbueItem(Item* item)

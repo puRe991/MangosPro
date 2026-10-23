@@ -1,6 +1,7 @@
 #pragma once
 
 #include "playerbot/WorldPosition.h"
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -56,6 +57,11 @@ namespace ai
         // that the step can be taken (ground height and line of sight). stepZ is snapped to the ground.
         bool CanTakeStepTowards(Player* bot, float destinationX, float destinationY, float moveDist,
                                 float& stepX, float& stepY, float& stepZ);
+        // Melee spread: the spot on the melee ring around the target with the least overlap with other
+        // group members inside spreadDistance. 'blocked' rejects spots (e.g. ground effects).
+        // False if the current spot is already good enough (hysteresis) or no better spot was found.
+        bool GetMeleeRingSpreadPosition(Player* bot, Unit* target, float spreadDistance, float& x, float& y, float& z,
+                                        const std::function<bool(float, float)>& blocked = nullptr);
         // Step towards a position without collision checks, false once within arrivalDist.
         // 'facing' (the tanked mob) allows walking backwards while tanking.
         bool GetStepToPosition(Player* bot, const WorldPosition& position, float arrivalDist, Unit* facing,
@@ -85,6 +91,11 @@ namespace ai
         Player* GetGroupAssistTank(Player* bot, uint8 index);
         bool IsMainTank(Player* bot);
         bool IsAssistTank(Player* bot, uint8 index);
+        // Raids usually bring only two tanks: an assist tank slot without a real tank goes to a
+        // stand-in, a melee dps bot that can survive an add (warrior, paladin, feral druid in that order)
+        std::vector<Player*> GetGroupStandInTanks(Player* bot);
+        Player* GetGroupAssistTankOrStandIn(Player* bot, uint8 index);
+        bool IsAssistTankOrStandIn(Player* bot, uint8 index);
         // Members of a role in group order (used to give each bot its own job)
         std::vector<Player*> GetGroupTanks(Player* bot);
         std::vector<Player*> GetGroupHealers(Player* bot);

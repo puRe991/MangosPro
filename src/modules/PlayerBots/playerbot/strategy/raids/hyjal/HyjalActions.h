@@ -263,4 +263,56 @@ namespace ai
         ArchimondeAvoidDoomfireAction(PlayerbotAI* ai) : HyjalMovementAction(ai, "archimonde avoid doomfire") {}
         bool Execute(Event& event) override;
     };
+
+    class ArchimondeUseTearsOfTheGoddessAction : public Action
+    {
+    public:
+        ArchimondeUseTearsOfTheGoddessAction(PlayerbotAI* ai) : Action(ai, "archimonde use tears of the goddess") {}
+        bool Execute(Event& event) override;
+    };
+
+    class ArchimondeDecurseGripOfTheLegionAction : public HyjalMovementAction
+    {
+    public:
+        ArchimondeDecurseGripOfTheLegionAction(PlayerbotAI* ai) : HyjalMovementAction(ai, "archimonde decurse grip of the legion") {}
+        bool Execute(Event& event) override;
+    };
+
+    class ArchimondeStayNearTremorTotemAction : public HyjalMovementAction
+    {
+    public:
+        ArchimondeStayNearTremorTotemAction(PlayerbotAI* ai) : HyjalMovementAction(ai, "archimonde stay near tremor totem") {}
+        bool Execute(Event& event) override;
+    };
+
+    class ArchimondeMoveBossAwayFromDoomfireAction : public HyjalMovementAction
+    {
+    public:
+        ArchimondeMoveBossAwayFromDoomfireAction(PlayerbotAI* ai) : HyjalMovementAction(ai, "archimonde move boss away from doomfire") {}
+        bool Execute(Event& event) override;
+    };
+
+    class ArchimondeSpreadMeleeAction : public HyjalMovementAction
+    {
+    public:
+        ArchimondeSpreadMeleeAction(PlayerbotAI* ai) : HyjalMovementAction(ai, "archimonde spread melee") {}
+        bool Execute(Event& event) override;
+
+    private:
+        uint32 lastMoveTime = 0;
+    };
+
+    class ArchimondeStayAliveAction : public Action
+    {
+    public:
+        ArchimondeStayAliveAction(PlayerbotAI* ai) : Action(ai, "archimonde stay alive") {}
+        bool Execute(Event& event) override;
+    };
+
+    class ArchimondeBurnBeforeHandOfDeathAction : public Action
+    {
+    public:
+        ArchimondeBurnBeforeHandOfDeathAction(PlayerbotAI* ai) : Action(ai, "archimonde burn before hand of death") {}
+        bool Execute(Event& event) override;
+    };
 }

@@ -30,8 +30,7 @@ bool ReadLine(socket_ptr sock, std::string* buffer, std::string* line)
         else if (error)
             throw boost::system::system_error(error); // Some other error.
 
-        buf[n] = 0;
-        *buffer += buf;
+        buffer->append(buf, n); // read_some may fill all of buf, no room for a terminator
     }
 
     *line = std::string(buffer->begin(), pos);

@@ -36,6 +36,7 @@ namespace ai
     };
 
     HYJAL_MULTIPLIER(HyjalDisableDisperseAndTankFaceMultiplier, "hyjal disable disperse and tank face")
+    HYJAL_MULTIPLIER(HyjalMainTankNoImmunityMultiplier, "hyjal main tank no immunity")
 
     // Rage Winterchill
     HYJAL_MULTIPLIER(RageWinterchillMeleeControlAvoidanceMultiplier, "rage winterchill melee control avoidance")
@@ -47,6 +48,7 @@ namespace ai
     HYJAL_MULTIPLIER(AnetheronInfernalTargetRunToPositionMultiplier, "anetheron infernal target run to position")
     HYJAL_MULTIPLIER(AnetheronControlMovementMultiplier, "anetheron control movement")
     HYJAL_MULTIPLIER(AnetheronControlMisdirectionMultiplier, "anetheron control misdirection")
+    HYJAL_MULTIPLIER(AnetheronControlTauntMultiplier, "anetheron control taunt")
 
     // Kaz'rogal
     HYJAL_MULTIPLIER(KazrogalControlLowManaMovementMultiplier, "kaz'rogal control low mana movement")

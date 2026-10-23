@@ -168,6 +168,33 @@ namespace ai
         UseManaPotionAction(PlayerbotAI* ai) : UsePotionAction(ai, "mana potion", SPELL_EFFECT_ENERGIZE) {}
     };
 
+#ifndef MANGOSBOT_ZERO
+    // Role potion against raid bosses: at the pull (instead of a pre-pot) and in the burn phase.
+    // The middle of the fight keeps the shared potion cooldown free for healing and mana potions.
+    class UseBossPotionAction : public UseItemIdAction
+    {
+    public:
+        UseBossPotionAction(PlayerbotAI* ai) : UseItemIdAction(ai, "boss potion") {}
+        bool isUseful() override;
+        bool ShouldReactionInterruptCast() const override { return false; }
+
+    protected:
+        uint32 GetItemId() override;
+    };
+
+    // Role flask inside raid instances, kept up between the fights
+    class UseRaidFlaskAction : public UseItemIdAction
+    {
+    public:
+        UseRaidFlaskAction(PlayerbotAI* ai) : UseItemIdAction(ai, "raid flask") {}
+        bool isUseful() override;
+        bool ShouldReactionInterruptCast() const override { return false; }
+
+    protected:
+        uint32 GetItemId() override;
+    };
+#endif
+
     class UseHearthStoneAction : public UseAction
     {
     public:
@@ -214,6 +241,7 @@ namespace ai
                 {
                     return 9421;
                 }
+#ifdef MANGOSBOT_TWO
                 else if(level >= 61 && level < 63)
                 {
                     return 22103;
@@ -226,6 +254,13 @@ namespace ai
                 {
                     return 36892;
                 }
+#else
+                // 36889/36892 are WotLK healthstones and do not exist before 3.0
+                else
+                {
+                    return 22103;
+                }
+#endif
             }
 
             return items.front()->GetProto()->ItemId;
@@ -486,11 +521,12 @@ namespace ai
             if (bot->GetSkillValue(129) < 1)
                 return false;
               
-            // Prevent tanks from bandaging in dungeons and raids
-            if (ai->IsTank(bot) && ai->IsStateActive(BotState::BOT_STATE_COMBAT))
+            // Prevent tanks from bandaging in dungeons and everyone in raid fights: the 8 second channel
+            // stands in boss ground effects (Death and Decay etc.) and the raid has its healers
+            if (bot->IsInCombat() || ai->IsStateActive(BotState::BOT_STATE_COMBAT))
             {
                 const Map* map = bot->GetMap();
-                if (map->IsDungeon() || map->IsRaid())
+                if (map->IsRaid() || (ai->IsTank(bot) && map->IsDungeon()))
                 {
                     return false;
                 }

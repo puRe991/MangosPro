@@ -112,7 +112,7 @@ bool PlayerLoginInfo::IsInPlayerGroup(const LoginSpace& space) const
 
 bool PlayerLoginInfo::IsInPlayerGuild(const LoginSpace& space) const
 {
-    if (space.realPlayerInfos.empty())
+    if (!guildId || space.realPlayerInfos.empty()) // two players without a guild do not share one
         return false;
 
     for (auto& player : space.realPlayerInfos)
@@ -174,6 +174,8 @@ bool PlayerLoginInfo::SendHolder()
     if (!lqh->Initialize())
     {
         delete holder;                                      // delete all unprocessed queries
+        holder = nullptr;
+        holderState = HolderState::HOLDER_EMPTY;            // no callback follows, allow a new attempt
         return false;
     }
 

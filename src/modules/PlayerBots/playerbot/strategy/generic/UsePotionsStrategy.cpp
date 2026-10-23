@@ -50,9 +50,22 @@ void UsePotionsStrategy::InitCombatTriggers(std::list<TriggerNode*> &triggers)
     triggers.push_back(new TriggerNode(
         "has poison debuff",
         NextAction::array(0, new NextAction("anti-venom", ACTION_DISPEL), NULL)));
+
+#ifndef MANGOSBOT_ZERO
+    triggers.push_back(new TriggerNode(
+        "consumables timer",
+        NextAction::array(0, new NextAction("boss potion", ACTION_HIGH), NULL)));
+#endif
 }
 
 void UsePotionsStrategy::InitReactionTriggers(std::list<TriggerNode*>& triggers)
 {
     InitCombatTriggers(triggers);
+
+#ifndef MANGOSBOT_ZERO
+    // Out of combat only (checked by the action)
+    triggers.push_back(new TriggerNode(
+        "consumables timer",
+        NextAction::array(0, new NextAction("raid flask", ACTION_NORMAL), NULL)));
+#endif
 }

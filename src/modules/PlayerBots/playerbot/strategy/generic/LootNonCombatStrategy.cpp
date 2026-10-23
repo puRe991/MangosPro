@@ -40,7 +40,7 @@ void RevealStrategy::InitNonCombatTriggers(std::list<TriggerNode*> &triggers)
 void RollStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
 {
     triggers.push_back(new TriggerNode(
-        "very often",
+        "active loot rolls",
         NextAction::array(0, new NextAction("auto loot roll", 100.0f), NULL)));
 }
 

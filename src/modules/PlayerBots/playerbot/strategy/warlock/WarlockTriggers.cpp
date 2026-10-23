@@ -2,6 +2,8 @@
 #include "playerbot/playerbot.h"
 #include "WarlockTriggers.h"
 #include "WarlockActions.h"
+#include "playerbot/strategy/generic/TbcRaidEncounters.h"
+#include "playerbot/strategy/generic/TbcRotationRules.h"
 
 using namespace ai;
 
@@ -26,7 +28,133 @@ bool InfernoTrigger::IsActive()
 bool CorruptionTrigger::IsActive()
 {
 	Unit* target = GetTarget();
-	return target && !ai->HasAura("corruption", target) && !ai->HasAura("seed of corruption", target) && !HasMaxDebuffs();
+	return target && target->IsAlive() && !ai->HasAura("corruption", target, false, true) &&
+		   !ai->HasAura("seed of corruption", target, false, true) && !HasMaxDebuffs();
+}
+
+bool SiphonLifeTrigger::IsActive()
+{
+	if (!OwnDebuffTrigger::IsActive())
+		return false;
+
+	return ai->HasAura("shadow vulnerability", GetTarget()) || !warlockcurse::GroupHasImprovedShadowBolt(ai);
+}
+
+namespace
+{
+	const std::vector<std::string> manualCurseStrategies = {
+		"curse agony", "curse doom", "curse elements", "curse recklessness",
+		"curse weakness", "curse tongues", "curse shadow"
+	};
+
+	bool HasManualCurse(PlayerbotAI* ai)
+	{
+		for (const std::string& strategy : manualCurseStrategies)
+		{
+			if (ai->HasStrategy(strategy, BotState::BOT_STATE_COMBAT))
+				return true;
+		}
+
+		return false;
+	}
+
+	bool HasAnySpell(Player* player, std::initializer_list<uint32> spellIds)
+	{
+		for (uint32 spellId : spellIds)
+		{
+			if (player->HasSpell(spellId))
+				return true;
+		}
+
+		return false;
+	}
+
+	bool HasMalediction(Player* player)
+	{
+		return HasAnySpell(player, { 32477, 32483, 32484 });
+	}
+}
+
+bool warlockcurse::GroupHasImprovedShadowBolt(PlayerbotAI* ai)
+{
+	Player* bot = ai->GetBot();
+	const std::initializer_list<uint32> improvedShadowBolt = { 17793, 17796, 17801, 17802, 17803 };
+	Group* group = bot->GetGroup();
+	if (!group)
+		return HasAnySpell(bot, improvedShadowBolt);
+
+	for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
+	{
+		Player* member = ref->getSource();
+		if (member && member->getClass() == CLASS_WARLOCK && member->IsAlive() &&
+			member->GetMapId() == bot->GetMapId() && HasAnySpell(member, improvedShadowBolt))
+			return true;
+	}
+
+	return false;
+}
+
+std::string warlockcurse::GetAssignedCurse(PlayerbotAI* ai, Unit* target)
+{
+	Player* bot = ai->GetBot();
+	Group* group = bot->GetGroup();
+	if (!group || !target || HasManualCurse(ai))
+		return "";
+
+	// Bot warlocks sorted so every bot computes the same order: Malediction first, then guid
+	std::vector<Player*> warlocks;
+	unsigned melee = 0, members = 0;
+	for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
+	{
+		Player* member = ref->getSource();
+		if (!member || !member->IsInWorld() || member->GetMapId() != bot->GetMapId())
+			continue;
+
+		members++;
+		if (tbcraid::GetRole(ai, member) == tbcraid::ROLE_MELEE)
+			melee++;
+
+		PlayerbotAI* memberAi = member->GetPlayerbotAI();
+		if (member->getClass() == CLASS_WARLOCK && member->IsAlive() && memberAi &&
+			!memberAi->IsRealPlayer() && !HasManualCurse(memberAi))
+			warlocks.push_back(member);
+	}
+
+	std::sort(warlocks.begin(), warlocks.end(), [](Player* a, Player* b)
+	{
+		const bool aMalediction = HasMalediction(a), bMalediction = HasMalediction(b);
+		if (aMalediction != bMalediction)
+			return aMalediction;
+		return a->GetObjectGuid() < b->GetObjectGuid();
+	});
+
+	const auto self = std::find(warlocks.begin(), warlocks.end(), bot);
+	if (self == warlocks.end())
+		return "";
+
+	const bool doomFight = target->GetTypeId() == TYPEID_UNIT && tbc::CurseOfDoomFight(target->GetHealth(), members);
+	return tbc::RaidCurse(unsigned(self - warlocks.begin()), melee, doomFight);
+}
+
+bool AssignedCurseTrigger::IsActive()
+{
+	Unit* target = GetTarget();
+	if (!target || !target->IsAlive() || warlockcurse::GetAssignedCurse(ai, target) != curse)
+		return false;
+
+	// Elements and Recklessness are raid debuffs, anyone's counts; Doom and Agony are personal
+	const bool raidDebuff = curse == "curse of the elements" || curse == "curse of recklessness";
+	return !ai->HasAura(curse, target, false, !raidDebuff);
+}
+
+bool NoDemonTrigger::IsActive()
+{
+	if (ai->GetUnit(AI_VALUE(ObjectGuid, "pet target")) || AI_VALUE2(bool, "mounted", "self target"))
+		return false;
+
+	// A sacrificed demon must stay sacrificed, summoning would remove the buff
+	return !ai->HasAura(18789, bot) && !ai->HasAura(18790, bot) && !ai->HasAura(18791, bot) &&
+		   !ai->HasAura(18792, bot) && !ai->HasAura(35701, bot);
 }
 
 bool LifeTapTrigger::IsActive()
@@ -195,7 +323,8 @@ bool ConflagrateTrigger::IsActive()
 
 bool DemonicSacrificeTrigger::IsActive()
 {
-	if (ai->HasStrategy("pet", BotState::BOT_STATE_COMBAT))
+	// A Felguard build keeps its Felguard instead of sacrificing it
+	if (ai->HasStrategy("pet", BotState::BOT_STATE_COMBAT) && !bot->HasSpell(30146))
 	{
 		return ai->HasSpell(18788) &&
 			   !ai->HasAura(18789, bot) && // Burning Wish (Imp)

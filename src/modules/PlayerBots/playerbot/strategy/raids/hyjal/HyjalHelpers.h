@@ -52,6 +52,9 @@ namespace ai
             SPELL_DOOMFIRE_DOT        = 31969,  // DoT after leaving the trail
             SPELL_AIR_BURST           = 32014,
             SPELL_PROTECTION_OF_ELUNE = 38528,
+            SPELL_GRIP_OF_THE_LEGION  = 31972,  // curse, 5 min unless decursed
+            SPELL_ELUNES_EMBRACE      = 32028,  // slow fall of Tears of the Goddess (item 24494)
+            NPC_TREMOR_TOTEM          = 5913,
 
             // Hunter
             SPELL_MISDIRECTION_AURA   = 35079,
@@ -232,6 +235,15 @@ namespace ai
         std::vector<WorldPosition> GetDoomfirePositions(PlayerbotAI* ai);
         // Player Archimonde is casting Air Burst on
         Player* GetAirBurstTarget(Unit* archimonde);
+
+        // Tremor Totem pulses every 5s within 30y; a little margin for the pulse
+        constexpr float TREMOR_TOTEM_RANGE = 26.0f;
+        // Nearest Tremor Totem of a shaman in the bot's party (only the party benefits)
+        Unit* GetPartyTremorTotem(Player* bot);
+        // Nearest group member with Grip of the Legion within range
+        Player* GetGripOfTheLegionTarget(Player* bot, float range);
+        // Archimonde casts Hand of Death 10 minutes after the pull
+        constexpr time_t HAND_OF_DEATH_SECONDS = 600;
 
         // Ice Block / Divine Shield / Cloak of Shadows of the bot ("" if the class has none)
         std::string GetSelfImmunitySpellName(Player* bot);

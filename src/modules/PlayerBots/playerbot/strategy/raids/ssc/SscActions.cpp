@@ -275,20 +275,39 @@ bool SscHydrossPrioritizeElementalAddsAction::Execute(Event& event)
     return !IsCurrentTarget(elemental) && AttackUnit(elemental);
 }
 
-// To mitigate the effect of Water Tomb / Vile Sludge
+// Water Tomb (frost form only) stuns and damages everyone within 8y of its target.
+// Ranged keep in range of their target; melee only move around the ring of their melee target.
 bool SscHydrossFrostPhaseSpreadOutAction::Execute(Event& event)
 {
-    constexpr float safeDistance = 6.0f;
+    constexpr float safeDistance = 9.0f;    // Water Tomb radius 8y, 1y of padding
+    constexpr float maxRangedDistance = 30.0f;
     const uint32 now = WorldTimer::getMSTime();
     if (lastMoveTime && now >= lastMoveTime && now - lastMoveTime < 1000)
         return false;
 
-    Player* nearestPlayer = raidboss::GetNearestPlayerInRadius(bot, safeDistance);
-    if (!nearestPlayer)
+    Unit* hydross = FindSscUnit(ai, NPC_HYDROSS);
+    if (!hydross || hydross->HasAura(SPELL_CORRUPTION))
+        return false;
+
+    Unit* target = AI_VALUE(Unit*, "current target");
+    Unit* anchor = target ? target : hydross;
+    if (!raidboss::IsMeleePlayer(bot))
+    {
+        WorldPosition position;
+        if (!GetRangedSpreadPosition(bot, anchor, safeDistance, 0.0f, maxRangedDistance, position))
+            return false;
+
+        lastMoveTime = now;
+        return MoveToPosition(position);
+    }
+
+    // Melee: only spots on the ring of the melee target (reached normally first)
+    float x, y, z;
+    if (!raidboss::GetMeleeRingSpreadPosition(bot, target, safeDistance, x, y, z))
         return false;
 
     lastMoveTime = now;
-    return MoveAwayFrom(nearestPlayer, safeDistance);
+    return MoveToPosition(x, y, z);
 }
 
 bool SscHydrossMisdirectBossToTankAction::Execute(Event& event)
@@ -525,8 +544,20 @@ bool SscLeotherasPositionRangedAction::Execute(Event& event)
         return MoveAwayFrom(leotherasHuman, safeDistFromBoss);
     }
 
+    // Human form: spread before Whirlwind, so that one spin hits as few players as possible
     if (!GetActiveLeotherasDemon(ai))
-        return false;
+    {
+        constexpr float humanFormSpread = 8.0f;
+        if (!leotherasHuman || (lastMoveTime && now >= lastMoveTime && now - lastMoveTime < 1000))
+            return false;
+
+        WorldPosition position;
+        if (!GetRangedSpreadPosition(bot, leotherasHuman, humanFormSpread, safeDistFromBoss, 30.0f, position))
+            return false;
+
+        lastMoveTime = now;
+        return MoveToPosition(position);
+    }
 
     Player* demonTank = GetLeotherasDemonFormTank(bot);
     for (Player* member : raidboss::GetGroupMembers(bot, 30.0f, false))
@@ -681,9 +712,14 @@ bool SscLeotherasFinalPhaseAssignDpsPriorityAction::Execute(Event& event)
     return false;
 }
 
-// Misdirect to the Warlock tank or to the main tank if there is no Warlock tank
+// Misdirect to the Warlock tank or to the main tank if there is no Warlock tank.
+// After a Whirlwind (threat wipe) the human form goes to the main tank.
 bool SscLeotherasMisdirectBossToDemonFormTankAction::Execute(Event& event)
 {
+    Unit* leotherasHuman = GetLeotherasHuman(ai);
+    if (leotherasHuman && IsLeotherasWhirlwindAggroReset(bot))
+        return Misdirect(ai, raidboss::GetGroupMainTank(bot), leotherasHuman);
+
     Unit* leotherasDemon = GetActiveLeotherasDemon(ai);
     if (!leotherasDemon)
         return false;
@@ -695,7 +731,56 @@ bool SscLeotherasMisdirectBossToDemonFormTankAction::Execute(Event& event)
     return Misdirect(ai, targetTank, leotherasDemon);
 }
 
-// This does not pause DPS after a Whirlwind, which is also an aggro wipe
+// The two assigned healers keep the Warlock tank up against Chaos Blast
+bool SscLeotherasHealDemonFormTankAction::Execute(Event& event)
+{
+    Player* tank = GetLeotherasDemonFormTank(bot);
+    if (!tank || tank == bot || !tank->IsAlive())
+        return false;
+
+    constexpr float healRange = 35.0f;
+    if (raidboss::ExactDist2d(bot, tank) > healRange || !bot->IsWithinLOSInMap(tank))
+        return MoveToPosition(GetStepTowards(bot, WorldPosition(tank), 8.0f));
+
+    const float healthPct = tank->GetHealthPercent();
+    const bool urgent = healthPct < 50.0f;
+    switch (bot->getClass())
+    {
+    case CLASS_PRIEST:
+        if (!ai->HasAura("renew", tank) && raidboss::TryCast(ai, "renew", tank))
+            return true;
+        return raidboss::TryCast(ai, urgent ? "flash heal" : "greater heal", tank) ||
+               raidboss::TryCast(ai, "flash heal", tank);
+    case CLASS_PALADIN:
+        return raidboss::TryCast(ai, urgent ? "holy light" : "flash of light", tank) ||
+               raidboss::TryCast(ai, "flash of light", tank);
+    case CLASS_SHAMAN:
+        return raidboss::TryCast(ai, urgent ? "lesser healing wave" : "healing wave", tank) ||
+               raidboss::TryCast(ai, "lesser healing wave", tank);
+    case CLASS_DRUID:
+        if (!ai->HasAura("rejuvenation", tank) && raidboss::TryCast(ai, "rejuvenation", tank))
+            return true;
+        return raidboss::TryCast(ai, urgent ? "regrowth" : "healing touch", tank) ||
+               raidboss::TryCast(ai, "regrowth", tank);
+    default:
+        return false;
+    }
+}
+
+// A player whose Inner Demon survived stays mind controlled until Leotheras dies: kill them
+bool SscLeotherasAttackMindControlledPlayerAction::Execute(Event& event)
+{
+    Player* controlled = GetLeotherasMindControlledPlayer(bot);
+    if (!controlled)
+        return false;
+
+    if (raidboss::MarkTargetWithMoon(bot, controlled))
+        return true;
+
+    return !IsCurrentTarget(controlled) && AttackUnit(controlled);
+}
+
+// Also records the end of each Whirlwind, which is an aggro wipe as well
 bool SscLeotherasManageDpsWaitTimersAction::Execute(Event& event)
 {
     Unit* leotheras = FindSscUnit(ai, NPC_LEOTHERAS, 100.0f);
@@ -723,9 +808,21 @@ bool SscLeotherasManageDpsWaitTimersAction::Execute(Event& event)
     WithState(bot, [&](SscInstanceState& state)
     {
         // Encounter start/reset: clear all timers
-        if (banished && (state.leotherasHumanFormDpsWait || state.leotherasDemonFormDpsWait || state.leotherasFinalPhaseDpsWait))
+        if (banished && (state.leotherasHumanFormDpsWait || state.leotherasDemonFormDpsWait || state.leotherasFinalPhaseDpsWait ||
+                         state.leotherasWhirlwindEnd || state.leotherasWhirlwindActive))
         {
             state.leotherasHumanFormDpsWait = state.leotherasDemonFormDpsWait = state.leotherasFinalPhaseDpsWait = 0;
+            state.leotherasWhirlwindEnd = 0;
+            state.leotherasWhirlwindActive = false;
+            changed = true;
+        }
+
+        const bool whirlwind = leotheras->HasAura(SPELL_WHIRLWIND) || leotheras->HasAura(SPELL_WHIRLWIND_CHANNEL);
+        if (whirlwind != state.leotherasWhirlwindActive)
+        {
+            if (!whirlwind)
+                state.leotherasWhirlwindEnd = now;
+            state.leotherasWhirlwindActive = whirlwind;
             changed = true;
         }
 
@@ -792,9 +889,34 @@ namespace
         [this](Unit* u) { return IsCurrentTarget(u); }, [this](Unit* u) { return AttackUnit(u); }, \
         [this](const WorldPosition& p, float a, float s) { return StepToPosition(p, a, s); })
 
-// Karathress is tanked near his starting position
+// Karathress is tanked near his starting position. Without enough assist tanks the main tank also
+// holds the unassigned council members there: a loose one is taken back first (false lets the
+// taunt run once it is the current target), otherwise the current dps kill target is tanked.
 bool SscKarathressMainTankPositionBossAction::Execute(Event& event)
 {
+    const std::vector<Unit*> units = GetKarathressMainTankUnits(ai);
+    if (units.size() > 1)
+    {
+        for (Unit* unit : units)
+        {
+            Unit* victim = unit->GetVictim();
+            Player* victimPlayer = victim && victim->GetTypeId() == TYPEID_PLAYER ? static_cast<Player*>(victim) : nullptr;
+            if (!victim || victim == bot || (victimPlayer && PlayerbotAI::IsTank(victimPlayer)))
+                continue;
+
+            return !IsCurrentTarget(unit) && AttackUnit(unit);
+        }
+
+        Unit* killTarget = units.front();
+        if (!IsCurrentTarget(killTarget))
+            return AttackUnit(killTarget);
+
+        if (killTarget->GetVictim() == bot && bot->CanReachWithMeleeAttack(killTarget))
+            return StepToPosition(KARATHRESS_TANK_POSITION, 3.0f, 5.0f);
+
+        return false;
+    }
+
     return SSC_TANK_ADD(FindSscUnit(ai, NPC_KARATHRESS), raidboss::ICON_TRIANGLE, "triangle", KARATHRESS_TANK_POSITION, 5.0f, true);
 }
 

@@ -214,34 +214,37 @@ bool HighKingMaulgarMoonkinTankAttackKigglerAction::Execute(Event& /*event*/)
     return MoveTo(GRUUL_MAP_ID, x, y, z, false, false, false, true);
 }
 
-// Priority: (1) Blindeye, (2) Olm, (3) Krosh (ranged only), (4) Kiggler, and (5) Maulgar
+// Priority: (1) Blindeye, (2) Olm, then the raid splits up:
+// melee (3) Maulgar, (4) Kiggler; ranged (3) Kiggler, (4) Krosh, (5) Maulgar.
+// Melee stays off Kiggler (Arcane Explosion knockback) and never goes to Krosh (Blast Wave).
 bool HighKingMaulgarAssignDpsPriorityAction::Execute(Event& /*event*/)
 {
-    Unit* target = nullptr;
-    Unit* krosh = nullptr;
-    if (Unit* blindeye = FindBlindeye(ai))
-        target = blindeye;
-    else if (Unit* olm = FindOlm(ai))
-        target = olm;
-    else if (raidboss::IsRangedPlayer(bot) && (krosh = FindKrosh(ai)))
-        target = krosh;
-    else if (Unit* kiggler = FindKiggler(ai))
-        target = kiggler;
-    else if (Unit* maulgar = FindMaulgar(ai))
-        target = maulgar;
+    Unit* blindeye = FindBlindeye(ai);
+    Unit* olm = FindOlm(ai);
+    Unit* maulgar = FindMaulgar(ai);
+    Unit* kiggler = FindKiggler(ai);
+    Unit* krosh = FindKrosh(ai);
 
-    if (!target)
-        return false;
+    Unit* meleeTarget = blindeye ? blindeye : olm ? olm : maulgar ? maulgar : kiggler;
+    Unit* rangedTarget = blindeye ? blindeye : olm ? olm : kiggler ? kiggler : krosh ? krosh : maulgar;
 
-    if (target == krosh)
+    // Every bot marks both targets the same way: skull for melee, cross for a separate ranged target
+    if (meleeTarget && raidboss::MarkTargetWithSkull(bot, meleeTarget))
+        return true;
+
+    if (rangedTarget && rangedTarget != meleeTarget)
     {
-        if (raidboss::MarkTargetWithCross(bot, target))
+        if (raidboss::MarkTargetWithCross(bot, rangedTarget))
             return true;
     }
-    else if (raidboss::MarkTargetWithSkull(bot, target))
+    else if (raidboss::ClearTargetIcon(bot, raidboss::ICON_CROSS))
     {
         return true;
     }
+
+    Unit* target = raidboss::IsRangedPlayer(bot) ? rangedTarget : meleeTarget;
+    if (!target)
+        return false;
 
     return GetCurrentTarget(ai) != target && Attack(GetMaster(), target);
 }
@@ -327,11 +330,11 @@ bool HighKingMaulgarMisdirectOgresToTanksAction::Execute(Event& /*event*/)
     {
     case 0:
         ogre = FindBlindeye(ai);
-        tank = raidboss::GetGroupAssistTank(bot, 1);
+        tank = raidboss::GetGroupAssistTankOrStandIn(bot, 1);
         break;
     case 1:
         ogre = FindOlm(ai);
-        tank = raidboss::GetGroupAssistTank(bot, 0);
+        tank = raidboss::GetGroupAssistTankOrStandIn(bot, 0);
         break;
     case 2:
         ogre = FindKiggler(ai);
@@ -411,10 +414,33 @@ bool GruulTheDragonkillerSpreadRangedAction::Execute(Event& /*event*/)
         (raidboss::ExactDist2d(gruul, initialX, initialY) < minBossDistance ||
          raidboss::ExactDist2d(gruul, initialX, initialY) > 35.0f)))
     {
-        // Use the bot's current side of the actual boss. Assigning an arbitrary
-        // opposite ring slot made ranged bots walk through Hurtful Strike range.
-        const float angle = std::atan2(bot->GetPositionY() - position.getY(), bot->GetPositionX() - position.getX());
-        const float radius = std::max(25.0f, std::min(30.0f, raidboss::ExactDist2d(bot, gruul)));
+        // Slots spread evenly over the whole ring, handed out in the order of the current angles
+        // around the boss: neighbours keep their order, so nobody crosses Hurtful Strike range.
+        // Only keeping the own side clumped nearly all ranged on one side (8 deaths to one Shatter).
+        auto angleOf = [&position](Player* player)
+        {
+            return std::atan2(player->GetPositionY() - position.getY(), player->GetPositionX() - position.getX());
+        };
+
+        std::vector<std::pair<float, Player*>> ranged;
+        for (Player* member : raidboss::GetGroupMembers(bot, 80.0f, true))
+        {
+            if (member->IsAlive() && raidboss::IsRangedPlayer(member))
+                ranged.emplace_back(angleOf(member), member);
+        }
+        std::sort(ranged.begin(), ranged.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
+
+        float angle = angleOf(bot);
+        for (size_t i = 0; i < ranged.size(); ++i)
+        {
+            if (ranged[i].second == bot)
+            {
+                angle = ranged.front().first + 2.0f * M_PI_F * float(i) / float(ranged.size());
+                break;
+            }
+        }
+
+        const float radius = 30.0f;
         initialX = position.getX() + radius * std::cos(angle);
         initialY = position.getY() + radius * std::sin(angle);
         hasInitialPosition = true;
@@ -430,9 +456,24 @@ bool GruulTheDragonkillerSpreadRangedAction::Execute(Event& /*event*/)
         }
 
         const float moveDist = std::min(3.5f, distToTarget);
-        const float moveX = bot->GetPositionX() + ((initialX - bot->GetPositionX()) / distToTarget) * moveDist;
-        const float moveY = bot->GetPositionY() + ((initialY - bot->GetPositionY()) / distToTarget) * moveDist;
-        return MoveTo(GRUUL_MAP_ID, moveX, moveY, bot->GetPositionZ(), false, false, false, true);
+        float moveX = bot->GetPositionX() + ((initialX - bot->GetPositionX()) / distToTarget) * moveDist;
+        float moveY = bot->GetPositionY() + ((initialY - bot->GetPositionY()) / distToTarget) * moveDist;
+
+        // A slot on the far side is reached around the ring, not through the boss
+        const float stepBossDistance = raidboss::ExactDist2d(gruul, moveX, moveY);
+        if (stepBossDistance < minBossDistance && stepBossDistance > 0.1f)
+        {
+            const float scale = (minBossDistance + 2.0f) / stepBossDistance;
+            moveX = position.getX() + (moveX - position.getX()) * scale;
+            moveY = position.getY() + (moveY - position.getY()) * scale;
+        }
+
+        if (MoveTo(GRUUL_MAP_ID, moveX, moveY, bot->GetPositionZ(), false, false, false, true))
+            return true;
+
+        // Unreachable slot (wall): keep the spot and let the ordinary spacing below take over
+        hasReachedInitialPosition = true;
+        return false;
     }
 
     const float minSpreadDistance = 10.0f;

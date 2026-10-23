@@ -2,6 +2,8 @@
 #include "playerbot/playerbot.h"
 #include "BtTriggers.h"
 #include "BtHelpers.h"
+#include "BtNajentusRules.h"
+#include "BtSupremusRules.h"
 #include "playerbot/AiFactory.h"
 #include "playerbot/strategy/raids/RaidBossHelpers.h"
 #include "Entities/Totem.h"
@@ -91,15 +93,59 @@ bool HighWarlordNajentusPlayerIsImpaledTrigger::IsActive()
     return false;
 }
 
+bool HighWarlordNajentusMeleeSpreadTrigger::IsActive()
+{
+    return raidboss::IsMeleePlayer(bot) && !PlayerbotAI::IsTank(bot) && FindBoss(ai, NPC_NAJENTUS);
+}
+
+// One bot throws, once the raid is topped up for Tidal Burst or the shield has been up too long
 bool HighWarlordNajentusBossHasTidalShieldTrigger::IsActive()
 {
     Unit* najentus = FindBoss(ai, NPC_NAJENTUS);
-    return najentus && najentus->HasAura(SPELL_TIDAL_SHIELD) && bot->HasItemCount(ITEM_NAJENTUS_SPINE, 1);
+    if (!najentus)
+        return false;
+
+    const uint32 instanceId = najentus->GetInstanceId();
+    if (!najentus->HasAura(SPELL_TIDAL_SHIELD))
+    {
+        EraseState(BtState::NajentusShieldTimer, instanceId);
+        return false;
+    }
+
+    SetStateIfAbsent(BtState::NajentusShieldTimer, instanceId, int64(time(nullptr)));
+    if (!bot->HasItemCount(ITEM_NAJENTUS_SPINE, 1))
+        return false;
+
+    // Thrower: the bot with a spine and the lowest guid that is free to act
+    Player* thrower = nullptr;
+    float healthSum = 0.0f;
+    uint32 alive = 0;
+    for (Player* member : raidboss::GetGroupMembers(bot, 100.0f, true))
+    {
+        if (!member->IsAlive())
+            continue;
+
+        healthSum += member->GetHealthPercent();
+        alive++;
+
+        if (!member->GetPlayerbotAI() || member->GetPlayerbotAI()->IsRealPlayer() ||
+            !member->HasItemCount(ITEM_NAJENTUS_SPINE, 1) || member->HasAura(SPELL_IMPALING_SPINE))
+            continue;
+
+        if (!thrower || member->GetObjectGuid() < thrower->GetObjectGuid())
+            thrower = member;
+    }
+
+    if (thrower != bot)
+        return false;
+
+    const float raidHealth = alive ? healthSum / float(alive) : 100.0f;
+    return najentus::ThrowSpineNow(raidHealth, GetTimerElapsed(BtState::NajentusShieldTimer, instanceId));
 }
 
 // Supremus
 
-// Threat is reset on the pull and on every phase change (every 60 seconds)
+// Threat is reset on every phase change (every 60 seconds), but only the pull and the return to the tank phase need it
 bool SupremusPullingBossOrChangingPhaseTrigger::IsActive()
 {
     if (!IsHunter(bot))
@@ -110,7 +156,7 @@ bool SupremusPullingBossOrChangingPhaseTrigger::IsActive()
         return false;
 
     const int64 elapsed = GetTimerElapsed(BtState::SupremusPhaseTimer, supremus->GetInstanceId());
-    return elapsed >= 0 && (elapsed < 10 || (elapsed >= 60 && elapsed % 60 < 10));
+    return bt::supremus::IsMisdirectWindow(elapsed);
 }
 
 bool SupremusBossEngagedByRangedTrigger::IsActive()
@@ -136,6 +182,12 @@ bool SupremusVolcanoIsNearbyTrigger::IsActive()
 bool SupremusNeedToManagePhaseTimerTrigger::IsActive()
 {
     return raidboss::IsMechanicTrackerBot(bot, BLACK_TEMPLE_MAP_ID) && FindBoss(ai, NPC_SUPREMUS);
+}
+
+// Tanks stay on the boss: an off-tank leaving melee range would send Hateful Strike to the melee dps
+bool SupremusMoltenFlameChasesBotTrigger::IsActive()
+{
+    return !PlayerbotAI::IsTank(bot) && FindBoss(ai, NPC_SUPREMUS) && GetSupremusMoltenFlameChasingBot(bot);
 }
 
 // Shade of Akama

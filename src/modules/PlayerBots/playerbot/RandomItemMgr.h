@@ -176,6 +176,8 @@ class RandomItemMgr
         uint32 CalculateStatWeight(uint8 playerclass, uint8 spec, ItemPrototype const* proto, ItemSpecType &itSpec);
         uint32 ItemStatWeight(Player* player, ItemQualifier& qualifier);
         uint32 ItemStatWeight(Player* player, Item* item);
+        // Weight without gems and permanent enchant: what the item is worth once the bot gems and enchants it
+        uint32 ItemBaseStatWeight(Player* player, ItemQualifier& qualifier);
 
         uint32 CalculateSingleStatWeight(uint8 playerclass, uint8 spec, std::string stat, uint32 value);
         bool CanEquipArmor(uint8 clazz, uint8 spec, uint32 level, ItemPrototype const* proto);

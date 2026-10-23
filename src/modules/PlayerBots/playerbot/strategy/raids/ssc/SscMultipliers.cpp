@@ -241,7 +241,8 @@ float SscLeotherasFocusOnInnerDemonMultiplier::GetValue(Action* action)
 float SscLeotherasWaitForDpsMultiplier::GetValue(Action* action)
 {
     if (bot->HasAura(SPELL_INSIDIOUS_WHISPER) || !IsDamageAction(action) ||
-        dynamic_cast<SscLeotherasDestroyInnerDemonAction*>(action))
+        dynamic_cast<SscLeotherasDestroyInnerDemonAction*>(action) ||
+        dynamic_cast<SscLeotherasAttackMindControlledPlayerAction*>(action))
         return 1.0f;
 
     if (!FindSscUnit(ai, NPC_LEOTHERAS, 100.0f))
@@ -258,6 +259,12 @@ float SscLeotherasWaitForDpsMultiplier::GetValue(Action* action)
         if (!PlayerbotAI::IsTank(bot) && !IsWaitExpired(state.leotherasHumanFormDpsWait, 5))
             return 0.0f;
     }
+
+    // Whirlwind wiped the threat: let the tank pick the human form up again
+    // (the Warlock keeps working on the Shadow in the final phase)
+    if (leotherasHuman && IsLeotherasWhirlwindAggroReset(bot) && !PlayerbotAI::IsTank(bot) &&
+        !(phase3Demon && demonFormTank == bot))
+        return 0.0f;
 
     if (phase2Demon)
     {
@@ -280,14 +287,22 @@ float SscLeotherasWaitForDpsMultiplier::GetValue(Action* action)
     return 1.0f;
 }
 
-// Don't use Bloodlust/Heroism during the Channeler phase
-float SscLeotherasDelayBloodlustAndHeroismMultiplier::GetValue(Action* action)
+// Bloodlust/Heroism and DPS cooldowns are saved for the final phase below 15%, where every ability
+// is active at once. Bots with an Inner Demon may still use theirs to kill it in time.
+float SscLeotherasSaveCooldownsForFinalPhaseMultiplier::GetValue(Action* action)
 {
-    if (bot->getClass() != CLASS_SHAMAN || !IsLustAction(action))
+    const bool lust = bot->getClass() == CLASS_SHAMAN && IsLustAction(action);
+    if (!lust && !raidboss::IsDpsCooldownAction(bot, action))
+        return 1.0f;
+
+    if (!lust && bot->HasAura(SPELL_INSIDIOUS_WHISPER))
         return 1.0f;
 
     Unit* leotheras = FindSscUnit(ai, NPC_LEOTHERAS, 100.0f);
-    return leotheras && leotheras->HasAura(SPELL_LEOTHERAS_BANISHED) ? 0.0f : 1.0f;
+    if (!leotheras || !leotheras->IsAlive())
+        return 1.0f;
+
+    return GetPhase3LeotherasDemon(ai) ? 1.0f : 0.0f;
 }
 
 // Fathom-Lord Karathress
@@ -300,8 +315,14 @@ float SscKarathressDisableTankActionsMultiplier::GetValue(Action* action)
     if (bot->GetVictim() && IsActionNamed(action, { "tank assist" }))
         return 0.0f;
 
-    if (IsFormationMove(action) || IsActionNamed(action, { "avoid aoe", "tbc raid taunt", "tbc raid attack priority target" }) ||
-        raidboss::IsTauntAction(bot, action) || raidboss::IsAoeThreatAction(bot, action))
+    if (IsFormationMove(action) || IsActionNamed(action, { "avoid aoe", "tbc raid taunt", "tbc raid attack priority target" }))
+        return 0.0f;
+
+    // A main tank holding unassigned council members (fewer than four tanks) needs taunts and AoE threat
+    if (raidboss::IsMainTank(bot) && GetKarathressMainTankUnits(ai).size() > 1)
+        return 1.0f;
+
+    if (raidboss::IsTauntAction(bot, action) || raidboss::IsAoeThreatAction(bot, action))
         return 0.0f;
 
     return 1.0f;
@@ -400,10 +421,12 @@ float SscVashjDelayCooldownsMultiplier::GetValue(Action* action)
     if (!raidboss::IsDpsCooldownAction(bot, action) || !Engaged(ai, NPC_LADY_VASHJ))
         return 1.0f;
 
+    // Only Bloodlust / Heroism is saved for phase 3. Holding every dps cooldown through phase 1
+    // left Vashj at 88% after four minutes; 2-3 minute cooldowns are ready again for phase 3.
     if (bot->getClass() == CLASS_SHAMAN && IsLustAction(action))
         return IsLadyVashjInPhase3(ai) ? 1.0f : 0.0f;
 
-    return raidboss::IsDps(bot) && IsLadyVashjInPhase1(ai) ? 0.0f : 1.0f;
+    return 1.0f;
 }
 
 float SscVashjMainTankGroupShamanUseGroundingTotemMultiplier::GetValue(Action* action)

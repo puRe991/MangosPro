@@ -46,6 +46,8 @@ namespace ai
     SSC_TRIGGER(SscLeotherasEnteredFinalPhaseTrigger, "leotheras the blind entered final phase")
     SSC_TRIGGER(SscLeotherasDemonFormTankNeedsAggroTrigger, "leotheras the blind demon form tank needs aggro")
     SSC_TRIGGER(SscLeotherasBossWipesAggroUponPhaseChangeTrigger, "leotheras the blind boss wipes aggro upon phase change")
+    SSC_TRIGGER(SscLeotherasDemonFormTankNeedsHealingTrigger, "leotheras the blind demon form tank needs healing")
+    SSC_TRIGGER(SscLeotherasPlayerIsMindControlledTrigger, "leotheras the blind player is mind controlled")
 
     // Fathom-Lord Karathress
     SSC_TRIGGER(SscKarathressBossEngagedByMainTankTrigger, "fathom-lord karathress boss engaged by main tank")

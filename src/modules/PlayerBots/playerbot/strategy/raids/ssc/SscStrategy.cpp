@@ -118,6 +118,14 @@ void SscStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
         NextAction::array(0, new NextAction("leotheras the blind manage dps wait timers", ACTION_EMERGENCY + 9), NULL)));
 
     triggers.push_back(new TriggerNode(
+        "leotheras the blind demon form tank needs healing",
+        NextAction::array(0, new NextAction("leotheras the blind heal demon form tank", raidboss::ACTION_RAID + 3), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "leotheras the blind player is mind controlled",
+        NextAction::array(0, new NextAction("leotheras the blind attack mind controlled player", raidboss::ACTION_RAID + 2), NULL)));
+
+    triggers.push_back(new TriggerNode(
         "fathom-lord karathress boss engaged by main tank",
         NextAction::array(0, new NextAction("fathom-lord karathress main tank position boss", raidboss::ACTION_RAID + 1), NULL)));
 
@@ -224,7 +232,7 @@ void SscStrategy::InitCombatMultipliers(std::list<Multiplier*>& multipliers)
     multipliers.push_back(new SscLeotherasMeleeDpsAvoidChaosBlastMultiplier(ai));
     multipliers.push_back(new SscLeotherasFocusOnInnerDemonMultiplier(ai));
     multipliers.push_back(new SscLeotherasWaitForDpsMultiplier(ai));
-    multipliers.push_back(new SscLeotherasDelayBloodlustAndHeroismMultiplier(ai));
+    multipliers.push_back(new SscLeotherasSaveCooldownsForFinalPhaseMultiplier(ai));
     multipliers.push_back(new SscKarathressDisableTankActionsMultiplier(ai));
     multipliers.push_back(new SscKarathressDisableAoeMultiplier(ai));
     multipliers.push_back(new SscKarathressControlMisdirectionMultiplier(ai));
