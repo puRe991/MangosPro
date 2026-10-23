@@ -62,6 +62,7 @@ bool HasMarkOfCorruptionAt100Percent(Player* p){return p->marked;}
 struct SscInstanceState {
  time_t hydrossFrostDpsWait=0,hydrossNatureDpsWait=0,hydrossChangeToFrostPhase=0,hydrossChangeToNaturePhase=0;
  time_t lurkerSpoutEnd=0,leotherasHumanFormDpsWait=0,leotherasDemonFormDpsWait=0,leotherasFinalPhaseDpsWait=0;
+ time_t leotherasWhirlwindEnd=0; bool leotherasWhirlwindActive=false; ObjectGuid leotherasDemonTank;
  time_t karathressDpsWait=0,lastCoreThrow=0; ObjectGuid vashjGenerator;
  std::map<int,int> lurkerRangedPositions,tidewalkerTankStep,tidewalkerRangedStep,hasReachedVashjRangedPosition,intendedLineup,lastCoreInInventoryTime;
 } state;
@@ -135,6 +136,11 @@ int main() {
  GroupReference member{&frost};Group group{&member};dps.group=&group;
  frost.combat=true;assert(!NeedsStateReset(&ai));frost.combat=false;
  boss.combat=true;assert(!NeedsStateReset(&ai));boss.combat=false;assert(NeedsStateReset(&ai));
+ // Leotheras Whirlwind and demon tank state is cleaned up after the fight as well.
+ state={};assert(!NeedsStateReset(&ai));
+ state.leotherasWhirlwindEnd=42;assert(NeedsStateReset(&ai));state={};
+ state.leotherasWhirlwindActive=true;assert(NeedsStateReset(&ai));state={};
+ state.leotherasDemonTank.n=7;assert(NeedsStateReset(&ai));state={};
  // Vashj pull: empty/stale targets are safe; threshold and hold-lust still work.
  Unit vashj;vashj.entry=21212;ai.resolved=&vashj;
  assert(!IsLustAllowed(&ai));ai.context.value.guid.n=1;
