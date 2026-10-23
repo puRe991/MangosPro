@@ -36,9 +36,33 @@ namespace ai
         bool IsActive() override;
     };
 
-    DEBUFF_TRIGGER_A(CorruptionTrigger, "corruption");
-    DEBUFF_TRIGGER(SiphonLifeTrigger, "siphon life");
-    DEBUFF_TRIGGER(UnstableAfflictionTrigger, "unstable affliction");
+    // Warlock DoTs of different casters stack, so every warlock checks only its own
+    class OwnDebuffTrigger : public DebuffTrigger
+    {
+    public:
+        OwnDebuffTrigger(PlayerbotAI* ai, std::string spell) : DebuffTrigger(ai, spell, 1, true) {}
+    };
+
+    class CorruptionTrigger : public OwnDebuffTrigger
+    {
+    public:
+        CorruptionTrigger(PlayerbotAI* ai) : OwnDebuffTrigger(ai, "corruption") {}
+        bool IsActive() override;
+    };
+
+    // Siphon Life only while Shadow Vulnerability (Improved Shadow Bolt) is up, unless no group warlock provides it
+    class SiphonLifeTrigger : public OwnDebuffTrigger
+    {
+    public:
+        SiphonLifeTrigger(PlayerbotAI* ai) : OwnDebuffTrigger(ai, "siphon life") {}
+        bool IsActive() override;
+    };
+
+    class UnstableAfflictionTrigger : public OwnDebuffTrigger
+    {
+    public:
+        UnstableAfflictionTrigger(PlayerbotAI* ai) : OwnDebuffTrigger(ai, "unstable affliction") {}
+    };
 
     INTERRUPT_TRIGGER(DeathCoilInterruptTrigger, "death coil");
     INTERRUPT_HEALER_TRIGGER(DeathCoilInterruptTHealerTrigger, "death coil");
@@ -60,7 +84,11 @@ namespace ai
         bool IsActive() override;
     };
 
-    DEBUFF_TRIGGER(CurseOfAgonyTrigger, "curse of agony");
+    class CurseOfAgonyTrigger : public OwnDebuffTrigger
+    {
+    public:
+        CurseOfAgonyTrigger(PlayerbotAI* ai) : OwnDebuffTrigger(ai, "curse of agony") {}
+    };
 
     class CurseOfAgonyOnAttackerTrigger : public DebuffOnAttackerTrigger
     {
@@ -68,7 +96,11 @@ namespace ai
         CurseOfAgonyOnAttackerTrigger(PlayerbotAI* ai) : DebuffOnAttackerTrigger(ai, "curse of agony") {}
     };
 
-    DEBUFF_TRIGGER(CurseOfDoomTrigger, "curse of doom");
+    class CurseOfDoomTrigger : public OwnDebuffTrigger
+    {
+    public:
+        CurseOfDoomTrigger(PlayerbotAI* ai) : OwnDebuffTrigger(ai, "curse of doom") {}
+    };
 
     class CurseOfDoomOnAttackerTrigger : public DebuffOnAttackerTrigger
     {
@@ -128,7 +160,41 @@ namespace ai
         UnstableAfflictionOnAttackerTrigger(PlayerbotAI* ai) : DebuffOnAttackerTrigger(ai, "unstable affliction") {}
     };
 
-    DEBUFF_TRIGGER(ImmolateTrigger, "immolate");
+    class ImmolateTrigger : public OwnDebuffTrigger
+    {
+    public:
+        ImmolateTrigger(PlayerbotAI* ai) : OwnDebuffTrigger(ai, "immolate") {}
+    };
+
+    // Raid curse coordination: the best Malediction warlock keeps Curse of the Elements up,
+    // the next one Curse of Recklessness when the raid has enough melee, the rest use
+    // Curse of Doom on long fights and Curse of Agony otherwise
+    namespace warlockcurse
+    {
+        // Curse this bot should keep up on its current target, empty if not coordinated
+        std::string GetAssignedCurse(PlayerbotAI* ai, Unit* target);
+
+        // True if a warlock of the group has Improved Shadow Bolt
+        bool GroupHasImprovedShadowBolt(PlayerbotAI* ai);
+    }
+
+    class AssignedCurseTrigger : public Trigger
+    {
+    public:
+        AssignedCurseTrigger(PlayerbotAI* ai, std::string curse) : Trigger(ai, "assigned " + curse, 2), curse(curse) {}
+        bool IsActive() override;
+        std::string GetTargetName() override { return "current target"; }
+
+    private:
+        std::string curse;
+    };
+
+    class NoDemonTrigger : public Trigger
+    {
+    public:
+        NoDemonTrigger(PlayerbotAI* ai) : Trigger(ai, "no demon", 30) {}
+        bool IsActive() override;
+    };
 
     class ShadowTranceTrigger : public HasAuraTrigger
     {

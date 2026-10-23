@@ -235,6 +235,11 @@ namespace ai
                 creators["drain soul"] = [](PlayerbotAI* ai) { return new DrainSoulTrigger(ai); };
                 creators["no curse"] = [](PlayerbotAI* ai) { return new NoCurseTrigger(ai); };
                 creators["no curse on attacker"] = [](PlayerbotAI* ai) { return new NoCurseOnAttackerTrigger(ai); };
+                creators["assigned curse of the elements"] = [](PlayerbotAI* ai) { return new AssignedCurseTrigger(ai, "curse of the elements"); };
+                creators["assigned curse of recklessness"] = [](PlayerbotAI* ai) { return new AssignedCurseTrigger(ai, "curse of recklessness"); };
+                creators["assigned curse of doom"] = [](PlayerbotAI* ai) { return new AssignedCurseTrigger(ai, "curse of doom"); };
+                creators["assigned curse of agony"] = [](PlayerbotAI* ai) { return new AssignedCurseTrigger(ai, "curse of agony"); };
+                creators["no demon"] = [](PlayerbotAI* ai) { return new NoDemonTrigger(ai); };
                 creators["conflagrate"] = [](PlayerbotAI* ai) { return new ConflagrateTrigger(ai); };
                 creators["demonic sacrifice"] = [](PlayerbotAI* ai) { return new DemonicSacrificeTrigger(ai); };
                 creators["no imp"] = [](PlayerbotAI* ai) { return new NoImpTrigger(ai); };

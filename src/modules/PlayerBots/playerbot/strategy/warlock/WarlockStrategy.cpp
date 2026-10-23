@@ -13,9 +13,16 @@ public:
         creators["banish"] = &banish;
         creators["fel armor"] = &fel_armor;
         creators["demon armor"] = &demon_armor;
+        creators["demonic sacrifice fire"] = &demonic_sacrifice_fire;
+        creators["demonic sacrifice shadow"] = &demonic_sacrifice_shadow;
     }
 
 private:
+    // Destruction sacrifices the demon that buffs its damage school
+    ACTION_NODE_P(demonic_sacrifice_fire, "demonic sacrifice", "summon imp");
+
+    ACTION_NODE_P(demonic_sacrifice_shadow, "demonic sacrifice", "summon succubus");
+
     ACTION_NODE_A(banish, "banish", "fear");
 
     ACTION_NODE_A(fel_armor, "fel armor", "demon armor");
@@ -514,9 +521,7 @@ void WarlockStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
         "target critical health",
         NextAction::array(0, new NextAction("shadowburn", ACTION_HIGH), NULL)));
 
-    triggers.push_back(new TriggerNode(
-        "corruption",
-        NextAction::array(0, new NextAction("corruption", ACTION_NORMAL + 1), NULL)));
+    // Corruption is added by affliction and demonology, destruction does not use it
 
     triggers.push_back(new TriggerNode(
         "no mana",
@@ -920,7 +925,7 @@ void WarlockPetRaidStrategy::InitCombatTriggers(std::list<TriggerNode*>& trigger
 void WarlockPetRaidStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
 {
     triggers.push_back(new TriggerNode(
-        "no pet",
+        "no demon",
         NextAction::array(0, new NextAction("summon imp", ACTION_NORMAL), NULL)));
 }
 
@@ -950,7 +955,22 @@ void WarlockCursesPveStrategy::InitCombatTriggers(std::list<TriggerNode*>& trigg
 
 void WarlockCursesRaidStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
 {
+    // Raid wide debuffs first, they outweigh any personal curse
+    triggers.push_back(new TriggerNode(
+        "assigned curse of the elements",
+        NextAction::array(0, new NextAction("curse of the elements", ACTION_HIGH + 2), NULL)));
 
+    triggers.push_back(new TriggerNode(
+        "assigned curse of recklessness",
+        NextAction::array(0, new NextAction("curse of recklessness", ACTION_HIGH + 2), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "assigned curse of doom",
+        NextAction::array(0, new NextAction("curse of doom", ACTION_NORMAL + 3), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "assigned curse of agony",
+        NextAction::array(0, new NextAction("curse of agony", ACTION_NORMAL + 3), NULL)));
 }
 
 #endif

@@ -395,8 +395,16 @@ void AfflictionWarlockStrategy::InitCombatTriggers(std::list<TriggerNode*>& trig
         NextAction::array(0, new NextAction("unstable affliction", ACTION_NORMAL + 1), NULL)));
 
     triggers.push_back(new TriggerNode(
+        "corruption",
+        NextAction::array(0, new NextAction("corruption", ACTION_NORMAL + 0.5f), NULL)));
+
+    triggers.push_back(new TriggerNode(
         "siphon life",
         NextAction::array(0, new NextAction("siphon life", ACTION_NORMAL), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "immolate",
+        NextAction::array(0, new NextAction("immolate", ACTION_NORMAL - 1), NULL)));
 }
 
 void AfflictionWarlockStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)

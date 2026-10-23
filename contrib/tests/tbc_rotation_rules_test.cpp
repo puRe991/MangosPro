@@ -1,6 +1,7 @@
 #include "../../src/modules/PlayerBots/playerbot/strategy/generic/TbcRotationRules.h"
 #include <cassert>
 #include <iostream>
+#include <string>
 
 int main()
 {
@@ -31,5 +32,18 @@ int main()
     assert(PreferWindfury(4, 1));
     assert(PreferWindfury(2, 2));
     assert(!PreferWindfury(0, 0));
-    std::cout << "PASS: TBC finisher, Slam timing and air-totem boundaries\n";
+    // Curse of Doom needs a target that outlives its minute
+    assert(CurseOfDoomFight(25 * 800 * 60, 25));
+    assert(!CurseOfDoomFight(25 * 800 * 60 - 1, 25));
+    assert(CurseOfDoomFight(300000, 5));
+    assert(!CurseOfDoomFight(300000, 25));
+    assert(!CurseOfDoomFight(300000, 0));
+
+    // Raid curses: one Elements, one Recklessness with enough melee, Doom or Agony for the rest
+    assert(RaidCurse(0, 10, true) == std::string("curse of the elements"));
+    assert(RaidCurse(1, 4, true) == std::string("curse of recklessness"));
+    assert(RaidCurse(1, 3, true) == std::string("curse of doom"));
+    assert(RaidCurse(2, 10, true) == std::string("curse of doom"));
+    assert(RaidCurse(2, 10, false) == std::string("curse of agony"));
+    std::cout << "PASS: TBC finisher, Slam timing and air-totem boundaries, warlock curses\n";
 }
