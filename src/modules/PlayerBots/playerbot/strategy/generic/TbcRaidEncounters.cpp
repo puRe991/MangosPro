@@ -266,7 +266,8 @@ EncounterRegistry::EncounterRegistry()
     // (strategy/raids/bt). Only the complementing rules stay here.
 
     // High Warlord Naj'entus: spread for Needle Spine, free impaled players, break Tidal Shield with a spine.
-    Add("high warlord naj'entus", MAP_BLACK_TEMPLE, { 22887 });
+    Add("high warlord naj'entus", MAP_BLACK_TEMPLE, { 22887 })
+        .ResistanceAura("frost resistance aura");   // Needle Spine splash and Tidal Burst are frost
 
     // Supremus: Gaze target kites the boss, nobody stands in Volcanoes or the Molten Flame trail.
     Add("supremus", MAP_BLACK_TEMPLE, { 22898 })

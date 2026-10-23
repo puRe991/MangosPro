@@ -20,6 +20,7 @@ namespace ai
     BT_TRIGGER(HighWarlordNajentusBossEngagedByTanksTrigger, "high warlord naj'entus boss engaged by tanks")
     BT_TRIGGER(HighWarlordNajentusCastsNeedleSpinesTrigger, "high warlord naj'entus casts needle spines")
     BT_TRIGGER(HighWarlordNajentusPlayerIsImpaledTrigger, "high warlord naj'entus player is impaled")
+    BT_TRIGGER(HighWarlordNajentusMeleeSpreadTrigger, "high warlord naj'entus melee spread")
     BT_TRIGGER(HighWarlordNajentusBossHasTidalShieldTrigger, "high warlord naj'entus boss has tidal shield")
 
     // Supremus
@@ -28,6 +29,7 @@ namespace ai
     BT_TRIGGER(SupremusBossIsFixatedOnBotTrigger, "supremus boss is fixated on bot")
     BT_TRIGGER(SupremusVolcanoIsNearbyTrigger, "supremus volcano is nearby")
     BT_TRIGGER(SupremusNeedToManagePhaseTimerTrigger, "supremus need to manage phase timer")
+    BT_TRIGGER(SupremusMoltenFlameChasesBotTrigger, "supremus molten flame chases bot")
 
     // Shade of Akama
     BT_TRIGGER(ShadeOfAkamaKillingChannelersStartsPhase2Trigger, "shade of akama killing channelers starts phase 2")

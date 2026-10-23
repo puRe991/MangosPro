@@ -22,6 +22,10 @@ void BtStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
         NextAction::array(0, new NextAction("high warlord naj'entus disperse ranged", raidboss::ACTION_RAID + 1), NULL)));
 
     triggers.push_back(new TriggerNode(
+        "high warlord naj'entus melee spread",
+        NextAction::array(0, new NextAction("high warlord naj'entus spread melee", raidboss::ACTION_RAID + 1), NULL)));
+
+    triggers.push_back(new TriggerNode(
         "high warlord naj'entus player is impaled",
         NextAction::array(0, new NextAction("high warlord naj'entus remove impaling spine", bt::BT_EMERGENCY_1), NULL)));
 
@@ -48,6 +52,10 @@ void BtStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
     triggers.push_back(new TriggerNode(
         "supremus need to manage phase timer",
         NextAction::array(0, new NextAction("supremus manage phase timer", bt::BT_EMERGENCY_10), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "supremus molten flame chases bot",
+        NextAction::array(0, new NextAction("supremus lead molten flame away", bt::BT_EMERGENCY_3), NULL)));
 
     triggers.push_back(new TriggerNode(
         "shade of akama killing channelers starts phase 2",
@@ -276,6 +284,7 @@ void BtStrategy::InitCombatMultipliers(std::list<Multiplier*>& multipliers)
     multipliers.push_back(new HighWarlordNajentusDisableCombatFormationMoveMultiplier(ai));
     multipliers.push_back(new SupremusFocusOnAvoidanceInPhase2Multiplier(ai));
     multipliers.push_back(new SupremusHitboxIsBuggedMultiplier(ai));
+    multipliers.push_back(new SupremusWaitForTanksAfterThreatResetMultiplier(ai));
     multipliers.push_back(new ShadeOfAkamaMeleeFocusChannelersMultiplier(ai));
     multipliers.push_back(new TeronGorefiendControlMovementMultiplier(ai));
     multipliers.push_back(new TeronGorefiendMarkedBotOnlyMoveToDieMultiplier(ai));

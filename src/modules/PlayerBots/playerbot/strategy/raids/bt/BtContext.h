@@ -27,11 +27,13 @@ namespace ai
             creators["high warlord naj'entus disperse ranged"] = [](PlayerbotAI* ai) { return new HighWarlordNajentusDisperseRangedAction(ai); };
             creators["high warlord naj'entus remove impaling spine"] = [](PlayerbotAI* ai) { return new HighWarlordNajentusRemoveImpalingSpineAction(ai); };
             creators["high warlord naj'entus throw impaling spine"] = [](PlayerbotAI* ai) { return new HighWarlordNajentusThrowImpalingSpineAction(ai); };
+            creators["high warlord naj'entus spread melee"] = [](PlayerbotAI* ai) { return new HighWarlordNajentusSpreadMeleeAction(ai); };
             creators["supremus misdirect boss to main tank"] = [](PlayerbotAI* ai) { return new SupremusMisdirectBossToMainTankAction(ai); };
             creators["supremus disperse ranged"] = [](PlayerbotAI* ai) { return new SupremusDisperseRangedAction(ai); };
             creators["supremus kite boss"] = [](PlayerbotAI* ai) { return new SupremusKiteBossAction(ai); };
             creators["supremus move away from volcanos"] = [](PlayerbotAI* ai) { return new SupremusMoveAwayFromVolcanosAction(ai); };
             creators["supremus manage phase timer"] = [](PlayerbotAI* ai) { return new SupremusManagePhaseTimerAction(ai); };
+            creators["supremus lead molten flame away"] = [](PlayerbotAI* ai) { return new SupremusLeadMoltenFlameAwayAction(ai); };
             creators["shade of akama melee dps prioritize channelers"] = [](PlayerbotAI* ai) { return new ShadeOfAkamaMeleeDpsPrioritizeChannelersAction(ai); };
             creators["teron gorefiend misdirect boss to main tank"] = [](PlayerbotAI* ai) { return new TeronGorefiendMisdirectBossToMainTankAction(ai); };
             creators["teron gorefiend tanks position boss"] = [](PlayerbotAI* ai) { return new TeronGorefiendTanksPositionBossAction(ai); };
@@ -93,11 +95,13 @@ namespace ai
             creators["high warlord naj'entus casts needle spines"] = [](PlayerbotAI* ai) { return new HighWarlordNajentusCastsNeedleSpinesTrigger(ai); };
             creators["high warlord naj'entus player is impaled"] = [](PlayerbotAI* ai) { return new HighWarlordNajentusPlayerIsImpaledTrigger(ai); };
             creators["high warlord naj'entus boss has tidal shield"] = [](PlayerbotAI* ai) { return new HighWarlordNajentusBossHasTidalShieldTrigger(ai); };
+            creators["high warlord naj'entus melee spread"] = [](PlayerbotAI* ai) { return new HighWarlordNajentusMeleeSpreadTrigger(ai); };
             creators["supremus pulling boss or changing phase"] = [](PlayerbotAI* ai) { return new SupremusPullingBossOrChangingPhaseTrigger(ai); };
             creators["supremus boss engaged by ranged"] = [](PlayerbotAI* ai) { return new SupremusBossEngagedByRangedTrigger(ai); };
             creators["supremus boss is fixated on bot"] = [](PlayerbotAI* ai) { return new SupremusBossIsFixatedOnBotTrigger(ai); };
             creators["supremus volcano is nearby"] = [](PlayerbotAI* ai) { return new SupremusVolcanoIsNearbyTrigger(ai); };
             creators["supremus need to manage phase timer"] = [](PlayerbotAI* ai) { return new SupremusNeedToManagePhaseTimerTrigger(ai); };
+            creators["supremus molten flame chases bot"] = [](PlayerbotAI* ai) { return new SupremusMoltenFlameChasesBotTrigger(ai); };
             creators["shade of akama killing channelers starts phase 2"] = [](PlayerbotAI* ai) { return new ShadeOfAkamaKillingChannelersStartsPhase2Trigger(ai); };
             creators["teron gorefiend pulling boss"] = [](PlayerbotAI* ai) { return new TeronGorefiendPullingBossTrigger(ai); };
             creators["teron gorefiend boss engaged by tanks"] = [](PlayerbotAI* ai) { return new TeronGorefiendBossEngagedByTanksTrigger(ai); };

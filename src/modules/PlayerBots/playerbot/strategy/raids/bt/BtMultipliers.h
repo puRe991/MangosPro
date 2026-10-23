@@ -21,6 +21,7 @@ namespace ai
     // Supremus
     BT_MULTIPLIER(SupremusFocusOnAvoidanceInPhase2Multiplier, "supremus focus on avoidance in phase 2")
     BT_MULTIPLIER(SupremusHitboxIsBuggedMultiplier, "supremus hitbox is bugged")
+    BT_MULTIPLIER(SupremusWaitForTanksAfterThreatResetMultiplier, "supremus wait for tanks after threat reset")
 
     // Shade of Akama (keeps "tbc raid attack priority target" from pulling melee off the channelers)
     BT_MULTIPLIER(ShadeOfAkamaMeleeFocusChannelersMultiplier, "shade of akama melee focus channelers")

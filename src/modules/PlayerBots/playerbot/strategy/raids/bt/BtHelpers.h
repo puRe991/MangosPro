@@ -27,6 +27,7 @@ namespace ai
             NPC_NAJENTUS                = 22887,
             NPC_SUPREMUS                = 22898,
             NPC_SUPREMUS_VOLCANO        = 23085,
+            NPC_SUPREMUS_MOLTEN_FLAME   = 23095,    // stalker of Molten Punch, chases a random player
             NPC_SHADE_OF_AKAMA          = 22841,
             NPC_ASHTONGUE_CHANNELER     = 23421,
             NPC_TERON_GOREFIEND         = 22871,
@@ -138,6 +139,7 @@ namespace ai
         // updated in parallel, so every access goes through these functions.
         enum class BtState : uint8
         {
+            NajentusShieldTimer,
             SupremusPhaseTimer,
             GurtoggPhaseTimer,
             CouncilDpsTimer,
@@ -203,6 +205,8 @@ namespace ai
         // Supremus
         bool HasSupremusVolcanoNearby(Player* bot);
         std::vector<Unit*> GetSupremusVolcanos(Player* bot, float range);
+        Unit* GetSupremusMoltenFlameChasingBot(Player* bot);
+        float GetSupremusMeleeReach(Player* bot, Unit* supremus);
 
         // Gurtogg Bloodboil
         std::vector<std::vector<Player*>> GetGurtoggRangedRotationGroups(Player* bot);
