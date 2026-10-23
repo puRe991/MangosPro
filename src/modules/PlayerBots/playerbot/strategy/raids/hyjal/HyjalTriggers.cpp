@@ -406,3 +406,88 @@ bool ArchimondeStoodInDoomfireTrigger::IsActiveInEncounter()
     const float dangerHealthPct = 40.0f;
     return bot->GetHealthPercent() < dangerHealthPct;
 }
+
+// Air Burst throws the bot high up; the fall kills without slow fall
+bool ArchimondeKnockedIntoTheAirTrigger::IsActiveInEncounter()
+{
+    return GetBoss(ai, NPC_ARCHIMONDE) && ai->IsJumping() && !bot->HasAura(SPELL_ELUNES_EMBRACE) &&
+           !HasProtectionOfElune(bot);
+}
+
+// Mages and caster druids decurse Grip of the Legion anywhere in the raid
+bool ArchimondeGripOfTheLegionTrigger::IsActiveInEncounter()
+{
+    if (bot->getClass() != CLASS_MAGE && (bot->getClass() != CLASS_DRUID || !IsRangedPlayer(bot)))
+        return false;
+
+    if (!GetBoss(ai, NPC_ARCHIMONDE) || HasProtectionOfElune(bot))
+        return false;
+
+    return GetGripOfTheLegionTarget(bot, 60.0f) != nullptr;
+}
+
+// Ranged stay within the Tremor Totem of their party (melee have to stay at the boss)
+bool ArchimondeOutOfTremorTotemRangeTrigger::IsActiveInEncounter()
+{
+    if (PlayerbotAI::IsTank(bot) || !IsRangedPlayer(bot) || HasProtectionOfElune(bot))
+        return false;
+
+    if (!GetBoss(ai, NPC_ARCHIMONDE))
+        return false;
+
+    Unit* totem = GetPartyTremorTotem(bot);
+    return totem && ExactDist2d(bot, totem) > TREMOR_TOTEM_RANGE;
+}
+
+// Doomfire next to Archimonde: the tank walks him off it so the melee can stand safely
+bool ArchimondeBossNearDoomfireTrigger::IsActiveInEncounter()
+{
+    if (!IsMainTank(bot) || HasProtectionOfElune(bot))
+        return false;
+
+    Unit* archimonde = GetBoss(ai, NPC_ARCHIMONDE);
+    if (!archimonde || archimonde->GetVictim() != bot)
+        return false;
+
+    return IsPositionNearDoomfire(ai, archimonde->GetPositionX(), archimonde->GetPositionY(),
+                                  DOOMFIRE_DANGER_RADIUS + archimonde->GetCombatReach());
+}
+
+bool ArchimondeMeleeShouldSpreadTrigger::IsActiveInEncounter()
+{
+    if (PlayerbotAI::IsTank(bot) || !IsMeleePlayer(bot) || HasProtectionOfElune(bot))
+        return false;
+
+    return GetBoss(ai, NPC_ARCHIMONDE) != nullptr;
+}
+
+// Every death casts Soul Charge on the whole raid: survival comes first
+bool ArchimondeBotInDangerOfDyingTrigger::IsActiveInEncounter()
+{
+    if (!GetBoss(ai, NPC_ARCHIMONDE) || HasProtectionOfElune(bot))
+        return false;
+
+    const float dangerHealthPct = 35.0f;
+    return bot->IsAlive() && bot->GetHealthPercent() < dangerHealthPct;
+}
+
+// Hand of Death wipes the raid 10 minutes after the pull: from 8 minutes on, the shamans
+// use Bloodlust/Heroism again for a last burn
+bool ArchimondeHandOfDeathSoonTrigger::IsActiveInEncounter()
+{
+    const time_t now = time(nullptr);
+    Unit* archimonde = GetBoss(ai, NPC_ARCHIMONDE);
+    if (!archimonde || !archimonde->IsInCombat())
+    {
+        pullTime = 0;
+        return false;
+    }
+
+    // Not checked outside of encounters: a long gap means a new pull
+    if (!pullTime || now - lastSeen > 30)
+        pullTime = now;
+    lastSeen = now;
+
+    constexpr time_t burnAfterSeconds = HAND_OF_DEATH_SECONDS - 120;
+    return bot->getClass() == CLASS_SHAMAN && now - pullTime >= burnAfterSeconds && !HasProtectionOfElune(bot);
+}

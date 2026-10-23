@@ -118,6 +118,7 @@ bool NeedsStateReset(PlayerbotAI* ai)
     const bool dirty = state.hydrossFrostDpsWait || state.hydrossNatureDpsWait ||
         state.hydrossChangeToFrostPhase || state.hydrossChangeToNaturePhase || state.lurkerSpoutEnd ||
         state.leotherasHumanFormDpsWait || state.leotherasDemonFormDpsWait || state.leotherasFinalPhaseDpsWait ||
+        state.leotherasWhirlwindEnd || state.leotherasWhirlwindActive || !state.leotherasDemonTank.IsEmpty() ||
         state.karathressDpsWait || state.lastCoreThrow || !state.vashjGenerator.IsEmpty() ||
         !state.lurkerRangedPositions.empty() || !state.tidewalkerTankStep.empty() ||
         !state.tidewalkerRangedStep.empty() || !state.hasReachedVashjRangedPosition.empty() ||
@@ -254,6 +255,59 @@ WorldPosition GetStepTowards(Player* bot, const WorldPosition& position, float m
     const float x = bot->GetPositionX() + (position.getX() - bot->GetPositionX()) * ratio;
     const float y = bot->GetPositionY() + (position.getY() - bot->GetPositionY()) * ratio;
     return WorldPosition(position.getMapId(), x, y, position.getZ());
+}
+
+bool GetRangedSpreadPosition(Player* bot, Unit* anchor, float spreadDistance, float minAnchorDistance,
+                             float maxAnchorDistance, WorldPosition& position)
+{
+    // Minimize the overlap with the whole group: moving away from only the nearest player
+    // can move straight into the next one.
+    const std::vector<Player*> members = raidboss::GetGroupMembers(bot, 40.0f, false);
+    const auto exposure = [&members, spreadDistance](float px, float py)
+    {
+        float score = 0.0f;
+        for (Player* member : members)
+        {
+            const float overlap = std::max(0.0f, spreadDistance - raidboss::ExactDist2d(member, px, py));
+            score += overlap * overlap;
+        }
+        return score;
+    };
+
+    const float currentScore = exposure(bot->GetPositionX(), bot->GetPositionY());
+    if (currentScore <= 0.0f)
+        return false;
+
+    constexpr unsigned candidates = 16;
+    constexpr float stepDistance = 5.0f;
+    float bestScore = currentScore * 0.75f;  // hysteresis: no shuffling for small gains
+    bool found = false;
+    for (unsigned i = 0; i < candidates; ++i)
+    {
+        const float angle = i * 2.0f * M_PI_F / candidates;
+        const float px = bot->GetPositionX() + std::cos(angle) * stepDistance;
+        const float py = bot->GetPositionY() + std::sin(angle) * stepDistance;
+        if (anchor)
+        {
+            const float anchorDistance = raidboss::ExactDist2d(anchor, px, py);
+            if (anchorDistance < minAnchorDistance || anchorDistance > maxAnchorDistance)
+                continue;
+        }
+
+        const float score = exposure(px, py);
+        if (score >= bestScore)
+            continue;
+
+        float x, y, z;
+        if (!raidboss::CanTakeStepTowards(bot, px, py, stepDistance, x, y, z))
+            continue;
+
+        bestScore = score;
+        position = WorldPosition(bot->GetMapId(), x, y, z);
+        found = true;
+    }
+
+    return found;
 }
 
 bool IsActionNamed(Action* action, std::initializer_list<const char*> names)
@@ -403,28 +457,82 @@ Unit* GetActiveLeotherasDemon(PlayerbotAI* ai)
 }
 
 // (1) First priority is an assistant Warlock (real player or bot)
-// (2) If no assistant Warlock, then look for any Warlock bot
+// (2) If no assistant Warlock, the Warlock bot with the most Fire Resistance (Chaos Blast is fire
+//     damage), then the most health. The choice is kept for the fight while that Warlock lives.
 Player* GetLeotherasDemonFormTank(Player* bot)
 {
     Group* group = bot->GetGroup();
     if (!group)
         return nullptr;
 
-    Player* fallbackWarlock = nullptr;
+    const auto isCandidate = [bot, group](Player* member)
+    {
+        return member && member->IsAlive() && member->IsInWorld() && member->getClass() == CLASS_WARLOCK &&
+               member->GetMapId() == bot->GetMapId() && group->IsMember(member->GetObjectGuid());
+    };
+
+    const ObjectGuid chosen = GetState(bot).leotherasDemonTank;
+    if (!chosen.IsEmpty())
+    {
+        Player* member = sObjectMgr.GetPlayer(chosen);
+        if (isCandidate(member))
+            return member;
+    }
+
+    Player* tank = nullptr;
     for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
     {
         Player* member = ref->getSource();
-        if (!member || !member->IsAlive() || member->getClass() != CLASS_WARLOCK || member->GetMapId() != bot->GetMapId())
+        if (!isCandidate(member))
             continue;
 
         if (group->IsAssistant(member->GetObjectGuid()))
-            return member;
+        {
+            tank = member;
+            break;
+        }
 
-        if (!fallbackWarlock && member->GetPlayerbotAI())
-            fallbackWarlock = member;
+        if (!member->GetPlayerbotAI())
+            continue;
+
+        const int32 fireResistance = member->GetResistance(SPELL_SCHOOL_FIRE);
+        if (!tank || fireResistance > tank->GetResistance(SPELL_SCHOOL_FIRE) ||
+            (fireResistance == tank->GetResistance(SPELL_SCHOOL_FIRE) && member->GetMaxHealth() > tank->GetMaxHealth()))
+            tank = member;
     }
 
-    return fallbackWarlock;
+    if (tank && bot->IsInCombat())
+        WithState(bot, [tank](SscInstanceState& state) { state.leotherasDemonTank = tank->GetObjectGuid(); });
+
+    return tank;
+}
+
+Player* GetLeotherasMindControlledPlayer(Player* bot)
+{
+    Player* nearest = nullptr;
+    float nearestDistance = 0.0f;
+    for (Player* member : raidboss::GetGroupMembers(bot, 60.0f, false))
+    {
+        if (!member->IsAlive() || !member->HasAura(SPELL_CONSUMING_MADNESS))
+            continue;
+
+        const float distance = raidboss::ExactDist2d(bot, member);
+        if (!nearest || distance < nearestDistance)
+        {
+            nearest = member;
+            nearestDistance = distance;
+        }
+    }
+
+    return nearest;
+}
+
+bool IsLeotherasWhirlwindAggroReset(Player* bot)
+{
+    // Long enough for the tank (and a Misdirection) to build a threat lead again
+    constexpr time_t aggroResetSeconds = 4;
+    const time_t end = GetState(bot).leotherasWhirlwindEnd;
+    return end && time(nullptr) - end < aggroResetSeconds;
 }
 
 // The Inner Demon summoned for the bot (only its summoner can damage it)

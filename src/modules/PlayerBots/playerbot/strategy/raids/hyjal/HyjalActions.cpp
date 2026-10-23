@@ -692,3 +692,170 @@ bool ArchimondeAvoidDoomfireAction::Execute(Event& /*event*/)
 
     return MoveStep(moveX, moveY, bot->GetPositionZ());
 }
+
+// Tears of the Goddess are handed out by Tyrande to every raid member before the fight; the bots
+// get the same slow fall when Air Burst throws them up, so the landing does no fall damage.
+bool ArchimondeUseTearsOfTheGoddessAction::Execute(Event& /*event*/)
+{
+    if (bot->HasAura(SPELL_ELUNES_EMBRACE))
+        return false;
+
+    bot->CastSpell(bot, SPELL_ELUNES_EMBRACE, TRIGGERED_OLD_TRIGGERED);
+    return bot->HasAura(SPELL_ELUNES_EMBRACE);
+}
+
+// Walks towards the cursed player when out of range (never into Doomfire), then decurses
+bool ArchimondeDecurseGripOfTheLegionAction::Execute(Event& /*event*/)
+{
+    Player* target = GetGripOfTheLegionTarget(bot, 60.0f);
+    if (!target)
+        return false;
+
+    constexpr float decurseRange = 28.0f;  // Remove (Lesser) Curse: 30y
+    const float distance = ExactDist2d(bot, target);
+    if (distance > decurseRange || !bot->IsWithinLOSInMap(target))
+    {
+        const float step = std::min(8.0f, std::max(2.0f, distance - decurseRange + 2.0f));
+        float x, y, z;
+        if (!CanTakeStepTowards(bot, target->GetPositionX(), target->GetPositionY(), step, x, y, z) ||
+            IsPositionNearDoomfire(ai, x, y, DOOMFIRE_DANGER_RADIUS))
+            return false;
+
+        return MoveStep(x, y, z);
+    }
+
+    return TryCast(ai, bot->getClass() == CLASS_MAGE ? "remove lesser curse" : "remove curse", target);
+}
+
+bool ArchimondeStayNearTremorTotemAction::Execute(Event& /*event*/)
+{
+    Unit* totem = GetPartyTremorTotem(bot);
+    if (!totem)
+        return false;
+
+    const float distance = ExactDist2d(bot, totem);
+    if (distance <= TREMOR_TOTEM_RANGE)
+        return false;
+
+    const float step = std::min(8.0f, distance - TREMOR_TOTEM_RANGE + 3.0f);
+    float x, y, z;
+    if (!CanTakeStepTowards(bot, totem->GetPositionX(), totem->GetPositionY(), step, x, y, z) ||
+        IsPositionNearDoomfire(ai, x, y, DOOMFIRE_DANGER_RADIUS))
+        return false;
+
+    return MoveStep(x, y, z);
+}
+
+// The tank holding Archimonde walks to the side with the most room from the Doomfire, so the boss
+// follows and the melee around him are not standing in (or feared into) the trail
+bool ArchimondeMoveBossAwayFromDoomfireAction::Execute(Event& /*event*/)
+{
+    Unit* archimonde = GetBoss(ai, NPC_ARCHIMONDE);
+    if (!archimonde || archimonde->GetVictim() != bot)
+        return false;
+
+    const std::vector<WorldPosition> trail = GetDoomfirePositions(ai);
+    if (trail.empty())
+        return false;
+
+    const auto clearance = [&trail](float px, float py)
+    {
+        float result = std::numeric_limits<float>::max();
+        for (const WorldPosition& patch : trail)
+            result = std::min(result, std::hypot(patch.getX() - px, patch.getY() - py));
+        return result;
+    };
+
+    const float bossX = archimonde->GetPositionX();
+    const float bossY = archimonde->GetPositionY();
+    const float currentClearance = clearance(bossX, bossY);
+    constexpr uint8 directions = 12;
+    constexpr float probeDistance = 12.0f;
+    constexpr float stepDistance = 4.0f;
+    float bestClearance = currentClearance + 2.0f;  // only move for a real improvement
+    float bestX = 0.0f, bestY = 0.0f, bestZ = 0.0f;
+    bool found = false;
+    for (uint8 i = 0; i < directions; ++i)
+    {
+        const float angle = 2.0f * M_PI_F * i / directions;
+        const float px = bossX + std::cos(angle) * probeDistance;
+        const float py = bossY + std::sin(angle) * probeDistance;
+        const float probeClearance = clearance(px, py);
+        if (probeClearance <= bestClearance)
+            continue;
+
+        // The tank walks ahead of the boss in that direction
+        float x, y, z;
+        if (!CanTakeStepTowards(bot, px + std::cos(angle) * stepDistance, py + std::sin(angle) * stepDistance,
+                                stepDistance, x, y, z) ||
+            IsPositionNearDoomfire(ai, x, y, DOOMFIRE_BURN_RADIUS))
+            continue;
+
+        bestClearance = probeClearance;
+        bestX = x;
+        bestY = y;
+        bestZ = z;
+        found = true;
+    }
+
+    return found && MoveStep(bestX, bestY, bestZ);
+}
+
+// Melee spread around Archimonde as well: Fear then scatters fewer players into the same Doomfire
+bool ArchimondeSpreadMeleeAction::Execute(Event& /*event*/)
+{
+    const uint32 now = WorldTimer::getMSTime();
+    if (lastMoveTime && WorldTimer::getMSTimeDiff(lastMoveTime, now) < 1000)
+        return false;
+
+    Unit* archimonde = GetBoss(ai, NPC_ARCHIMONDE);
+    if (!archimonde)
+        return false;
+
+    constexpr float meleeSpreadDistance = 6.0f;
+    float x, y, z;
+    if (!GetMeleeRingSpreadPosition(bot, archimonde, meleeSpreadDistance, x, y, z,
+            [this](float px, float py) { return IsPositionNearDoomfire(ai, px, py, DOOMFIRE_DANGER_RADIUS); }))
+        return false;
+
+    lastMoveTime = now;
+    return MoveStep(x, y, z);
+}
+
+// Every death casts Soul Charge on the raid: defensive cooldowns before the health runs out
+// (healthstone and healing potion follow as further actions of the same trigger)
+bool ArchimondeStayAliveAction::Execute(Event& /*event*/)
+{
+    std::vector<const char*> spells;
+    switch (bot->getClass())
+    {
+    case CLASS_WARRIOR: spells = { "last stand", "shield wall" }; break;
+    case CLASS_PALADIN:
+    {
+        // An immune tank drops Archimonde onto the next one on threat (see HyjalMainTankNoImmunityMultiplier)
+        Unit* archimonde = GetBoss(ai, NPC_ARCHIMONDE);
+        if (!IsMainTank(bot) && (!archimonde || archimonde->GetVictim() != bot))
+            spells = { "divine shield", "divine protection" };
+        break;
+    }
+    case CLASS_MAGE:    spells = { "ice block" }; break;
+    case CLASS_ROGUE:   spells = { "evasion", "cloak of shadows" }; break;
+    case CLASS_PRIEST:  spells = { "desperate prayer", "power word: shield" }; break;
+    case CLASS_DRUID:   spells = { "barkskin" }; break;
+    case CLASS_SHAMAN:  spells = { "shamanistic rage" }; break;
+    default: break;
+    }
+
+    for (const char* spell : spells)
+    {
+        if (!ai->HasAura(spell, bot) && TryCast(ai, spell, bot))
+            return true;
+    }
+
+    return false;
+}
+
+bool ArchimondeBurnBeforeHandOfDeathAction::Execute(Event& /*event*/)
+{
+    return TryCast(ai, "heroism", bot) || TryCast(ai, "bloodlust", bot);
+}

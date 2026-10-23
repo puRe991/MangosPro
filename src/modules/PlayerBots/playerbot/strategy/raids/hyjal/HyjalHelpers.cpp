@@ -7,6 +7,7 @@
 #include "playerbot/strategy/raids/RaidBossHelpers.h"
 #include "Maps/MapManager.h"
 #include "Spells/Spell.h"
+#include "Entities/Totem.h"
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -640,6 +641,64 @@ Player* hyjal::GetAirBurstTarget(Unit* archimonde)
 
     Unit* target = spell->m_targets.getUnitTarget();
     return target && target->IsPlayer() ? static_cast<Player*>(target) : nullptr;
+}
+
+Unit* hyjal::GetPartyTremorTotem(Player* bot)
+{
+    Group* group = bot->GetGroup();
+    Unit* nearest = nullptr;
+    float nearestDistance = 0.0f;
+    const auto consider = [&](Player* shaman)
+    {
+        if (!shaman || shaman->getClass() != CLASS_SHAMAN || !shaman->IsAlive() || shaman->GetMapId() != bot->GetMapId())
+            return;
+
+        Unit* totem = shaman->GetTotem(TOTEM_SLOT_EARTH);
+        if (!totem || !totem->IsAlive() || totem->GetEntry() != NPC_TREMOR_TOTEM)
+            return;
+
+        const float distance = ExactDist2d(bot, totem);
+        if (!nearest || distance < nearestDistance)
+        {
+            nearest = totem;
+            nearestDistance = distance;
+        }
+    };
+
+    if (!group)
+    {
+        consider(bot);
+        return nearest;
+    }
+
+    for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
+    {
+        Player* member = ref->getSource();
+        if (member && group->SameSubGroup(bot, member))
+            consider(member);
+    }
+
+    return nearest;
+}
+
+Player* hyjal::GetGripOfTheLegionTarget(Player* bot, float range)
+{
+    Player* nearest = nullptr;
+    float nearestDistance = 0.0f;
+    for (Player* member : GetGroupMembers(bot, range, true))
+    {
+        if (!member->IsAlive() || !member->HasAura(SPELL_GRIP_OF_THE_LEGION))
+            continue;
+
+        const float distance = ExactDist2d(bot, member);
+        if (!nearest || distance < nearestDistance)
+        {
+            nearest = member;
+            nearestDistance = distance;
+        }
+    }
+
+    return nearest;
 }
 
 std::string hyjal::GetSelfImmunitySpellName(Player* bot)

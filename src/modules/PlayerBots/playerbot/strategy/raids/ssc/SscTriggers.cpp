@@ -237,8 +237,38 @@ bool SscLeotherasEnteredFinalPhaseTrigger::IsActive()
 
 bool SscLeotherasDemonFormTankNeedsAggroTrigger::IsActive()
 {
-    return IsHunter(bot) && !bot->HasAura(SPELL_INSIDIOUS_WHISPER) && FindSscUnit(ai, NPC_LEOTHERAS, 100.0f) &&
-           GetActiveLeotherasDemon(ai);
+    if (!IsHunter(bot) || bot->HasAura(SPELL_INSIDIOUS_WHISPER) || !FindSscUnit(ai, NPC_LEOTHERAS, 100.0f))
+        return false;
+
+    return GetActiveLeotherasDemon(ai) || (GetLeotherasHuman(ai) && IsLeotherasWhirlwindAggroReset(bot));
+}
+
+bool SscLeotherasDemonFormTankNeedsHealingTrigger::IsActive()
+{
+    if (!PlayerbotAI::IsHeal(bot) || bot->HasAura(SPELL_INSIDIOUS_WHISPER) || !FindSscUnit(ai, NPC_LEOTHERAS, 100.0f))
+        return false;
+
+    if (!GetActiveLeotherasDemon(ai))
+        return false;
+
+    // Two healers are assigned to the Warlock tank, the rest keeps healing the raid
+    if (GetHealerOfIndex(bot, 0) != bot && GetHealerOfIndex(bot, 1) != bot)
+        return false;
+
+    Player* tank = GetLeotherasDemonFormTank(bot);
+    return tank && tank != bot && tank->IsAlive() && tank->GetHealthPercent() < 90.0f;
+}
+
+bool SscLeotherasPlayerIsMindControlledTrigger::IsActive()
+{
+    if (PlayerbotAI::IsHeal(bot) || bot->HasAura(SPELL_INSIDIOUS_WHISPER) || !FindSscUnit(ai, NPC_LEOTHERAS, 100.0f))
+        return false;
+
+    // The tanks keep their bosses
+    if (raidboss::IsMainTank(bot) || (bot->getClass() == CLASS_WARLOCK && GetLeotherasDemonFormTank(bot) == bot))
+        return false;
+
+    return GetLeotherasMindControlledPlayer(bot) != nullptr;
 }
 
 bool SscLeotherasBossWipesAggroUponPhaseChangeTrigger::IsActive()

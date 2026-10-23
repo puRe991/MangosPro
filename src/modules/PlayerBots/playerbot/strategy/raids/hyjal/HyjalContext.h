@@ -74,6 +74,13 @@ namespace ai
             creators["archimonde keep air burst away from tank"] = [](PlayerbotAI* ai) { return new ArchimondeKeepAirBurstAwayFromTankAction(ai); };
             creators["archimonde spread ranged"] = [](PlayerbotAI* ai) { return new ArchimondeSpreadRangedAction(ai); };
             creators["archimonde avoid doomfire"] = [](PlayerbotAI* ai) { return new ArchimondeAvoidDoomfireAction(ai); };
+            creators["archimonde use tears of the goddess"] = [](PlayerbotAI* ai) { return new ArchimondeUseTearsOfTheGoddessAction(ai); };
+            creators["archimonde decurse grip of the legion"] = [](PlayerbotAI* ai) { return new ArchimondeDecurseGripOfTheLegionAction(ai); };
+            creators["archimonde stay near tremor totem"] = [](PlayerbotAI* ai) { return new ArchimondeStayNearTremorTotemAction(ai); };
+            creators["archimonde move boss away from doomfire"] = [](PlayerbotAI* ai) { return new ArchimondeMoveBossAwayFromDoomfireAction(ai); };
+            creators["archimonde spread melee"] = [](PlayerbotAI* ai) { return new ArchimondeSpreadMeleeAction(ai); };
+            creators["archimonde stay alive"] = [](PlayerbotAI* ai) { return new ArchimondeStayAliveAction(ai); };
+            creators["archimonde burn before hand of death"] = [](PlayerbotAI* ai) { return new ArchimondeBurnBeforeHandOfDeathAction(ai); };
         }
     };
 
@@ -133,6 +140,13 @@ namespace ai
             creators["archimonde ranged should spread"] = [](PlayerbotAI* ai) { return new ArchimondeRangedShouldSpreadTrigger(ai); };
             creators["archimonde near doomfire"] = [](PlayerbotAI* ai) { return new ArchimondeNearDoomfireTrigger(ai); };
             creators["archimonde stood in doomfire"] = [](PlayerbotAI* ai) { return new ArchimondeStoodInDoomfireTrigger(ai); };
+            creators["archimonde knocked into the air"] = [](PlayerbotAI* ai) { return new ArchimondeKnockedIntoTheAirTrigger(ai); };
+            creators["archimonde grip of the legion"] = [](PlayerbotAI* ai) { return new ArchimondeGripOfTheLegionTrigger(ai); };
+            creators["archimonde out of tremor totem range"] = [](PlayerbotAI* ai) { return new ArchimondeOutOfTremorTotemRangeTrigger(ai); };
+            creators["archimonde boss near doomfire"] = [](PlayerbotAI* ai) { return new ArchimondeBossNearDoomfireTrigger(ai); };
+            creators["archimonde melee should spread"] = [](PlayerbotAI* ai) { return new ArchimondeMeleeShouldSpreadTrigger(ai); };
+            creators["archimonde bot in danger of dying"] = [](PlayerbotAI* ai) { return new ArchimondeBotInDangerOfDyingTrigger(ai); };
+            creators["archimonde hand of death soon"] = [](PlayerbotAI* ai) { return new ArchimondeHandOfDeathSoonTrigger(ai); };
         }
     };
 

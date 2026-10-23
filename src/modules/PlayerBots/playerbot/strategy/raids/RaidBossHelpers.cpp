@@ -137,6 +137,61 @@ std::vector<GameObject*> raidboss::FindGameObjects(Player* bot, uint32 entry, fl
     return std::vector<GameObject*>(objects.begin(), objects.end());
 }
 
+bool raidboss::GetMeleeRingSpreadPosition(Player* bot, Unit* target, float spreadDistance, float& x, float& y, float& z,
+                                          const std::function<bool(float, float)>& blocked)
+{
+    if (!target || !bot->CanReachWithMeleeAttack(target))
+        return false;
+
+    // Moving away from only the nearest player can move straight into the next one: score the
+    // overlap with the whole group instead
+    const std::vector<Player*> members = GetGroupMembers(bot, 40.0f, false);
+    const auto exposure = [&members, spreadDistance](float px, float py)
+    {
+        float score = 0.0f;
+        for (Player* member : members)
+        {
+            const float overlap = std::max(0.0f, spreadDistance - ExactDist2d(member, px, py));
+            score += overlap * overlap;
+        }
+        return score;
+    };
+
+    const float currentScore = exposure(bot->GetPositionX(), bot->GetPositionY());
+    if (currentScore <= 0.0f)
+        return false;
+
+    // Inside melee range (combined combat reach plus the melee offset), with some room to spare
+    const float ringRadius = std::max(1.5f, (bot->GetCombatReach() + target->GetCombatReach() + 1.333f) * 0.75f);
+    constexpr unsigned candidates = 24;
+    float bestScore = currentScore * 0.75f;  // hysteresis: no shuffling for small gains
+    bool found = false;
+    for (unsigned i = 0; i < candidates; ++i)
+    {
+        const float angle = i * 2.0f * M_PI_F / candidates;
+        const float px = target->GetPositionX() + std::cos(angle) * ringRadius;
+        const float py = target->GetPositionY() + std::sin(angle) * ringRadius;
+        if (blocked && blocked(px, py))
+            continue;
+
+        const float score = exposure(px, py);
+        if (score >= bestScore)
+            continue;
+
+        float stepX, stepY, stepZ;
+        if (!CanTakeStepTowards(bot, px, py, ExactDist2d(bot, px, py), stepX, stepY, stepZ))
+            continue;
+
+        bestScore = score;
+        x = stepX;
+        y = stepY;
+        z = stepZ;
+        found = true;
+    }
+
+    return found;
+}
+
 bool raidboss::CanTakeStepTowards(Player* bot, float destinationX, float destinationY, float moveDist,
                                   float& stepX, float& stepY, float& stepZ)
 {

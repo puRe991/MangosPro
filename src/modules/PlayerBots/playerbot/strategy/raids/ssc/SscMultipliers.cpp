@@ -241,7 +241,8 @@ float SscLeotherasFocusOnInnerDemonMultiplier::GetValue(Action* action)
 float SscLeotherasWaitForDpsMultiplier::GetValue(Action* action)
 {
     if (bot->HasAura(SPELL_INSIDIOUS_WHISPER) || !IsDamageAction(action) ||
-        dynamic_cast<SscLeotherasDestroyInnerDemonAction*>(action))
+        dynamic_cast<SscLeotherasDestroyInnerDemonAction*>(action) ||
+        dynamic_cast<SscLeotherasAttackMindControlledPlayerAction*>(action))
         return 1.0f;
 
     if (!FindSscUnit(ai, NPC_LEOTHERAS, 100.0f))
@@ -258,6 +259,12 @@ float SscLeotherasWaitForDpsMultiplier::GetValue(Action* action)
         if (!PlayerbotAI::IsTank(bot) && !IsWaitExpired(state.leotherasHumanFormDpsWait, 5))
             return 0.0f;
     }
+
+    // Whirlwind wiped the threat: let the tank pick the human form up again
+    // (the Warlock keeps working on the Shadow in the final phase)
+    if (leotherasHuman && IsLeotherasWhirlwindAggroReset(bot) && !PlayerbotAI::IsTank(bot) &&
+        !(phase3Demon && demonFormTank == bot))
+        return 0.0f;
 
     if (phase2Demon)
     {
@@ -280,14 +287,22 @@ float SscLeotherasWaitForDpsMultiplier::GetValue(Action* action)
     return 1.0f;
 }
 
-// Don't use Bloodlust/Heroism during the Channeler phase
-float SscLeotherasDelayBloodlustAndHeroismMultiplier::GetValue(Action* action)
+// Bloodlust/Heroism and DPS cooldowns are saved for the final phase below 15%, where every ability
+// is active at once. Bots with an Inner Demon may still use theirs to kill it in time.
+float SscLeotherasSaveCooldownsForFinalPhaseMultiplier::GetValue(Action* action)
 {
-    if (bot->getClass() != CLASS_SHAMAN || !IsLustAction(action))
+    const bool lust = bot->getClass() == CLASS_SHAMAN && IsLustAction(action);
+    if (!lust && !raidboss::IsDpsCooldownAction(bot, action))
+        return 1.0f;
+
+    if (!lust && bot->HasAura(SPELL_INSIDIOUS_WHISPER))
         return 1.0f;
 
     Unit* leotheras = FindSscUnit(ai, NPC_LEOTHERAS, 100.0f);
-    return leotheras && leotheras->HasAura(SPELL_LEOTHERAS_BANISHED) ? 0.0f : 1.0f;
+    if (!leotheras || !leotheras->IsAlive())
+        return 1.0f;
+
+    return GetPhase3LeotherasDemon(ai) ? 1.0f : 0.0f;
 }
 
 // Fathom-Lord Karathress

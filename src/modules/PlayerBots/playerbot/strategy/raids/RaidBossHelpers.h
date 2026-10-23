@@ -1,6 +1,7 @@
 #pragma once
 
 #include "playerbot/WorldPosition.h"
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -56,6 +57,11 @@ namespace ai
         // that the step can be taken (ground height and line of sight). stepZ is snapped to the ground.
         bool CanTakeStepTowards(Player* bot, float destinationX, float destinationY, float moveDist,
                                 float& stepX, float& stepY, float& stepZ);
+        // Melee spread: the spot on the melee ring around the target with the least overlap with other
+        // group members inside spreadDistance. 'blocked' rejects spots (e.g. ground effects).
+        // False if the current spot is already good enough (hysteresis) or no better spot was found.
+        bool GetMeleeRingSpreadPosition(Player* bot, Unit* target, float spreadDistance, float& x, float& y, float& z,
+                                        const std::function<bool(float, float)>& blocked = nullptr);
         // Step towards a position without collision checks, false once within arrivalDist.
         // 'facing' (the tanked mob) allows walking backwards while tanking.
         bool GetStepToPosition(Player* bot, const WorldPosition& position, float arrivalDist, Unit* facing,

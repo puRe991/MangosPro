@@ -86,6 +86,8 @@ namespace ai
     SSC_ACTION(SscLeotherasFinalPhaseAssignDpsPriorityAction, SscAttackAction, "leotheras the blind final phase assign dps priority")
     SSC_ACTION(SscLeotherasMisdirectBossToDemonFormTankAction, Action, "leotheras the blind misdirect boss to demon form tank")
     SSC_ACTION(SscLeotherasManageDpsWaitTimersAction, Action, "leotheras the blind manage dps wait timers")
+    SSC_ACTION(SscLeotherasHealDemonFormTankAction, SscMovementAction, "leotheras the blind heal demon form tank")
+    SSC_ACTION(SscLeotherasAttackMindControlledPlayerAction, SscAttackAction, "leotheras the blind attack mind controlled player")
 
     class SscLeotherasPositionRangedAction : public SscMovementAction
     {

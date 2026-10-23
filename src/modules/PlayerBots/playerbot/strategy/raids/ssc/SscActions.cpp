@@ -289,74 +289,25 @@ bool SscHydrossFrostPhaseSpreadOutAction::Execute(Event& event)
     if (!hydross || hydross->HasAura(SPELL_CORRUPTION))
         return false;
 
-    // Minimize the overlap with the whole group: moving away from only the nearest player
-    // can move straight into the next one.
-    const std::vector<Player*> members = raidboss::GetGroupMembers(bot, 40.0f, false);
-    const auto exposure = [&members](float px, float py)
-    {
-        float score = 0.0f;
-        for (Player* member : members)
-        {
-            const float overlap = std::max(0.0f, safeDistance - raidboss::ExactDist2d(member, px, py));
-            score += overlap * overlap;
-        }
-        return score;
-    };
-
-    const float currentScore = exposure(bot->GetPositionX(), bot->GetPositionY());
-    if (currentScore <= 0.0f)
-        return false;
-
     Unit* target = AI_VALUE(Unit*, "current target");
-    const bool melee = raidboss::IsMeleePlayer(bot);
-    // Melee first reach their target normally
-    if (melee && (!target || !bot->CanReachWithMeleeAttack(target)))
-        return false;
-
     Unit* anchor = target ? target : hydross;
-    const float ringRadius = std::max(1.5f, (bot->GetCombatReach() + anchor->GetCombatReach() + 1.333f) * 0.75f);
-    const unsigned candidates = melee ? 24 : 16;
-    float bestScore = currentScore * 0.75f;  // hysteresis: no shuffling for small gains
-    float bestX = 0.0f, bestY = 0.0f, bestZ = 0.0f;
-    bool found = false;
-    for (unsigned i = 0; i < candidates; ++i)
+    if (!raidboss::IsMeleePlayer(bot))
     {
-        const float angle = i * 2.0f * M_PI_F / candidates;
-        float px, py;
-        if (melee)
-        {
-            px = anchor->GetPositionX() + std::cos(angle) * ringRadius;
-            py = anchor->GetPositionY() + std::sin(angle) * ringRadius;
-        }
-        else
-        {
-            px = bot->GetPositionX() + std::cos(angle) * 5.0f;
-            py = bot->GetPositionY() + std::sin(angle) * 5.0f;
-            if (raidboss::ExactDist2d(anchor, px, py) > maxRangedDistance)
-                continue;
-        }
+        WorldPosition position;
+        if (!GetRangedSpreadPosition(bot, anchor, safeDistance, 0.0f, maxRangedDistance, position))
+            return false;
 
-        const float score = exposure(px, py);
-        if (score >= bestScore)
-            continue;
-
-        float x, y, z;
-        const float moveDist = raidboss::ExactDist2d(bot, px, py);
-        if (!raidboss::CanTakeStepTowards(bot, px, py, moveDist, x, y, z))
-            continue;
-
-        bestScore = score;
-        bestX = x;
-        bestY = y;
-        bestZ = z;
-        found = true;
+        lastMoveTime = now;
+        return MoveToPosition(position);
     }
 
-    if (!found)
+    // Melee: only spots on the ring of the melee target (reached normally first)
+    float x, y, z;
+    if (!raidboss::GetMeleeRingSpreadPosition(bot, target, safeDistance, x, y, z))
         return false;
 
     lastMoveTime = now;
-    return MoveToPosition(bestX, bestY, bestZ);
+    return MoveToPosition(x, y, z);
 }
 
 bool SscHydrossMisdirectBossToTankAction::Execute(Event& event)
@@ -593,8 +544,20 @@ bool SscLeotherasPositionRangedAction::Execute(Event& event)
         return MoveAwayFrom(leotherasHuman, safeDistFromBoss);
     }
 
+    // Human form: spread before Whirlwind, so that one spin hits as few players as possible
     if (!GetActiveLeotherasDemon(ai))
-        return false;
+    {
+        constexpr float humanFormSpread = 8.0f;
+        if (!leotherasHuman || (lastMoveTime && now >= lastMoveTime && now - lastMoveTime < 1000))
+            return false;
+
+        WorldPosition position;
+        if (!GetRangedSpreadPosition(bot, leotherasHuman, humanFormSpread, safeDistFromBoss, 30.0f, position))
+            return false;
+
+        lastMoveTime = now;
+        return MoveToPosition(position);
+    }
 
     Player* demonTank = GetLeotherasDemonFormTank(bot);
     for (Player* member : raidboss::GetGroupMembers(bot, 30.0f, false))
@@ -749,9 +712,14 @@ bool SscLeotherasFinalPhaseAssignDpsPriorityAction::Execute(Event& event)
     return false;
 }
 
-// Misdirect to the Warlock tank or to the main tank if there is no Warlock tank
+// Misdirect to the Warlock tank or to the main tank if there is no Warlock tank.
+// After a Whirlwind (threat wipe) the human form goes to the main tank.
 bool SscLeotherasMisdirectBossToDemonFormTankAction::Execute(Event& event)
 {
+    Unit* leotherasHuman = GetLeotherasHuman(ai);
+    if (leotherasHuman && IsLeotherasWhirlwindAggroReset(bot))
+        return Misdirect(ai, raidboss::GetGroupMainTank(bot), leotherasHuman);
+
     Unit* leotherasDemon = GetActiveLeotherasDemon(ai);
     if (!leotherasDemon)
         return false;
@@ -763,7 +731,56 @@ bool SscLeotherasMisdirectBossToDemonFormTankAction::Execute(Event& event)
     return Misdirect(ai, targetTank, leotherasDemon);
 }
 
-// This does not pause DPS after a Whirlwind, which is also an aggro wipe
+// The two assigned healers keep the Warlock tank up against Chaos Blast
+bool SscLeotherasHealDemonFormTankAction::Execute(Event& event)
+{
+    Player* tank = GetLeotherasDemonFormTank(bot);
+    if (!tank || tank == bot || !tank->IsAlive())
+        return false;
+
+    constexpr float healRange = 35.0f;
+    if (raidboss::ExactDist2d(bot, tank) > healRange || !bot->IsWithinLOSInMap(tank))
+        return MoveToPosition(GetStepTowards(bot, WorldPosition(tank), 8.0f));
+
+    const float healthPct = tank->GetHealthPercent();
+    const bool urgent = healthPct < 50.0f;
+    switch (bot->getClass())
+    {
+    case CLASS_PRIEST:
+        if (!ai->HasAura("renew", tank) && raidboss::TryCast(ai, "renew", tank))
+            return true;
+        return raidboss::TryCast(ai, urgent ? "flash heal" : "greater heal", tank) ||
+               raidboss::TryCast(ai, "flash heal", tank);
+    case CLASS_PALADIN:
+        return raidboss::TryCast(ai, urgent ? "holy light" : "flash of light", tank) ||
+               raidboss::TryCast(ai, "flash of light", tank);
+    case CLASS_SHAMAN:
+        return raidboss::TryCast(ai, urgent ? "lesser healing wave" : "healing wave", tank) ||
+               raidboss::TryCast(ai, "lesser healing wave", tank);
+    case CLASS_DRUID:
+        if (!ai->HasAura("rejuvenation", tank) && raidboss::TryCast(ai, "rejuvenation", tank))
+            return true;
+        return raidboss::TryCast(ai, urgent ? "regrowth" : "healing touch", tank) ||
+               raidboss::TryCast(ai, "regrowth", tank);
+    default:
+        return false;
+    }
+}
+
+// A player whose Inner Demon survived stays mind controlled until Leotheras dies: kill them
+bool SscLeotherasAttackMindControlledPlayerAction::Execute(Event& event)
+{
+    Player* controlled = GetLeotherasMindControlledPlayer(bot);
+    if (!controlled)
+        return false;
+
+    if (raidboss::MarkTargetWithMoon(bot, controlled))
+        return true;
+
+    return !IsCurrentTarget(controlled) && AttackUnit(controlled);
+}
+
+// Also records the end of each Whirlwind, which is an aggro wipe as well
 bool SscLeotherasManageDpsWaitTimersAction::Execute(Event& event)
 {
     Unit* leotheras = FindSscUnit(ai, NPC_LEOTHERAS, 100.0f);
@@ -791,9 +808,21 @@ bool SscLeotherasManageDpsWaitTimersAction::Execute(Event& event)
     WithState(bot, [&](SscInstanceState& state)
     {
         // Encounter start/reset: clear all timers
-        if (banished && (state.leotherasHumanFormDpsWait || state.leotherasDemonFormDpsWait || state.leotherasFinalPhaseDpsWait))
+        if (banished && (state.leotherasHumanFormDpsWait || state.leotherasDemonFormDpsWait || state.leotherasFinalPhaseDpsWait ||
+                         state.leotherasWhirlwindEnd || state.leotherasWhirlwindActive))
         {
             state.leotherasHumanFormDpsWait = state.leotherasDemonFormDpsWait = state.leotherasFinalPhaseDpsWait = 0;
+            state.leotherasWhirlwindEnd = 0;
+            state.leotherasWhirlwindActive = false;
+            changed = true;
+        }
+
+        const bool whirlwind = leotheras->HasAura(SPELL_WHIRLWIND) || leotheras->HasAura(SPELL_WHIRLWIND_CHANNEL);
+        if (whirlwind != state.leotherasWhirlwindActive)
+        {
+            if (!whirlwind)
+                state.leotherasWhirlwindEnd = now;
+            state.leotherasWhirlwindActive = whirlwind;
             changed = true;
         }
 
