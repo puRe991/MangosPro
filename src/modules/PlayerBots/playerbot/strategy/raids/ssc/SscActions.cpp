@@ -275,20 +275,88 @@ bool SscHydrossPrioritizeElementalAddsAction::Execute(Event& event)
     return !IsCurrentTarget(elemental) && AttackUnit(elemental);
 }
 
-// To mitigate the effect of Water Tomb / Vile Sludge
+// Water Tomb (frost form only) stuns and damages everyone within 8y of its target.
+// Ranged keep in range of their target; melee only move around the ring of their melee target.
 bool SscHydrossFrostPhaseSpreadOutAction::Execute(Event& event)
 {
-    constexpr float safeDistance = 6.0f;
+    constexpr float safeDistance = 9.0f;    // Water Tomb radius 8y, 1y of padding
+    constexpr float maxRangedDistance = 30.0f;
     const uint32 now = WorldTimer::getMSTime();
     if (lastMoveTime && now >= lastMoveTime && now - lastMoveTime < 1000)
         return false;
 
-    Player* nearestPlayer = raidboss::GetNearestPlayerInRadius(bot, safeDistance);
-    if (!nearestPlayer)
+    Unit* hydross = FindSscUnit(ai, NPC_HYDROSS);
+    if (!hydross || hydross->HasAura(SPELL_CORRUPTION))
+        return false;
+
+    // Minimize the overlap with the whole group: moving away from only the nearest player
+    // can move straight into the next one.
+    const std::vector<Player*> members = raidboss::GetGroupMembers(bot, 40.0f, false);
+    const auto exposure = [&members](float px, float py)
+    {
+        float score = 0.0f;
+        for (Player* member : members)
+        {
+            const float overlap = std::max(0.0f, safeDistance - raidboss::ExactDist2d(member, px, py));
+            score += overlap * overlap;
+        }
+        return score;
+    };
+
+    const float currentScore = exposure(bot->GetPositionX(), bot->GetPositionY());
+    if (currentScore <= 0.0f)
+        return false;
+
+    Unit* target = AI_VALUE(Unit*, "current target");
+    const bool melee = raidboss::IsMeleePlayer(bot);
+    // Melee first reach their target normally
+    if (melee && (!target || !bot->CanReachWithMeleeAttack(target)))
+        return false;
+
+    Unit* anchor = target ? target : hydross;
+    const float ringRadius = std::max(1.5f, (bot->GetCombatReach() + anchor->GetCombatReach() + 1.333f) * 0.75f);
+    const unsigned candidates = melee ? 24 : 16;
+    float bestScore = currentScore * 0.75f;  // hysteresis: no shuffling for small gains
+    float bestX = 0.0f, bestY = 0.0f, bestZ = 0.0f;
+    bool found = false;
+    for (unsigned i = 0; i < candidates; ++i)
+    {
+        const float angle = i * 2.0f * M_PI_F / candidates;
+        float px, py;
+        if (melee)
+        {
+            px = anchor->GetPositionX() + std::cos(angle) * ringRadius;
+            py = anchor->GetPositionY() + std::sin(angle) * ringRadius;
+        }
+        else
+        {
+            px = bot->GetPositionX() + std::cos(angle) * 5.0f;
+            py = bot->GetPositionY() + std::sin(angle) * 5.0f;
+            if (raidboss::ExactDist2d(anchor, px, py) > maxRangedDistance)
+                continue;
+        }
+
+        const float score = exposure(px, py);
+        if (score >= bestScore)
+            continue;
+
+        float x, y, z;
+        const float moveDist = raidboss::ExactDist2d(bot, px, py);
+        if (!raidboss::CanTakeStepTowards(bot, px, py, moveDist, x, y, z))
+            continue;
+
+        bestScore = score;
+        bestX = x;
+        bestY = y;
+        bestZ = z;
+        found = true;
+    }
+
+    if (!found)
         return false;
 
     lastMoveTime = now;
-    return MoveAwayFrom(nearestPlayer, safeDistance);
+    return MoveToPosition(bestX, bestY, bestZ);
 }
 
 bool SscHydrossMisdirectBossToTankAction::Execute(Event& event)

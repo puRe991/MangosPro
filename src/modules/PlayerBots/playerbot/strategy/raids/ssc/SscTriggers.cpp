@@ -74,7 +74,13 @@ bool SscHydrossElementalsSpawnedTrigger::IsActive()
 
 bool SscHydrossDangerFromWaterTombsTrigger::IsActive()
 {
-    return raidboss::IsRangedPlayer(bot) && GetEngaged(ai, NPC_HYDROSS);
+    // Tanks hold their spots (the boss, or elementals for extra tanks); everyone else spreads,
+    // melee included. Water Tomb is only cast in frost form.
+    if (PlayerbotAI::IsTank(bot))
+        return false;
+
+    Unit* hydross = GetEngaged(ai, NPC_HYDROSS);
+    return hydross && !hydross->HasAura(SPELL_CORRUPTION);
 }
 
 bool SscHydrossTankNeedsAggroUponPhaseChangeTrigger::IsActive()

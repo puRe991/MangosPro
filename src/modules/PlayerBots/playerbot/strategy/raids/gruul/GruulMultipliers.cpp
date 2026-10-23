@@ -114,8 +114,14 @@ float HighKingMaulgarRestrictTauntingMultiplier::GetValueInEncounter(Action* act
     if (isAoeThreat && FindBlindeye(ai))
         return 0.0f;
 
-    // Kiggler is the only ogre tanked by a non-traditional tank that the Blindeye and Olm tanks are
-    // directed to attack after both are down: don't taunt him off the moonkin.
+    // After Blindeye and Olm the assist tanks join the melee on Maulgar: don't taunt him off the
+    // main tank. The main tank is the first living tank, so this lifts itself if it dies.
+    Unit* currentTarget = GetCurrentTarget(ai);
+    if (currentTarget && currentTarget == FindMaulgar(ai))
+        return 0.0f;
+
+    // Kiggler is the only ogre tanked by a non-traditional tank that the assist tanks are directed
+    // to attack (if Maulgar dies first): don't taunt him off the moonkin.
     Unit* kiggler = FindKiggler(ai);
     if (!kiggler || !GetKigglerMoonkinTank(ai))
         return 1.0f;

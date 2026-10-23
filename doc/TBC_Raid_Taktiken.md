@@ -34,7 +34,7 @@ Code:
 - **The Crone** – Zyklon meiden.
 
 ### Gruul's Lair
-- **High King Maulgar** – Kill-Order Blindeye → Olm (+ Felhunter) → Kiggler → Krosh (nur Fernkampf) → Maulgar. Raus aus Maulgars Wirbelwind und Kroshs Blast Wave, nicht vor Maulgar stehen.
+- **High King Maulgar** – Kill-Order Blindeye → Olm (+ Felhunter), danach Nahkampf auf Maulgar (Totenkopf), Fernkampf Kiggler → Krosh → Maulgar (Kreuz). Nahkampf nie auf Kiggler (Arcane Explosion) oder Krosh (Blast Wave). Raus aus Maulgars Wirbelwind und Kroshs Blast Wave, nicht vor Maulgar stehen.
 - **Gruul** – der Off-Tank bleibt im Nahkampf auf Platz 2 der Bedrohung (Hurtful Strike) und spottet nicht. Fernkampf immer 10 m verteilt; mit Gronn Lord's Grasp/Stoned verteilen sich **alle** auf 15 m (Shatter), raus aus Cave In.
 
 ### Magtheridon's Lair

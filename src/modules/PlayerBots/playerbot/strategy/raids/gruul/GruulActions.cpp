@@ -214,34 +214,37 @@ bool HighKingMaulgarMoonkinTankAttackKigglerAction::Execute(Event& /*event*/)
     return MoveTo(GRUUL_MAP_ID, x, y, z, false, false, false, true);
 }
 
-// Priority: (1) Blindeye, (2) Olm, (3) Krosh (ranged only), (4) Kiggler, and (5) Maulgar
+// Priority: (1) Blindeye, (2) Olm, then the raid splits up:
+// melee (3) Maulgar, (4) Kiggler; ranged (3) Kiggler, (4) Krosh, (5) Maulgar.
+// Melee stays off Kiggler (Arcane Explosion knockback) and never goes to Krosh (Blast Wave).
 bool HighKingMaulgarAssignDpsPriorityAction::Execute(Event& /*event*/)
 {
-    Unit* target = nullptr;
-    Unit* krosh = nullptr;
-    if (Unit* blindeye = FindBlindeye(ai))
-        target = blindeye;
-    else if (Unit* olm = FindOlm(ai))
-        target = olm;
-    else if (raidboss::IsRangedPlayer(bot) && (krosh = FindKrosh(ai)))
-        target = krosh;
-    else if (Unit* kiggler = FindKiggler(ai))
-        target = kiggler;
-    else if (Unit* maulgar = FindMaulgar(ai))
-        target = maulgar;
+    Unit* blindeye = FindBlindeye(ai);
+    Unit* olm = FindOlm(ai);
+    Unit* maulgar = FindMaulgar(ai);
+    Unit* kiggler = FindKiggler(ai);
+    Unit* krosh = FindKrosh(ai);
 
-    if (!target)
-        return false;
+    Unit* meleeTarget = blindeye ? blindeye : olm ? olm : maulgar ? maulgar : kiggler;
+    Unit* rangedTarget = blindeye ? blindeye : olm ? olm : kiggler ? kiggler : krosh ? krosh : maulgar;
 
-    if (target == krosh)
+    // Every bot marks both targets the same way: skull for melee, cross for a separate ranged target
+    if (meleeTarget && raidboss::MarkTargetWithSkull(bot, meleeTarget))
+        return true;
+
+    if (rangedTarget && rangedTarget != meleeTarget)
     {
-        if (raidboss::MarkTargetWithCross(bot, target))
+        if (raidboss::MarkTargetWithCross(bot, rangedTarget))
             return true;
     }
-    else if (raidboss::MarkTargetWithSkull(bot, target))
+    else if (raidboss::ClearTargetIcon(bot, raidboss::ICON_CROSS))
     {
         return true;
     }
+
+    Unit* target = raidboss::IsRangedPlayer(bot) ? rangedTarget : meleeTarget;
+    if (!target)
+        return false;
 
     return GetCurrentTarget(ai) != target && Attack(GetMaster(), target);
 }
