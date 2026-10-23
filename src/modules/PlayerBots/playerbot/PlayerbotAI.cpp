@@ -448,6 +448,7 @@ void PlayerbotAI::UpdateAI(uint32 elapsed, bool minimal)
             jumpTime = 0;
             fallAfterJump = false;
             ResetJumpDestination();
+            knockbackOrigin = WorldPosition();
 
             bot->InterruptMoving();
         }
@@ -482,7 +483,6 @@ void PlayerbotAI::UpdateAI(uint32 elapsed, bool minimal)
                     const float groundZ = bot->GetMap()->GetHeight(bot->m_movementInfo.pos.x, bot->m_movementInfo.pos.y, knockbackOrigin.getZ() + 3.0f);
                     landingHeight = groundZ > INVALID_HEIGHT && std::fabs(groundZ - knockbackOrigin.getZ()) < 10.0f ? groundZ : knockbackOrigin.getZ();
                 }
-                knockbackOrigin = WorldPosition();
 
                 // calculate fall time
                 float gravity = 19.2911f;
@@ -1592,6 +1592,7 @@ void PlayerbotAI::Reset(bool full)
         jumpTime = 0;
         fallAfterJump = false;
         ResetJumpDestination();
+        knockbackOrigin = WorldPosition();
 
         WorldSession* botWorldSessionPtr = bot->GetSession();
         bool logout = botWorldSessionPtr->ShouldLogOut(time(nullptr));
@@ -2157,6 +2158,18 @@ void PlayerbotAI::HandleBotOutgoingPacket(const WorldPacket& packet)
         // stop movement
         StopMoving();
 
+        // Quake pulses every second, so a knockback can arrive while the bot still hangs at the top of the
+        // previous arc: start the new arc from the ground below, otherwise every pulse stacks height on the last
+        if (jumpTime && knockbackOrigin)
+        {
+            float groundZ = bot->GetMap()->GetHeight(bot->GetPositionX(), bot->GetPositionY(), knockbackOrigin.getZ() + 3.0f);
+            if (groundZ <= INVALID_HEIGHT || std::fabs(groundZ - knockbackOrigin.getZ()) >= 10.0f)
+                groundZ = knockbackOrigin.getZ();
+            bot->Relocate(bot->GetPositionX(), bot->GetPositionY(), groundZ);
+        }
+        else
+            knockbackOrigin = WorldPosition(bot);
+
         float timeToLand, distToLand, maxHeight;
         bool goodLanding = true;
         float angleRadian = (vsin > 0) ? acos(vcos) : -acos(vcos);
@@ -2234,7 +2247,6 @@ void PlayerbotAI::HandleBotOutgoingPacket(const WorldPacket& packet)
 
         // The arc is not collision checked: under a ceiling (Magtheridon's Lair) its top lies inside or above
         // the roof and the fall simulation then "landed" the bot on it, stuck in the air for the rest of the fight
-        knockbackOrigin = WorldPosition(bot);
         if (bot->GetMap()->IsInLineOfSight(bot->GetPositionX(), bot->GetPositionY(), bot->GetPositionZ() + 2.0f,
             highestPoint.getX(), highestPoint.getY(), highestPoint.getZ() + 2.0f, true))
             bot->Relocate(highestPoint.getX(), highestPoint.getY(), highestPoint.getZ());

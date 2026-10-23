@@ -314,6 +314,11 @@ bool KazrogalAssistTanksMoveInFrontAction::Execute(Event& /*event*/)
     if (!mainTank || mainTank == bot)
         return false;
 
+    // Only join the main tank while it holds the boss, otherwise the assist tank drags the boss to it
+    Unit* kazrogal = GetBoss(ai, NPC_KAZROGAL);
+    if (!kazrogal || kazrogal->GetVictim() != mainTank)
+        return false;
+
     const float arrivalDist = 4.0f;
     float moveX, moveY;
     bool backwards;
@@ -494,6 +499,13 @@ bool AzgalorTankPositionDoomguardAction::Execute(Event& /*event*/)
     {
         // At the position and no Doomguard yet: wait
         return true;
+    }
+    else
+    {
+        // Holding Azgalor: going to the position in advance would drag the boss along
+        Unit* azgalor = GetBoss(ai, NPC_AZGALOR);
+        if (azgalor && azgalor->GetVictim() == bot)
+            return false;
     }
 
     // Without a Doomguard the tank goes to the position in advance

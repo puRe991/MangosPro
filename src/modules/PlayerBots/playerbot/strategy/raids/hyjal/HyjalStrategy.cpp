@@ -88,6 +88,7 @@ void HyjalBossStrategy::InitCombatMultipliers(std::list<Multiplier*>& multiplier
     // General
     multipliers.push_back(new HyjalDelayDpsCooldownsMultiplier(ai));
     multipliers.push_back(new HyjalDisableDisperseAndTankFaceMultiplier(ai));
+    multipliers.push_back(new HyjalMainTankNoImmunityMultiplier(ai));
 
     // Rage Winterchill
     multipliers.push_back(new RageWinterchillMeleeControlAvoidanceMultiplier(ai));
@@ -99,6 +100,7 @@ void HyjalBossStrategy::InitCombatMultipliers(std::list<Multiplier*>& multiplier
     multipliers.push_back(new AnetheronInfernalTargetRunToPositionMultiplier(ai));
     multipliers.push_back(new AnetheronControlMovementMultiplier(ai));
     multipliers.push_back(new AnetheronControlMisdirectionMultiplier(ai));
+    multipliers.push_back(new AnetheronControlTauntMultiplier(ai));
 
     // Kaz'rogal
     multipliers.push_back(new KazrogalControlLowManaMovementMultiplier(ai));

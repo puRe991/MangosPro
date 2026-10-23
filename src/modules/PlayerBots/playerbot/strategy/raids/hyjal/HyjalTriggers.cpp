@@ -186,6 +186,10 @@ bool KazrogalLowOnManaTrigger::IsActiveInEncounter()
     if (bot->getClass() == CLASS_HUNTER || bot->getClass() == CLASS_WARLOCK)
         return false;
 
+    // A tank running away drags the boss along: the assist tank follows it with the aggro
+    if (PlayerbotAI::IsTank(bot))
+        return false;
+
     Unit* kazrogal = GetBoss(ai, NPC_KAZROGAL);
     if (!kazrogal || kazrogal->GetVictim() == bot)
         return false;

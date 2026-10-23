@@ -21,6 +21,12 @@ namespace
 
         return false;
     }
+
+    bool HasDamageImmunity(PlayerbotAI* ai, Unit* unit)
+    {
+        return ai->HasAura("divine shield", unit) || ai->HasAura("divine protection", unit) ||
+               ai->HasAura("blessing of protection", unit);
+    }
 }
 
 // The multipliers are only added to the combat engine. Avoidance that holds a bot out of attack
@@ -165,6 +171,46 @@ float AnetheronControlMovementMultiplier::GetValueInEncounter(Action* action)
         return 1.0f;
 
     return GetBoss(ai, NPC_ANETHERON) ? 0.0f : 1.0f;
+}
+
+// An immune main tank drops the boss onto whoever is next on threat, usually a healer or a caster
+// (Carrion Swarm pushes the tank into critical health, the bubble then killed several bots)
+float HyjalMainTankNoImmunityMultiplier::GetValueInEncounter(Action* action)
+{
+    if (bot->getClass() != CLASS_PALADIN || !IsNamed(action, { "divine shield", "divine protection" }))
+        return 1.0f;
+
+    Unit* boss = GetAnyBoss(ai);
+    if (!boss || !boss->IsAlive())
+        return 1.0f;
+
+    return boss->GetVictim() == bot || IsMainTank(bot) ? 0.0f : 1.0f;
+}
+
+// The Infernal tank stays off Anetheron (the generic "lose aggro" taunted it at the pull, while the boss
+// was still on a footman), and nobody wastes a taunt on the taunt-immune Infernals
+float AnetheronControlTauntMultiplier::GetValueInEncounter(Action* action)
+{
+    if (!IsTauntAction(bot, action))
+        return 1.0f;
+
+    Unit* anetheron = GetBoss(ai, NPC_ANETHERON);
+    if (!anetheron)
+        return 1.0f;
+
+    Unit* target = GetCurrentTarget(ai);
+    if (target && target->GetEntry() == NPC_TOWERING_INFERNAL)
+        return 0.0f;
+
+    if (IsMainTank(bot) || target != anetheron)
+        return 1.0f;
+
+    // Take over only when the main tank cannot hold the boss
+    Player* mainTank = GetGroupMainTank(bot);
+    if (!mainTank || !mainTank->IsAlive() || HasDamageImmunity(ai, mainTank))
+        return 1.0f;
+
+    return 0.0f;
 }
 
 float AnetheronControlMisdirectionMultiplier::GetValueInEncounter(Action* action)
