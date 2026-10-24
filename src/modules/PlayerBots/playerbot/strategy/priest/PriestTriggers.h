@@ -5,9 +5,21 @@
 namespace ai
 {
     DEBUFF_TRIGGER(HolyFireTrigger, "holy fire");
-    DEBUFF_TRIGGER(PowerWordPainTrigger, "shadow word: pain");
+    // Shadow Word: Pain and Vampiric Touch are per-caster DoTs, so only our own copy counts
+    class PowerWordPainTrigger : public DebuffTrigger
+    {
+    public:
+        PowerWordPainTrigger(PlayerbotAI* ai) : DebuffTrigger(ai, "shadow word: pain", 1, true) {}
+    };
+
     DEBUFF_ENEMY_TRIGGER(PowerWordPainOnAttackerTrigger, "shadow word: pain");
-    DEBUFF_TRIGGER(VampiricTouchTrigger, "vampiric touch");
+
+    class VampiricTouchTrigger : public DebuffTrigger
+    {
+    public:
+        VampiricTouchTrigger(PlayerbotAI* ai) : DebuffTrigger(ai, "vampiric touch", 1, true) {}
+    };
+
     DEBUFF_ENEMY_TRIGGER(VampiricTouchOnAttackerTrigger, "vampiric touch");
     DEBUFF_TRIGGER(VampiricEmbraceTrigger, "vampiric embrace");
     CURE_TRIGGER(DispelMagicTrigger, "dispel magic", DISPEL_MAGIC);
@@ -31,6 +43,35 @@ namespace ai
 
     BOOST_TRIGGER_A(ShadowfiendTrigger, "shadowfiend");
     CAN_CAST_TRIGGER(MindBlastTrigger, "mind blast");
+
+    // Shadow Word: Death as part of the rotation, but not while its backlash could kill us
+    class ShadowWordDeathTrigger : public SpellCanBeCastedTrigger
+    {
+    public:
+        ShadowWordDeathTrigger(PlayerbotAI* ai) : SpellCanBeCastedTrigger(ai, "shadow word: death") {}
+        virtual bool IsActive() override
+        {
+            return SpellCanBeCastedTrigger::IsActive() && AI_VALUE2(uint8, "health", "self target") >= sPlayerbotAIConfig.mediumHealth;
+        }
+    };
+
+    // Keeps Renew rolling on a tank that is being hit
+    class RenewOnTankTrigger : public Trigger
+    {
+    public:
+        RenewOnTankTrigger(PlayerbotAI* ai) : Trigger(ai, "renew on tank", 1) {}
+
+        Value<ObjectGuid>* GetTargetValue() override { return context->GetValue<ObjectGuid>("party tank without lifebloom", "renew"); }
+        bool IsActive() override
+        {
+            Unit* target = GetTarget();
+            return target
+                && target->IsAlive()
+                && !ai->HasAura("renew", target, false, true, -1, false, 1000)
+                && ai->CanCastSpell("renew", target, 0)
+                && !target->getAttackers().empty();
+        }
+    };
     CAN_CAST_TRIGGER(SmiteTrigger, "smite");
 
     class ShadowguardTrigger : public BuffTrigger

@@ -39,6 +39,16 @@ namespace ai
     HEAL_PARTY_ACTION(CastFlashHealOnPartyAction, "flash heal");
     HEAL_ACTION(CastRenewAction, "renew");
     HEAL_HOT_PARTY_ACTION(CastRenewOnPartyAction, "renew");
+
+    class CastRenewOnTankAction : public CastSpellAction
+    {
+    public:
+        CastRenewOnTankAction(PlayerbotAI* ai) : CastSpellAction(ai, "renew") {}
+
+        std::string getName() override { return "renew on tank"; }
+        std::string GetTargetName() override { return "party tank without lifebloom"; }
+        std::string GetTargetQualifier() override { return "renew"; }
+    };
     // holy 2.4.3
     HEAL_PARTY_ACTION(CastPrayerOfMendingAction, "prayer of mending");
     HEAL_PARTY_ACTION(CastBindingHealAction, "binding heal");

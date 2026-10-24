@@ -426,9 +426,10 @@ void ShadowPriestStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
         "devouring plague",
         NextAction::array(0, new NextAction("devouring plague", ACTION_NORMAL + 2), NULL)));
 
+    // Shadow Word: Death after Mind Blast; Hex of Weakness is left out, it is a DPS loss
     triggers.push_back(new TriggerNode(
-        "hex of weakness",
-        NextAction::array(0, new NextAction("hex of weakness", ACTION_NORMAL + 1), NULL)));
+        "shadow word: death",
+        NextAction::array(0, new NextAction("shadow word: death", ACTION_NORMAL + 1), NULL)));
 
     triggers.push_back(new TriggerNode(
         "vampiric touch",

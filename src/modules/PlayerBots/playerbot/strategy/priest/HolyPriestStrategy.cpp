@@ -405,9 +405,15 @@ void HolyPriestStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
         NextAction::array(0, new NextAction("power word: shield on party", ACTION_MEDIUM_HEAL + 2),
                              new NextAction("greater heal on party", ACTION_MEDIUM_HEAL + 1), NULL)));
 
+    // Keep Renew on the tanks, not only once they drop
+    triggers.push_back(new TriggerNode(
+        "renew on tank",
+        NextAction::array(0, new NextAction("renew on tank", ACTION_MEDIUM_HEAL + 3), NULL)));
+
+    // Flash Heal is the filler; Greater Heal is kept for heavy damage (low health)
     triggers.push_back(new TriggerNode(
         "party member medium health",
-        NextAction::array(0, new NextAction("greater heal on party", ACTION_MEDIUM_HEAL), NULL)));
+        NextAction::array(0, new NextAction("flash heal on party", ACTION_MEDIUM_HEAL), NULL)));
 
     triggers.push_back(new TriggerNode(
         "party member almost full health",
