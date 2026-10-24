@@ -31,11 +31,20 @@ namespace ai
         CastHealingWaveOnPartyAction(PlayerbotAI* ai) : HealPartyMemberAction(ai, "healing wave") {}
     };
 
-    class CastChainHealAction : public CastAoeHealSpellAction 
+    class CastChainHealAction : public CastAoeHealSpellAction
     {
     public:
         CastChainHealAction(PlayerbotAI* ai) : CastAoeHealSpellAction(ai, "chain heal") {}
     };
+
+    class CastChainHealOnPartyAction : public HealPartyMemberAction
+    {
+    public:
+        CastChainHealOnPartyAction(PlayerbotAI* ai) : HealPartyMemberAction(ai, "chain heal") {}
+    };
+
+    BUFF_ACTION(CastShamanNaturesSwiftnessAction, "nature's swiftness");
+    BUFF_ACTION(CastElementalMasteryAction, "elemental mastery");
 
     class CastRiptideAction : public CastHealingSpellAction 
     {
@@ -340,10 +349,16 @@ namespace ai
         virtual bool isUseful() override { return CastMeleeSpellAction::isUseful() && !AI_VALUE2(bool, "has totem", name); }
     };
 
-    class CastFireNovaAction : public CastSpellAction 
+    class CastFireNovaAction : public CastSpellAction
     {
     public:
         CastFireNovaAction(PlayerbotAI* ai) : CastSpellAction(ai, "fire nova") {}
+    };
+
+    class CastFireElementalTotemAction : public CastBuffSpellAction
+    {
+    public:
+        CastFireElementalTotemAction(PlayerbotAI* ai) : CastBuffSpellAction(ai, "fire elemental totem") {}
     };
 
     class CastWindShearAction : public CastSpellAction 

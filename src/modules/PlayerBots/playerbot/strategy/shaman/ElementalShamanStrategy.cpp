@@ -497,9 +497,10 @@ void ElementalShamanStrategy::InitCombatTriggers(std::list<TriggerNode*>& trigge
         "chain lightning",
         NextAction::array(0, new NextAction("chain lightning", ACTION_NORMAL + 2), NULL)));
 
+    // No Earth Shock in the rotation (mana); Flame Shock only while moving, it is instant
     triggers.push_back(new TriggerNode(
-        "shock",
-        NextAction::array(0, new NextAction("earth shock", ACTION_NORMAL), NULL)));
+        "moving",
+        NextAction::array(0, new NextAction("flame shock", ACTION_HIGH), NULL)));
 }
 
 void ElementalShamanStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
@@ -749,11 +750,11 @@ void ElementalShamanTotemsStrategy::InitCombatTriggers(std::list<TriggerNode*>& 
 
     triggers.push_back(new TriggerNode(
         "air totem",
-        NextAction::array(0, new NextAction("windfury totem", ACTION_HIGH + 1), NULL)));
+        NextAction::array(0, new NextAction("wrath of air totem", ACTION_HIGH + 1), NULL)));
 
     triggers.push_back(new TriggerNode(
         "air totem",
-        NextAction::array(0, new NextAction("wrath of air totem", ACTION_HIGH), NULL)));
+        NextAction::array(0, new NextAction("windfury totem", ACTION_HIGH), NULL)));
 
     triggers.push_back(new TriggerNode(
         "air totem",
@@ -894,6 +895,15 @@ void ElementalShamanBuffRaidStrategy::InitNonCombatTriggers(std::list<TriggerNod
 void ElementalShamanBoostStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
 {
     ShamanBoostStrategy::InitCombatTriggers(triggers);
+
+    // Elemental Mastery, then spend the guaranteed crit on Chain Lightning
+    triggers.push_back(new TriggerNode(
+        "elemental mastery",
+        NextAction::array(0, new NextAction("elemental mastery", ACTION_HIGH + 1), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "elemental mastery active",
+        NextAction::array(0, new NextAction("chain lightning", ACTION_HIGH + 2), NULL)));
 }
 
 void ElementalShamanBoostStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)

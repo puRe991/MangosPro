@@ -549,37 +549,41 @@ void RestorationShamanStrategy::InitCombatTriggers(std::list<TriggerNode*>& trig
         "critical health",
         NextAction::array(0, new NextAction("healing wave", ACTION_CRITICAL_HEAL + 1), NULL)));
 
+    // Emergency: Nature's Swiftness, then the now instant Healing Wave
     triggers.push_back(new TriggerNode(
         "party member critical health",
-        NextAction::array(0, new NextAction("healing wave on party", ACTION_CRITICAL_HEAL + 1), NULL)));
+        NextAction::array(0, new NextAction("nature's swiftness", ACTION_CRITICAL_HEAL + 2),
+                             new NextAction("lesser healing wave on party", ACTION_CRITICAL_HEAL + 1), NULL)));
 
     triggers.push_back(new TriggerNode(
+        "nature's swiftness active",
+        NextAction::array(0, new NextAction("healing wave on party", ACTION_CRITICAL_HEAL + 3), NULL)));
+
+    // Lesser Healing Wave when a heal has to land faster than Chain Heal
+    triggers.push_back(new TriggerNode(
         "low health",
-        NextAction::array(0, new NextAction("healing wave", ACTION_MEDIUM_HEAL + 2), NULL)));
+        NextAction::array(0, new NextAction("lesser healing wave", ACTION_MEDIUM_HEAL + 2), NULL)));
 
     triggers.push_back(new TriggerNode(
         "party member low health",
-        NextAction::array(0, new NextAction("healing wave on party", ACTION_MEDIUM_HEAL + 2), NULL)));
+        NextAction::array(0, new NextAction("lesser healing wave on party", ACTION_MEDIUM_HEAL + 2), NULL)));
 
+    // Chain Heal is the filler
     triggers.push_back(new TriggerNode(
         "medium aoe heal",
-        NextAction::array(0, new NextAction("chain heal", ACTION_MEDIUM_HEAL), NULL)));
+        NextAction::array(0, new NextAction("chain heal", ACTION_MEDIUM_HEAL + 1), NULL)));
 
     triggers.push_back(new TriggerNode(
         "medium health",
-        NextAction::array(0, new NextAction("healing wave", ACTION_MEDIUM_HEAL), NULL)));
+        NextAction::array(0, new NextAction("chain heal on party", ACTION_MEDIUM_HEAL), NULL)));
 
     triggers.push_back(new TriggerNode(
         "party member medium health",
-        NextAction::array(0, new NextAction("healing wave on party", ACTION_MEDIUM_HEAL), NULL)));
-
-    triggers.push_back(new TriggerNode(
-        "almost full health",
-        NextAction::array(0, new NextAction("lesser healing wave", ACTION_LIGHT_HEAL), NULL)));
+        NextAction::array(0, new NextAction("chain heal on party", ACTION_MEDIUM_HEAL), NULL)));
 
     triggers.push_back(new TriggerNode(
         "party member almost full health",
-        NextAction::array(0, new NextAction("lesser healing wave on party", ACTION_LIGHT_HEAL), NULL)));
+        NextAction::array(0, new NextAction("chain heal on party", ACTION_LIGHT_HEAL), NULL)));
 }
 
 void RestorationShamanStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
@@ -857,7 +861,7 @@ void RestorationShamanTotemsStrategy::InitCombatTriggers(std::list<TriggerNode*>
 
     triggers.push_back(new TriggerNode(
         "water totem",
-        NextAction::array(0, new NextAction("healing stream totem", ACTION_HIGH), NULL)));
+        NextAction::array(0, new NextAction("mana spring totem", ACTION_HIGH), NULL)));
 
     triggers.push_back(new TriggerNode(
         "earth totem",

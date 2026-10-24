@@ -551,4 +551,24 @@ namespace ai
                    SpellCanBeCastedTrigger::IsActive();
         }
     };
+
+    BOOST_TRIGGER_A(ElementalMasteryTrigger, "elemental mastery");
+    HAS_AURA_TRIGGER(ElementalMasteryActiveTrigger, "elemental mastery");
+    BOOST_TRIGGER_A(FireElementalTotemTrigger, "fire elemental totem");
+    HAS_AURA_TRIGGER(ShamanNaturesSwiftnessActiveTrigger, "nature's swiftness");
+
+    // Flame Shock is instant, so it keeps the bot moving
+    class ShamanMovingTrigger : public Trigger
+    {
+    public:
+        ShamanMovingTrigger(PlayerbotAI* ai) : Trigger(ai, "moving") {}
+
+        virtual bool IsActive() override
+        {
+            Unit* target = GetTarget();
+            return target && target->IsAlive() && AI_VALUE2(bool, "moving", "self target");
+        }
+
+        virtual std::string GetTargetName() override { return "current target"; }
+    };
 }

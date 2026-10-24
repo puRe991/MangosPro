@@ -53,7 +53,7 @@ bool ShamanWeaponTrigger::IsActive()
 
     for (std::list<std::string>::iterator i = spells.begin(); i != spells.end(); ++i)
     {
-        uint32 spellId = AI_VALUE2(uint32, "spell id", spell);
+        uint32 spellId = AI_VALUE2(uint32, "spell id", *i);
         if (!spellId)
             continue;
 
@@ -66,7 +66,22 @@ bool ShamanWeaponTrigger::IsActive()
 
 bool ShockTrigger::IsActive()
 {
+#ifdef MANGOSBOT_ONE
+    // Earth Shock has no lasting debuff; it fits between two Flame Shocks
+    return SpellTrigger::IsActive() && !ai->HasAura("frost shock", GetTarget()) && !HasMaxDebuffs();
+#else
     return SpellTrigger::IsActive() && !ai->HasAnyAuraOf(GetTarget(), "frost shock", "earth shock", "flame shock", NULL) && !HasMaxDebuffs();
+#endif
+}
+
+bool ElementalMasteryTrigger::IsActive()
+{
+    return BoostTrigger::IsActive() && bot->HasSpell(16166) && bot->IsSpellReady(16166);
+}
+
+bool FireElementalTotemTrigger::IsActive()
+{
+    return BoostTrigger::IsActive() && bot->HasSpell(2894) && bot->IsSpellReady(2894) && !AI_VALUE2(bool, "has totem", "fire elemental totem");
 }
 
 bool FlameShockTrigger::IsActive()

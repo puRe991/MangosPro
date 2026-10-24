@@ -295,6 +295,11 @@ namespace ai
                 creators["chain lightning"] = [](PlayerbotAI* ai) { return new ChainLightningTrigger(ai); };
                 creators["stormstrike"] = [](PlayerbotAI* ai) { return new StormstrikeTrigger(ai); };
                 creators["shamanistic rage"] = [](PlayerbotAI* ai) { return new ShamanisticRageTrigger(ai); };
+                creators["elemental mastery"] = [](PlayerbotAI* ai) { return new ElementalMasteryTrigger(ai); };
+                creators["elemental mastery active"] = [](PlayerbotAI* ai) { return new ElementalMasteryActiveTrigger(ai); };
+                creators["fire elemental totem"] = [](PlayerbotAI* ai) { return new FireElementalTotemTrigger(ai); };
+                creators["nature's swiftness active"] = [](PlayerbotAI* ai) { return new ShamanNaturesSwiftnessActiveTrigger(ai); };
+                creators["moving"] = [](PlayerbotAI* ai) { return new ShamanMovingTrigger(ai); };
             }
         };
 
@@ -343,6 +348,11 @@ namespace ai
                 creators["earth shield"] = [](PlayerbotAI* ai) { return new CastEarthShieldAction(ai); };
                 creators["earth shield on party"] = [](PlayerbotAI* ai) { return new CastEarthShieldOnPartyAction(ai); };
                 creators["chain heal"] = [](PlayerbotAI* ai) { return new CastChainHealAction(ai); };
+                creators["chain heal on party"] = [](PlayerbotAI* ai) { return new CastChainHealOnPartyAction(ai); };
+                creators["nature's swiftness"] = [](PlayerbotAI* ai) { return new CastShamanNaturesSwiftnessAction(ai); };
+                creators["elemental mastery"] = [](PlayerbotAI* ai) { return new CastElementalMasteryAction(ai); };
+                creators["fire elemental totem"] = [](PlayerbotAI* ai) { return new CastFireElementalTotemAction(ai); };
+                creators["fire nova totem"] = [](PlayerbotAI* ai) { return new CastTotemAction(ai, "fire nova totem"); };
                 creators["riptide"] = [](PlayerbotAI* ai) { return new CastRiptideAction(ai); };
                 creators["riptide on party"] = [](PlayerbotAI* ai) { return new CastRiptideOnPartyAction(ai); };
                 creators["stormstrike"] = [](PlayerbotAI* ai) { return new CastStormstrikeAction(ai); };

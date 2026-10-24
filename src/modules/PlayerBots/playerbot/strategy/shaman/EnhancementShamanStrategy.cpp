@@ -603,7 +603,7 @@ void EnhancementShamanAoeStrategy::InitCombatTriggers(std::list<TriggerNode*>& t
 
     triggers.push_back(new TriggerNode(
         "melee medium aoe",
-        NextAction::array(0, new NextAction("fire nova", ACTION_HIGH), NULL)));
+        NextAction::array(0, new NextAction("fire nova totem", ACTION_HIGH), NULL)));
 
     //triggers.push_back(new TriggerNode(
         //"melee light aoe",
@@ -781,7 +781,7 @@ void EnhancementShamanTotemsStrategy::InitCombatTriggers(std::list<TriggerNode*>
 
     triggers.push_back(new TriggerNode(
         "fire totem",
-        NextAction::array(0, new NextAction("flametongue totem", ACTION_HIGH), NULL)));
+        NextAction::array(0, new NextAction("searing totem", ACTION_HIGH), NULL)));
 }
 
 void EnhancementShamanTotemsStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
@@ -908,6 +908,11 @@ void EnhancementShamanBuffRaidStrategy::InitNonCombatTriggers(std::list<TriggerN
 void EnhancementShamanBoostStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
 {
     ShamanBoostStrategy::InitCombatTriggers(triggers);
+
+    // Fire Elemental Totem goes down before Bloodlust / Heroism (ACTION_HIGH)
+    triggers.push_back(new TriggerNode(
+        "fire elemental totem",
+        NextAction::array(0, new NextAction("fire elemental totem", ACTION_HIGH + 1), NULL)));
 }
 
 void EnhancementShamanBoostStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
