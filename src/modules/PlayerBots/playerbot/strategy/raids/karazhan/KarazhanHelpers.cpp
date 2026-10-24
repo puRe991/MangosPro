@@ -123,6 +123,13 @@ std::vector<Unit*> karazhan::GetKaraUnits(PlayerbotAI* ai, uint32 entry)
     if (bot->GetMapId() != KARAZHAN_MAP_ID)
         return units;
 
+    const bool portal = entry == NPC_RED_PORTAL || entry == NPC_GREEN_PORTAL || entry == NPC_BLUE_PORTAL;
+    const bool environmental = portal || entry == NPC_VOID_ZONE || entry == NPC_NETHERSPITE_INFERNAL;
+    // The search covers 150 yards through walls and floors, so an idle boss in
+    // the next room would switch on its tactics (attack Midnight while clearing
+    // the stables, Curator spread at Attumen). Only engaged creatures count.
+    const bool needsCombat = !environmental && entry != NPC_DEMON_CHAINS;
+
     const std::list<ObjectGuid> guids = ai->GetAiObjectContext()->GetValue<std::list<ObjectGuid>>("karazhan nearby creatures")->Get();
     for (const ObjectGuid& guid : guids)
     {
@@ -130,15 +137,15 @@ std::vector<Unit*> karazhan::GetKaraUnits(PlayerbotAI* ai, uint32 entry)
             continue;
 
         Unit* unit = ai->GetUnit(guid);
-        if (unit && unit->IsInWorld() && unit->IsAlive() && unit->GetMapId() == bot->GetMapId())
+        if (unit && unit->IsInWorld() && unit->IsAlive() && unit->GetMapId() == bot->GetMapId() &&
+            (!needsCombat || unit->IsInCombat()))
             units.push_back(unit);
     }
 
     // Environmental summons can be absent from the cached GUID list (and
     // need not be ordinary attackable/alive combat targets). Resolve them by
     // entry directly before concluding that a beam or hazard does not exist.
-    const bool portal = entry == NPC_RED_PORTAL || entry == NPC_GREEN_PORTAL || entry == NPC_BLUE_PORTAL;
-    if (units.empty() && (portal || entry == NPC_VOID_ZONE || entry == NPC_NETHERSPITE_INFERNAL))
+    if (units.empty() && environmental)
         for (Unit* unit : TbcRaidHelper::FindCreatures(bot, entry, 120.0f))
             if (unit && unit->IsInWorld() && unit->GetInstanceId() == bot->GetInstanceId() && (portal || unit->IsAlive()))
                 units.push_back(unit);
