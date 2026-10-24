@@ -82,7 +82,7 @@ bool BlackTempleEraseTimersAndTrackersAction::Execute(Event& event)
 {
     bool erased = false;
     const uint64 key = GuidKey(bot);
-    for (BtState state : { BtState::AkamaReachedPosition, BtState::ShahrazTankStep, BtState::GathiosTankStep,
+    for (BtState state : { BtState::ShahrazTankStep, BtState::GathiosTankStep,
                            BtState::ZerevorHealStep, BtState::FlameTankWaypoint })
     {
         erased |= EraseState(state, key);
@@ -428,28 +428,45 @@ bool SupremusManagePhaseTimerAction::Execute(Event& event)
 // Shade of Akama
 // ---------------------------------------------------------------------------
 
-bool ShadeOfAkamaMeleeDpsPrioritizeChannelersAction::Execute(Event& event)
+// Melee on the Channelers (skull), ranged on the Sorcerers (cross), all of one kind on the same target
+bool ShadeOfAkamaDpsPrioritizeChannelersAction::Execute(Event& event)
 {
-    int64 reached = 0;
-    if (!GetState(BtState::AkamaReachedPosition, GuidKey(bot), reached))
-    {
-        if (MoveToPosition(AKAMA_CHANNELER_POSITION, 2.0f))
-            return true;
-
-        SetState(BtState::AkamaReachedPosition, GuidKey(bot), 1);
-    }
-
-    std::vector<Unit*> channelers = raidboss::FindUnits(bot, NPC_ASHTONGUE_CHANNELER, 30.0f);
-    if (channelers.empty())
+    Unit* target = GetShadeOfAkamaKillTarget(bot);
+    if (!target)
         return false;
 
-    std::sort(channelers.begin(), channelers.end(), [](Unit* a, Unit* b) { return a->GetObjectGuid() < b->GetObjectGuid(); });
-    Unit* channeler = channelers.front();
-
-    if (raidboss::MarkTargetWithSkull(bot, channeler))
+    const bool channeler = target->GetEntry() == NPC_ASHTONGUE_CHANNELER;
+    if (channeler ? raidboss::MarkTargetWithSkull(bot, target) : raidboss::MarkTargetWithCross(bot, target))
         return true;
 
-    return !IsCurrentTarget(channeler) && AttackTarget(channeler);
+    raidboss::SetRtiTarget(ai, channeler ? "skull" : "cross");
+    return !IsCurrentTarget(target) && AttackTarget(target);
+}
+
+// The Ashtongue adds go for Akama, the event fails when he dies
+bool ShadeOfAkamaTanksPullAddsOffAkamaAction::Execute(Event& event)
+{
+    Unit* add = GetAddAttackingAkama(bot);
+    if (!add)
+        return false;
+
+    if (!IsCurrentTarget(add))
+        return AttackTarget(add);
+
+    switch (bot->getClass())
+    {
+    case CLASS_WARRIOR:
+        return CastByName(ai, "taunt", add);
+    case CLASS_DRUID:
+        return CastByName(ai, "growl", add);
+    case CLASS_PALADIN:
+        // Righteous Defense is cast on the attacked friend
+        if (Unit* akama = FindNearest(bot, NPC_AKAMA_SHADE, 40.0f))
+            return CastByName(ai, "righteous defense", akama);
+        return false;
+    default:
+        return false;
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -637,12 +654,8 @@ bool GurtoggBloodboilRotateRangedGroupsAction::Execute(Event& event)
     if (!gurtogg)
         return false;
 
-    std::vector<std::vector<Player*>> groups = GetGurtoggRangedRotationGroups(bot);
-    const int activeGroup = GetGurtoggActiveRotationGroup(gurtogg);
-    const bool inActiveGroup = activeGroup >= 0 && size_t(activeGroup) < groups.size() &&
-                               raidboss::GetIndexOf(bot, groups[activeGroup]) >= 0;
-
-    return MoveToPosition(inActiveGroup ? GURTOGG_SOAKER_POSITION : GURTOGG_RANGED_POSITION, 2.0f);
+    const bool soaker = raidboss::GetIndexOf(bot, GetGurtoggBloodboilSoakers(bot)) >= 0;
+    return MoveToPosition(soaker ? GURTOGG_SOAKER_POSITION : GURTOGG_RANGED_POSITION, 2.0f);
 }
 
 bool GurtoggBloodboilRangedMoveAwayFromEnragedPlayerAction::Execute(Event& event)
@@ -998,6 +1011,21 @@ bool IllidariCouncilSecondAssistTankPositionDarkshadowAction::Execute(Event& eve
     return false;
 }
 
+bool IllidariCouncilInterruptCircleOfHealingAction::Execute(Event& event)
+{
+    std::string spell;
+    Unit* malande = GetCircleOfHealingInterrupt(ai, spell);
+    if (!malande)
+        return false;
+
+    uint32 duration = 0;
+    if (!ai->CastSpell(spell, malande, nullptr, true, &duration))
+        return false;
+
+    SetDuration(duration);
+    return true;
+}
+
 bool IllidariCouncilMageTankPositionZerevorAction::Execute(Event& event)
 {
     Unit* zerevor = FindBoss(ai, NPC_ZEREVOR);
@@ -1050,34 +1078,31 @@ bool IllidariCouncilAssignDpsTargetsAction::Execute(Event& event)
     if (!malande)
         return false;
 
-    // Physical damage on Malande unless she has Blessing of Protection, shamans unless Spell Warding;
-    // nobody on Malande while she stands in Zerevor's AoE
-    bool attackMalande = false;
+    // Rogues, warriors and shamans on Malande, everybody else on Veras, then Gathios. The health pool is
+    // shared, so a member the bot's damage would not land on (Blessing of Protection or Spell Warding,
+    // Reflective Shield, Vanish) is skipped for the next one. Nobody on Malande in Zerevor's AoE.
     Unit* zerevor = FindBoss(ai, NPC_ZEREVOR);
-    if (zerevor && raidboss::ExactDist2d(zerevor, malande) < 15.0f)
-        attackMalande = false;
-    else if (bot->getClass() == CLASS_ROGUE || (bot->getClass() == CLASS_WARRIOR && raidboss::IsDps(bot)))
-        attackMalande = !malande->HasAura(SPELL_BLESSING_OF_PROTECTION);
-    else if (bot->getClass() == CLASS_SHAMAN && raidboss::IsDps(bot))
-        attackMalande = !malande->HasAura(SPELL_BLESSING_OF_SPELL_WARDING);
+    const bool malandeInAoe = zerevor && raidboss::ExactDist2d(zerevor, malande) < 15.0f;
+    const uint8 cls = bot->getClass();
+    const bool malandeFirst = cls == CLASS_ROGUE || ((cls == CLASS_WARRIOR || cls == CLASS_SHAMAN) && raidboss::IsDps(bot));
 
-    if (attackMalande)
-    {
-        raidboss::SetRtiTarget(ai, "star");
-        return !IsCurrentTarget(malande) && AttackTarget(malande);
-    }
+    struct Assignment { Unit* member; const char* rti; };
+    std::vector<Assignment> order;
+    if (malandeFirst && !malandeInAoe)
+        order.push_back({ malande, "star" });
+    order.push_back({ FindBoss(ai, NPC_VERAS), "circle" });
+    order.push_back({ FindBoss(ai, NPC_GATHIOS), "square" });
+    if (!malandeFirst && !malandeInAoe)
+        order.push_back({ malande, "star" });
+    // Zerevor stays with the mage tank, damage on him would pull him away from it
 
-    Unit* darkshadow = FindBoss(ai, NPC_VERAS);
-    if (darkshadow && !darkshadow->HasAura(SPELL_VANISH))
+    for (const Assignment& assignment : order)
     {
-        raidboss::SetRtiTarget(ai, "circle");
-        return !IsCurrentTarget(darkshadow) && AttackTarget(darkshadow);
-    }
+        if (!CanDamageCouncilMember(bot, assignment.member))
+            continue;
 
-    if (Unit* gathios = FindBoss(ai, NPC_GATHIOS))
-    {
-        raidboss::SetRtiTarget(ai, "square");
-        return !IsCurrentTarget(gathios) && AttackTarget(gathios);
+        raidboss::SetRtiTarget(ai, assignment.rti);
+        return !IsCurrentTarget(assignment.member) && AttackTarget(assignment.member);
     }
 
     return false;
@@ -1544,11 +1569,16 @@ bool IllidanStormrageRemoveDarkBarrageAction::Execute(Event& event)
     if (!bot->HasAura(SPELL_DARK_BARRAGE))
         return false;
 
+    // 10 seconds of 3000 shadow damage per second: an immunity ends it, everybody else soaks it for the healers
     switch (bot->getClass())
     {
     case CLASS_MAGE:    return CastByName(ai, "ice block", bot);
     case CLASS_PALADIN: return CastByName(ai, "divine shield", bot);
     case CLASS_ROGUE:   return CastByName(ai, "cloak of shadows", bot);
+    case CLASS_DRUID:   return CastByName(ai, "barkskin", bot);
+    case CLASS_PRIEST:  return CastByName(ai, "power word: shield", bot) || CastByName(ai, "desperate prayer", bot);
+    case CLASS_WARRIOR: return CastByName(ai, "shield wall", bot) || CastByName(ai, "last stand", bot);
+    case CLASS_WARLOCK: return CastByName(ai, "shadow ward", bot);
     default:            return false;
     }
 }

@@ -116,13 +116,19 @@ float SupremusHitboxIsBuggedMultiplier::GetValue(Action* action)
 
 // Shade of Akama
 
+// While Channelers or Sorcerers are alive the damage dealers don't switch to the adds attacking Akama
 float ShadeOfAkamaMeleeFocusChannelersMultiplier::GetValue(Action* action)
 {
-    if (!action || action->getName() != "tbc raid attack priority target" || !raidboss::IsDps(bot) || !raidboss::IsMeleePlayer(bot))
+    if (!action || !raidboss::IsDps(bot))
         return 1.0f;
 
-    Unit* channeler = FindNearest(bot, NPC_ASHTONGUE_CHANNELER, 30.0f);
-    return channeler && !channeler->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_UNINTERACTIBLE) ? 0.0f : 1.0f;
+    const std::string& name = action->getName();
+    const bool retarget = name == "tbc raid attack priority target" || name == "attack least hp target" ||
+                          dynamic_cast<DpsAssistAction*>(action) || dynamic_cast<TankAssistAction*>(action);
+    if (!retarget)
+        return 1.0f;
+
+    return GetShadeOfAkamaKillTarget(bot) ? 0.0f : 1.0f;
 }
 
 // Teron Gorefiend
@@ -138,7 +144,7 @@ float TeronGorefiendControlMovementMultiplier::GetValue(Action* action)
 float TeronGorefiendMarkedBotOnlyMoveToDieMultiplier::GetValue(Action* action)
 {
     SpellAuraHolder* holder = bot->GetSpellAuraHolder(SPELL_SHADOW_OF_DEATH);
-    if (!holder || holder->GetAuraDuration() >= 15000)
+    if (!holder || holder->GetAuraDuration() >= SHADOW_OF_DEATH_MOVE_MS)
         return 1.0f;
 
     return dynamic_cast<TeronGorefiendMoveToCornerToDieAction*>(action) ? 1.0f : 0.0f;

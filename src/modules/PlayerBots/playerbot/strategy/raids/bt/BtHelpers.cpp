@@ -1,6 +1,7 @@
 // Ported from mod-playerbots (AzerothCore, GPL v2+, src/Ai/Raid/BT/BTHelpers) and adapted for this core.
 #include "playerbot/playerbot.h"
 #include "BtHelpers.h"
+#include "BtGurtoggRules.h"
 #include "playerbot/strategy/raids/RaidBossHelpers.h"
 #include "playerbot/strategy/Action.h"
 #include "playerbot/strategy/actions/MovementActions.h"
@@ -193,7 +194,6 @@ bool IsAttackOrSpellAction(Action* action)
 // ---------------------------------------------------------------------------
 
 const WorldPosition NAJENTUS_TANK_POSITION(BLACK_TEMPLE_MAP_ID, 438.515f, 772.436f, 11.931f);
-const WorldPosition AKAMA_CHANNELER_POSITION(BLACK_TEMPLE_MAP_ID, 467.851f, 401.622f, 118.538f);
 const WorldPosition GOREFIEND_TANK_POSITION(BLACK_TEMPLE_MAP_ID, 597.653f, 402.284f, 187.090f);
 const WorldPosition GOREFIEND_DIE_POSITION(BLACK_TEMPLE_MAP_ID, 525.709f, 377.177f, 193.203f);
 const WorldPosition GURTOGG_TANK_POSITION(BLACK_TEMPLE_MAP_ID, 735.987f, 272.451f, 63.554f);
@@ -285,45 +285,118 @@ Unit* GetSupremusMoltenFlameChasingBot(Player* bot)
 }
 
 // ---------------------------------------------------------------------------
-// Gurtogg Bloodboil
+// Shade of Akama
 // ---------------------------------------------------------------------------
 
-// Three groups of five ranged bots: Bloodboil hits the 5 players furthest away,
-// the groups take turns at the far (soaker) position
-std::vector<std::vector<Player*>> GetGurtoggRangedRotationGroups(Player* bot)
+bool IsShadeOfAkamaChannelTarget(Player* bot, Unit* target)
 {
-    std::vector<std::vector<Player*>> groups(3);
-    Group* group = bot->GetGroup();
-    if (!group)
-        return groups;
-
-    std::vector<Player*> rangedMembers;
-    for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
+    if (!bot->IsInWorld() || bot->GetMapId() != BLACK_TEMPLE_MAP_ID || !target || !target->IsAlive() ||
+        !target->IsInWorld() || target->GetInstanceId() != bot->GetInstanceId())
     {
-        Player* member = ref->getSource();
-        if (member && member->IsAlive() && member->IsInWorld() && member->GetMapId() == bot->GetMapId() &&
-            member->GetPlayerbotAI() && raidboss::IsRangedPlayer(member))
+        return false;
+    }
+
+    if (target->GetEntry() != NPC_ASHTONGUE_CHANNELER && target->GetEntry() != NPC_ASHTONGUE_SORCERER)
+        return false;
+
+    // Channelers become attackable when Akama starts his channel
+    return !target->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_UNINTERACTIBLE);
+}
+
+namespace
+{
+    // Lowest health first, ties by guid, so every bot picks the same one
+    Unit* GetFocusTarget(Player* bot, uint32 entry)
+    {
+        Unit* best = nullptr;
+        for (Unit* unit : raidboss::FindUnits(bot, entry, 80.0f))
         {
-            rangedMembers.push_back(member);
+            if (!IsShadeOfAkamaChannelTarget(bot, unit))
+                continue;
+
+            if (!best || unit->GetHealthPercent() < best->GetHealthPercent() ||
+                (unit->GetHealthPercent() == best->GetHealthPercent() && unit->GetObjectGuid().GetCounter() < best->GetObjectGuid().GetCounter()))
+            {
+                best = unit;
+            }
+        }
+
+        return best;
+    }
+}
+
+// Melee stand at the Shade with the Channelers around it, the Sorcerers run in from the side door
+Unit* GetShadeOfAkamaKillTarget(Player* bot)
+{
+    const bool melee = raidboss::IsMeleePlayer(bot);
+    if (Unit* first = GetFocusTarget(bot, melee ? NPC_ASHTONGUE_CHANNELER : NPC_ASHTONGUE_SORCERER))
+        return first;
+
+    return GetFocusTarget(bot, melee ? NPC_ASHTONGUE_SORCERER : NPC_ASHTONGUE_CHANNELER);
+}
+
+Unit* GetAddAttackingAkama(Player* bot)
+{
+    Unit* akama = FindNearest(bot, NPC_AKAMA_SHADE, 100.0f);
+    if (!akama)
+        return nullptr;
+
+    Unit* closest = nullptr;
+    for (uint32 entry : { NPC_ASHTONGUE_DEFENDER, NPC_ASHTONGUE_ROGUE, NPC_ASHTONGUE_ELEMENTALIST, NPC_ASHTONGUE_SPIRITBINDER })
+    {
+        for (Unit* add : raidboss::FindUnits(bot, entry, 80.0f))
+        {
+            if (add->GetVictim() != akama)
+                continue;
+
+            if (!closest || raidboss::ExactDist2d(bot, add) < raidboss::ExactDist2d(bot, closest))
+                closest = add;
         }
     }
 
-    for (size_t i = 0; i < rangedMembers.size() && i < 15; ++i)
-        groups[i / 5].push_back(rangedMembers[i]);
-
-    return groups;
+    return closest;
 }
 
-int GetGurtoggActiveRotationGroup(Unit* gurtogg)
+// ---------------------------------------------------------------------------
+// Gurtogg Bloodboil
+// ---------------------------------------------------------------------------
+
+// The five ranged bots with the fewest Bloodboil stacks stand at the far position. They change right after
+// each Bloodboil lands, which leaves the whole 11 seconds until the next cast to swap places.
+std::vector<Player*> GetGurtoggBloodboilSoakers(Player* bot)
 {
-    if (!gurtogg)
-        return -1;
+    std::vector<Player*> rangedMembers;
+    Group* group = bot->GetGroup();
+    if (!group)
+        return rangedMembers;
 
-    const int64 elapsed = GetTimerElapsed(BtState::GurtoggPhaseTimer, gurtogg->GetInstanceId());
-    if (elapsed < 0)
-        return -1;
+    std::vector<gurtogg::SoakCandidate> candidates;
+    for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
+    {
+        Player* member = ref->getSource();
+        if (!member || !member->IsAlive() || !member->IsInWorld() || member->GetMapId() != bot->GetMapId() ||
+            !member->GetPlayerbotAI() || !raidboss::IsRangedPlayer(member))
+        {
+            continue;
+        }
 
-    return int((elapsed % 30) / 10);    // 3 groups, swapping every 10 seconds
+        gurtogg::SoakCandidate candidate;
+        candidate.key = member->GetObjectGuid().GetRawValue();
+        if (SpellAuraHolder* holder = member->GetSpellAuraHolder(SPELL_BLOODBOIL))
+        {
+            candidate.stacks = holder->GetStackAmount();
+            candidate.remainingMs = holder->GetAuraDuration();
+        }
+
+        rangedMembers.push_back(member);
+        candidates.push_back(candidate);
+    }
+
+    std::vector<Player*> soakers;
+    for (size_t index : gurtogg::PickSoakers(candidates))
+        soakers.push_back(rangedMembers[index]);
+
+    return soakers;
 }
 
 // ---------------------------------------------------------------------------
@@ -396,6 +469,66 @@ Player* GetZerevorHealer(Player* bot)
     {
         if (healer->GetPlayerbotAI())
             return healer;
+    }
+
+    return nullptr;
+}
+
+// Hunters and the melee classes deal physical damage (Retribution and Enhancement mostly through their weapon)
+bool IsPhysicalDamageDealer(Player* bot)
+{
+    switch (bot->getClass())
+    {
+    case CLASS_WARRIOR:
+    case CLASS_ROGUE:
+    case CLASS_HUNTER:
+        return true;
+    case CLASS_DRUID:
+    case CLASS_SHAMAN:
+    case CLASS_PALADIN:
+        return raidboss::IsMeleePlayer(bot);
+    default:
+        return false;
+    }
+}
+
+// Gathios blesses a random council member: Protection stops physical, Spell Warding magical damage.
+// Malande's Reflective Shield sends the damage back, Veras is gone while he vanishes.
+bool CanDamageCouncilMember(Player* bot, Unit* member)
+{
+    if (!member || !member->IsAlive())
+        return false;
+
+    if (member->HasAura(SPELL_VANISH) || member->HasAura(SPELL_REFLECTIVE_SHIELD))
+        return false;
+
+    return !member->HasAura(IsPhysicalDamageDealer(bot) ? SPELL_BLESSING_OF_PROTECTION : SPELL_BLESSING_OF_SPELL_WARDING);
+}
+
+Unit* GetCircleOfHealingInterrupt(PlayerbotAI* ai, std::string& spell)
+{
+    std::vector<std::string> interrupts;
+    switch (ai->GetBot()->getClass())
+    {
+    case CLASS_ROGUE:   interrupts = { "kick" }; break;
+    case CLASS_WARRIOR: interrupts = { "shield bash", "pummel" }; break;
+    case CLASS_MAGE:    interrupts = { "counterspell" }; break;
+    case CLASS_SHAMAN:  interrupts = { "earth shock" }; break;
+    case CLASS_PRIEST:  interrupts = { "silence" }; break;
+    default: return nullptr;
+    }
+
+    Unit* malande = FindBoss(ai, NPC_MALANDE);
+    if (!malande || !malande->FindCurrentSpellBySpellId(SPELL_CIRCLE_OF_HEALING))
+        return nullptr;
+
+    for (const std::string& interrupt : interrupts)
+    {
+        if (ai->IsInterruptableSpellCasting(malande, interrupt) && ai->CanCastSpell(interrupt, malande, 0))
+        {
+            spell = interrupt;
+            return malande;
+        }
     }
 
     return nullptr;

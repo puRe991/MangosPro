@@ -9,6 +9,7 @@
 #include "playerbot/PlayerbotAIConfig.h"
 #include "playerbot/ServerFacade.h"
 #include "playerbot/strategy/raids/karazhan/KarazhanHelpers.h"
+#include "playerbot/strategy/raids/bt/BtHelpers.h"
 
 using namespace ai;
 
@@ -47,6 +48,10 @@ bool InvalidTargetValue::Calculate()
     // An auxiliary spell can also change selection without changing the
     // assigned objective; that must not start another target-reset loop.
     if (karazhan::IsLiveDemonChains(ai, target))
+        return false;
+
+    // The Ashtongue Channelers and Sorcerers only channel on the Shade and never fight anybody
+    if (bot->IsInCombat() && bt::IsShadeOfAkamaChannelTarget(bot, target))
         return false;
 
     if (bot->GetMapId() == 548 && ssc::GetMyInnerDemon(bot) == target &&

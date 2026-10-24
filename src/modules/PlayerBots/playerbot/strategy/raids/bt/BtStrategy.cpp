@@ -59,7 +59,11 @@ void BtStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
 
     triggers.push_back(new TriggerNode(
         "shade of akama killing channelers starts phase 2",
-        NextAction::array(0, new NextAction("shade of akama melee dps prioritize channelers", raidboss::ACTION_RAID + 1), NULL)));
+        NextAction::array(0, new NextAction("shade of akama dps prioritize channelers", raidboss::ACTION_RAID + 1), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "shade of akama adds attack akama",
+        NextAction::array(0, new NextAction("shade of akama tanks pull adds off akama", raidboss::ACTION_RAID + 2), NULL)));
 
     triggers.push_back(new TriggerNode(
         "teron gorefiend pulling boss",
@@ -162,6 +166,10 @@ void BtStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
         NextAction::array(0, new NextAction("illidari council first assist tank focus malande", raidboss::ACTION_RAID + 1), NULL)));
 
     triggers.push_back(new TriggerNode(
+        "illidari council malande casting circle of healing",
+        NextAction::array(0, new NextAction("illidari council interrupt circle of healing", bt::BT_EMERGENCY_2), NULL)));
+
+    triggers.push_back(new TriggerNode(
         "illidari council darkshadow engaged by second assist tank",
         NextAction::array(0, new NextAction("illidari council second assist tank position darkshadow", raidboss::ACTION_RAID + 1), NULL)));
 
@@ -254,9 +262,14 @@ void BtStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
         NextAction::array(0, new NextAction("black temple erase timers and trackers", bt::BT_EMERGENCY_11), NULL)));
 }
 
-// Checked while casting: dodge volcanos, break Fatal Attraction, survive Shadow of Death / Dark Barrage
+// Checked while casting: dodge volcanos, break Fatal Attraction, survive Shadow of Death / Dark Barrage,
+// interrupt Circle of Healing
 void BtStrategy::InitReactionTriggers(std::list<TriggerNode*>& triggers)
 {
+    triggers.push_back(new TriggerNode(
+        "illidari council malande casting circle of healing",
+        NextAction::array(0, new NextAction("illidari council interrupt circle of healing", bt::BT_EMERGENCY_2), NULL)));
+
     triggers.push_back(new TriggerNode(
         "high warlord naj'entus player is impaled",
         NextAction::array(0, new NextAction("high warlord naj'entus remove impaling spine", bt::BT_EMERGENCY_1), NULL)));

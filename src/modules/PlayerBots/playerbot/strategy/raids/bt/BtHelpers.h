@@ -29,7 +29,13 @@ namespace ai
             NPC_SUPREMUS_VOLCANO        = 23085,
             NPC_SUPREMUS_MOLTEN_FLAME   = 23095,    // stalker of Molten Punch, chases a random player
             NPC_SHADE_OF_AKAMA          = 22841,
+            NPC_AKAMA_SHADE             = 23191,    // Akama during the Shade event
             NPC_ASHTONGUE_CHANNELER     = 23421,
+            NPC_ASHTONGUE_SORCERER      = 23215,    // runs in and channels on the Shade like a Channeler
+            NPC_ASHTONGUE_DEFENDER      = 23216,
+            NPC_ASHTONGUE_ROGUE         = 23318,
+            NPC_ASHTONGUE_ELEMENTALIST  = 23523,
+            NPC_ASHTONGUE_SPIRITBINDER  = 23524,
             NPC_TERON_GOREFIEND         = 22871,
             NPC_SHADOWY_CONSTRUCT       = 23111,
             NPC_GURTOGG_BLOODBOIL       = 22948,
@@ -70,6 +76,7 @@ namespace ai
             SPELL_SPIRIT_STRIKE             = 40325,
 
             // Gurtogg Bloodboil
+            SPELL_BLOODBOIL                 = 42005,    // stacks up to 5 on the 5 players furthest away
             SPELL_BOSS_FEL_RAGE             = 40594,
             SPELL_PLAYER_FEL_RAGE           = 40604,
 
@@ -83,6 +90,8 @@ namespace ai
             // Illidari Council
             SPELL_BLESSING_OF_PROTECTION    = 41450,
             SPELL_BLESSING_OF_SPELL_WARDING = 41451,
+            SPELL_CIRCLE_OF_HEALING         = 41455,    // heals the whole council through the shared health pool
+            SPELL_REFLECTIVE_SHIELD         = 41475,
             SPELL_JUDGEMENT                 = 41467,
             SPELL_SEAL_OF_COMMAND           = 41469,
             SPELL_CONSECRATION              = 41541,
@@ -148,7 +157,6 @@ namespace ai
             IllidanLastPhase,
             IllidanEastFlame,
             IllidanWestFlame,
-            AkamaReachedPosition,   // per bot
             ShahrazTankStep,        // per bot
             GathiosTankStep,        // per bot
             ZerevorHealStep,        // per bot
@@ -178,7 +186,6 @@ namespace ai
 
         // Positions
         extern const WorldPosition NAJENTUS_TANK_POSITION;
-        extern const WorldPosition AKAMA_CHANNELER_POSITION;
         extern const WorldPosition GOREFIEND_TANK_POSITION;
         extern const WorldPosition GOREFIEND_DIE_POSITION;
         extern const WorldPosition GURTOGG_TANK_POSITION;
@@ -208,9 +215,25 @@ namespace ai
         Unit* GetSupremusMoltenFlameChasingBot(Player* bot);
         float GetSupremusMeleeReach(Player* bot, Unit* supremus);
 
-        // Gurtogg Bloodboil
-        std::vector<std::vector<Player*>> GetGurtoggRangedRotationGroups(Player* bot);
-        int GetGurtoggActiveRotationGroup(Unit* gurtogg);
+        // Shade of Akama: every Channeler and Sorcerer channeling on the Shade slows it by another stack,
+        // the Shade only reaches Akama once they are dead
+        bool IsShadeOfAkamaChannelTarget(Player* bot, Unit* target);
+        // Melee take the Channelers first, ranged the Sorcerers; both fall back to the other kind
+        Unit* GetShadeOfAkamaKillTarget(Player* bot);
+        // Closest Ashtongue add hitting Akama (the event fails when Akama dies)
+        Unit* GetAddAttackingAkama(Player* bot);
+
+        // Teron Gorefiend: the marked player starts walking to the corner this long before Shadow of Death expires
+        constexpr int32 SHADOW_OF_DEATH_MOVE_MS = 15000;
+
+        // Gurtogg Bloodboil: the ranged bots that stand furthest away for the next Bloodboil
+        std::vector<Player*> GetGurtoggBloodboilSoakers(Player* bot);
+
+        // Illidari Council: whether the bot's damage would land on that council member
+        bool IsPhysicalDamageDealer(Player* bot);
+        bool CanDamageCouncilMember(Player* bot, Unit* member);
+        // Malande while she casts Circle of Healing and the bot has an interrupt ready for it
+        Unit* GetCircleOfHealingInterrupt(PlayerbotAI* ai, std::string& spell);
 
         // Mother Shahraz
         TankPositionState GetShahrazTankPositionState(Player* bot);

@@ -232,10 +232,17 @@ namespace ai
 
     // Shade of Akama
 
-    class ShadeOfAkamaMeleeDpsPrioritizeChannelersAction : public BtAttackAction
+    class ShadeOfAkamaDpsPrioritizeChannelersAction : public BtAttackAction
     {
     public:
-        ShadeOfAkamaMeleeDpsPrioritizeChannelersAction(PlayerbotAI* ai) : BtAttackAction(ai, "shade of akama melee dps prioritize channelers") {}
+        ShadeOfAkamaDpsPrioritizeChannelersAction(PlayerbotAI* ai) : BtAttackAction(ai, "shade of akama dps prioritize channelers") {}
+        bool Execute(Event& event) override;
+    };
+
+    class ShadeOfAkamaTanksPullAddsOffAkamaAction : public BtAttackAction
+    {
+    public:
+        ShadeOfAkamaTanksPullAddsOffAkamaAction(PlayerbotAI* ai) : BtAttackAction(ai, "shade of akama tanks pull adds off akama") {}
         bool Execute(Event& event) override;
     };
 
@@ -438,6 +445,14 @@ namespace ai
     public:
         IllidariCouncilSecondAssistTankPositionDarkshadowAction(PlayerbotAI* ai) : BtAttackAction(ai, "illidari council second assist tank position darkshadow") {}
         bool Execute(Event& event) override;
+    };
+
+    class IllidariCouncilInterruptCircleOfHealingAction : public Action
+    {
+    public:
+        IllidariCouncilInterruptCircleOfHealingAction(PlayerbotAI* ai) : Action(ai, "illidari council interrupt circle of healing") {}
+        bool Execute(Event& event) override;
+        bool ShouldReactionInterruptCast() const override { return true; }
     };
 
     class IllidariCouncilMageTankPositionZerevorAction : public BtAttackAction

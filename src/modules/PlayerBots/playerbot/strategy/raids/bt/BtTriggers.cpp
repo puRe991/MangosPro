@@ -192,13 +192,15 @@ bool SupremusMoltenFlameChasesBotTrigger::IsActive()
 
 // Shade of Akama
 
+// Every damage dealer: the Shade stays slowed until all Channelers and Sorcerers are dead
 bool ShadeOfAkamaKillingChannelersStartsPhase2Trigger::IsActive()
 {
-    if (!raidboss::IsDps(bot) || !raidboss::IsMeleePlayer(bot))
-        return false;
+    return raidboss::IsDps(bot) && GetShadeOfAkamaKillTarget(bot);
+}
 
-    Unit* channeler = FindNearest(bot, NPC_ASHTONGUE_CHANNELER, 30.0f);
-    return channeler && !channeler->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_UNINTERACTIBLE);
+bool ShadeOfAkamaAddsAttackAkamaTrigger::IsActive()
+{
+    return PlayerbotAI::IsTank(bot) && GetAddAttackingAkama(bot);
 }
 
 // Teron Gorefiend
@@ -245,7 +247,7 @@ bool TeronGorefiendBossIsCastingShadowOfDeathTrigger::IsActive()
 bool TeronGorefiendBotHasShadowOfDeathTrigger::IsActive()
 {
     SpellAuraHolder* holder = bot->GetSpellAuraHolder(SPELL_SHADOW_OF_DEATH);
-    return holder && holder->GetAuraDuration() < 12000;
+    return holder && holder->GetAuraDuration() < SHADOW_OF_DEATH_MOVE_MS;
 }
 
 bool TeronGorefiendBotTransformedIntoVengefulSpiritTrigger::IsActive()
@@ -427,6 +429,13 @@ bool IllidariCouncilDarkshadowEngagedBySecondAssistTankTrigger::IsActive()
     return darkshadow && !darkshadow->HasAura(SPELL_VANISH);
 }
 
+// Circle of Healing heals the whole council through the shared health pool
+bool IllidariCouncilMalandeCastingCircleOfHealingTrigger::IsActive()
+{
+    std::string spell;
+    return GetCircleOfHealingInterrupt(ai, spell) != nullptr;
+}
+
 bool IllidariCouncilZerevorEngagedByMageTankTrigger::IsActive()
 {
     return bot->getClass() == CLASS_MAGE && GetZerevorMageTank(bot) == bot && FindBoss(ai, NPC_ZEREVOR);
@@ -551,12 +560,9 @@ bool IllidanStormrageGrateIsSafeFromFlamesTrigger::IsActive()
     return GetIllidanPhase(FindBoss(ai, NPC_ILLIDAN)) == 2;
 }
 
+// Every class: the immune ones drop the channel, the others use a defensive cooldown
 bool IllidanStormrageBotStruckByDarkBarrageTrigger::IsActive()
 {
-    const uint8 cls = bot->getClass();
-    if (cls != CLASS_MAGE && cls != CLASS_PALADIN && cls != CLASS_ROGUE)
-        return false;
-
     if (!FindBoss(ai, NPC_ILLIDAN))
         return false;
 

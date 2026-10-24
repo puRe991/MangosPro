@@ -34,7 +34,8 @@ namespace ai
             creators["supremus move away from volcanos"] = [](PlayerbotAI* ai) { return new SupremusMoveAwayFromVolcanosAction(ai); };
             creators["supremus manage phase timer"] = [](PlayerbotAI* ai) { return new SupremusManagePhaseTimerAction(ai); };
             creators["supremus lead molten flame away"] = [](PlayerbotAI* ai) { return new SupremusLeadMoltenFlameAwayAction(ai); };
-            creators["shade of akama melee dps prioritize channelers"] = [](PlayerbotAI* ai) { return new ShadeOfAkamaMeleeDpsPrioritizeChannelersAction(ai); };
+            creators["shade of akama dps prioritize channelers"] = [](PlayerbotAI* ai) { return new ShadeOfAkamaDpsPrioritizeChannelersAction(ai); };
+            creators["shade of akama tanks pull adds off akama"] = [](PlayerbotAI* ai) { return new ShadeOfAkamaTanksPullAddsOffAkamaAction(ai); };
             creators["teron gorefiend misdirect boss to main tank"] = [](PlayerbotAI* ai) { return new TeronGorefiendMisdirectBossToMainTankAction(ai); };
             creators["teron gorefiend tanks position boss"] = [](PlayerbotAI* ai) { return new TeronGorefiendTanksPositionBossAction(ai); };
             creators["teron gorefiend position ranged on balcony"] = [](PlayerbotAI* ai) { return new TeronGorefiendPositionRangedOnBalconyAction(ai); };
@@ -61,6 +62,7 @@ namespace ai
             creators["illidari council main tank reflect judgement of command"] = [](PlayerbotAI* ai) { return new IllidariCouncilMainTankReflectJudgementOfCommandAction(ai); };
             creators["illidari council first assist tank focus malande"] = [](PlayerbotAI* ai) { return new IllidariCouncilFirstAssistTankFocusMalandeAction(ai); };
             creators["illidari council second assist tank position darkshadow"] = [](PlayerbotAI* ai) { return new IllidariCouncilSecondAssistTankPositionDarkshadowAction(ai); };
+            creators["illidari council interrupt circle of healing"] = [](PlayerbotAI* ai) { return new IllidariCouncilInterruptCircleOfHealingAction(ai); };
             creators["illidari council mage tank position zerevor"] = [](PlayerbotAI* ai) { return new IllidariCouncilMageTankPositionZerevorAction(ai); };
             creators["illidari council position mage tank healer"] = [](PlayerbotAI* ai) { return new IllidariCouncilPositionMageTankHealerAction(ai); };
             creators["illidari council assign dps targets"] = [](PlayerbotAI* ai) { return new IllidariCouncilAssignDpsTargetsAction(ai); };
@@ -103,6 +105,7 @@ namespace ai
             creators["supremus need to manage phase timer"] = [](PlayerbotAI* ai) { return new SupremusNeedToManagePhaseTimerTrigger(ai); };
             creators["supremus molten flame chases bot"] = [](PlayerbotAI* ai) { return new SupremusMoltenFlameChasesBotTrigger(ai); };
             creators["shade of akama killing channelers starts phase 2"] = [](PlayerbotAI* ai) { return new ShadeOfAkamaKillingChannelersStartsPhase2Trigger(ai); };
+            creators["shade of akama adds attack akama"] = [](PlayerbotAI* ai) { return new ShadeOfAkamaAddsAttackAkamaTrigger(ai); };
             creators["teron gorefiend pulling boss"] = [](PlayerbotAI* ai) { return new TeronGorefiendPullingBossTrigger(ai); };
             creators["teron gorefiend boss engaged by tanks"] = [](PlayerbotAI* ai) { return new TeronGorefiendBossEngagedByTanksTrigger(ai); };
             creators["teron gorefiend boss engaged by ranged"] = [](PlayerbotAI* ai) { return new TeronGorefiendBossEngagedByRangedTrigger(ai); };
@@ -129,6 +132,7 @@ namespace ai
             creators["illidari council gathios casting judgement of command"] = [](PlayerbotAI* ai) { return new IllidariCouncilGathiosCastingJudgementOfCommandTrigger(ai); };
             creators["illidari council malande engaged by first assist tank"] = [](PlayerbotAI* ai) { return new IllidariCouncilMalandeEngagedByFirstAssistTankTrigger(ai); };
             creators["illidari council darkshadow engaged by second assist tank"] = [](PlayerbotAI* ai) { return new IllidariCouncilDarkshadowEngagedBySecondAssistTankTrigger(ai); };
+            creators["illidari council malande casting circle of healing"] = [](PlayerbotAI* ai) { return new IllidariCouncilMalandeCastingCircleOfHealingTrigger(ai); };
             creators["illidari council zerevor engaged by mage tank"] = [](PlayerbotAI* ai) { return new IllidariCouncilZerevorEngagedByMageTankTrigger(ai); };
             creators["illidari council mage tank needs dedicated healer"] = [](PlayerbotAI* ai) { return new IllidariCouncilMageTankNeedsDedicatedHealerTrigger(ai); };
             creators["illidari council zerevor casts dangerous aoes"] = [](PlayerbotAI* ai) { return new IllidariCouncilZerevorCastsDangerousAoesTrigger(ai); };

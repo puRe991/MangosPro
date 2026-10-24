@@ -33,6 +33,7 @@ namespace ai
 
     // Shade of Akama
     BT_TRIGGER(ShadeOfAkamaKillingChannelersStartsPhase2Trigger, "shade of akama killing channelers starts phase 2")
+    BT_TRIGGER(ShadeOfAkamaAddsAttackAkamaTrigger, "shade of akama adds attack akama")
 
     // Teron Gorefiend
     BT_TRIGGER(TeronGorefiendPullingBossTrigger, "teron gorefiend pulling boss")
@@ -69,6 +70,7 @@ namespace ai
     BT_TRIGGER(IllidariCouncilGathiosCastingJudgementOfCommandTrigger, "illidari council gathios casting judgement of command")
     BT_TRIGGER(IllidariCouncilMalandeEngagedByFirstAssistTankTrigger, "illidari council malande engaged by first assist tank")
     BT_TRIGGER(IllidariCouncilDarkshadowEngagedBySecondAssistTankTrigger, "illidari council darkshadow engaged by second assist tank")
+    BT_TRIGGER(IllidariCouncilMalandeCastingCircleOfHealingTrigger, "illidari council malande casting circle of healing")
     BT_TRIGGER(IllidariCouncilZerevorEngagedByMageTankTrigger, "illidari council zerevor engaged by mage tank")
     BT_TRIGGER(IllidariCouncilMageTankNeedsDedicatedHealerTrigger, "illidari council mage tank needs dedicated healer")
     BT_TRIGGER(IllidariCouncilZerevorCastsDangerousAoesTrigger, "illidari council zerevor casts dangerous aoes")
