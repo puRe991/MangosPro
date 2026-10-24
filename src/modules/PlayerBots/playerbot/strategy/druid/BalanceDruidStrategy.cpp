@@ -585,9 +585,14 @@ void BalanceDruidAoeStrategy::InitCombatTriggers(std::list<TriggerNode*>& trigge
 {
     DruidAoeStrategy::InitCombatTriggers(triggers);
 
+    // No Starfall in TBC: Hurricane from 4 targets, Moonfire on every other attacker
     triggers.push_back(new TriggerNode(
-        "ranged high aoe",
-        NextAction::array(0, new NextAction("starfall", ACTION_HIGH), NULL)));
+        "hurricane",
+        NextAction::array(0, new NextAction("hurricane", ACTION_HIGH), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "moonfire on attacker",
+        NextAction::array(0, new NextAction("moonfire on attacker", ACTION_NORMAL + 1), NULL)));
 }
 
 void BalanceDruidAoeStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
@@ -688,6 +693,10 @@ void BalanceDruidBuffRaidStrategy::InitNonCombatTriggers(std::list<TriggerNode*>
 void BalanceDruidBoostStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
 {
     DruidBoostStrategy::InitCombatTriggers(triggers);
+
+    triggers.push_back(new TriggerNode(
+        "force of nature",
+        NextAction::array(0, new NextAction("force of nature", ACTION_HIGH + 1), NULL)));
 
     triggers.push_back(new TriggerNode(
         "nature's swiftness",

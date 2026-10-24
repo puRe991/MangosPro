@@ -5,6 +5,11 @@
 
 using namespace ai;
 
+bool ForceOfNatureTrigger::IsActive()
+{
+    return BoostTrigger::IsActive() && bot->IsSpellReady(33831);
+}
+
 bool EntanglingRootsKiteTrigger::IsActive() 
 { 
 	if (!DebuffTrigger::IsActive())

@@ -503,14 +503,31 @@ void RestorationDruidStrategy::InitCombatTriggers(std::list<TriggerNode*>& trigg
         NextAction::array(0, new NextAction("regrowth", ACTION_CRITICAL_HEAL),
                              new NextAction("swiftmend", ACTION_CRITICAL_HEAL + 1), new NextAction("healing touch", ACTION_CRITICAL_HEAL - 1), NULL)));
 
+    // Emergency: Nature's Swiftness, then the now instant Healing Touch
+    // (which leaves Tree of Life through its caster form prerequisite)
     triggers.push_back(new TriggerNode(
         "party member critical health",
-        NextAction::array(0, new NextAction("regrowth on party", ACTION_CRITICAL_HEAL),
-                             new NextAction("swiftmend on party", ACTION_CRITICAL_HEAL + 1), new NextAction("healing touch on party", ACTION_CRITICAL_HEAL - 1), NULL)));
+        NextAction::array(0, new NextAction("nature's swiftness", ACTION_CRITICAL_HEAL + 2),
+                             new NextAction("swiftmend on party", ACTION_CRITICAL_HEAL + 1),
+                             new NextAction("regrowth on party", ACTION_CRITICAL_HEAL),
+                             new NextAction("healing touch on party", ACTION_CRITICAL_HEAL - 1), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "nature's swiftness active",
+        NextAction::array(0, new NextAction("healing touch on party", ACTION_CRITICAL_HEAL + 3), NULL)));
 
     triggers.push_back(new TriggerNode(
         "lifebloom",
         NextAction::array(0, new NextAction("lifebloom", ACTION_MEDIUM_HEAL + 1), NULL)));
+
+    // Keep Rejuvenation and the Regrowth HoT on the tanks, not only once they drop
+    triggers.push_back(new TriggerNode(
+        "rejuvenation on tank",
+        NextAction::array(0, new NextAction("rejuvenation on tank", ACTION_MEDIUM_HEAL + 1), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "regrowth on tank",
+        NextAction::array(0, new NextAction("regrowth on tank", ACTION_MEDIUM_HEAL), NULL)));
 
     triggers.push_back(new TriggerNode(
         "low health",
@@ -774,9 +791,7 @@ void RestorationDruidBoostStrategy::InitCombatTriggers(std::list<TriggerNode*>& 
 {
     DruidBoostStrategy::InitCombatTriggers(triggers);
 
-    triggers.push_back(new TriggerNode(
-        "nature's swiftness",
-        NextAction::array(0, new NextAction("nature's swiftness", ACTION_HIGH), NULL)));
+    // Nature's Swiftness is saved for the critical-health Healing Touch combo
 }
 
 void RestorationDruidBoostStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)

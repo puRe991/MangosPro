@@ -203,6 +203,9 @@ namespace ai
                 creators["faerie fire"] = [](PlayerbotAI* ai) { return new FaerieFireTrigger(ai); };
                 creators["insect swarm"] = [](PlayerbotAI* ai) { return new InsectSwarmTrigger(ai); };
                 creators["moonfire"] = [](PlayerbotAI* ai) { return new MoonfireTrigger(ai); };
+                creators["moonfire on attacker"] = [](PlayerbotAI* ai) { return new MoonfireOnAttackerTrigger(ai); };
+                creators["hurricane"] = [](PlayerbotAI* ai) { return new HurricaneTrigger(ai); };
+                creators["force of nature"] = [](PlayerbotAI* ai) { return new ForceOfNatureTrigger(ai); };
                 creators["nature's grasp"] = [](PlayerbotAI* ai) { return new NaturesGraspTrigger(ai); };
                 creators["tiger's fury"] = [](PlayerbotAI* ai) { return new TigersFuryTrigger(ai); };
                 creators["rake"] = [](PlayerbotAI* ai) { return new RakeTrigger(ai); };
@@ -228,7 +231,7 @@ namespace ai
                 creators["ferocious bite"] = [](PlayerbotAI* ai) { return new FerociousBiteTrigger(ai); };
                 creators["claw"] = [](PlayerbotAI* ai) { return new SpellCanBeCastedTrigger(ai, "claw"); };
 #ifdef MANGOSBOT_ONE
-                creators["rip"] = [](PlayerbotAI* ai) { return new RipTrigger(ai, 5); };
+                creators["rip"] = [](PlayerbotAI* ai) { return new RipTrigger(ai, 4); };
 #else
                 creators["rip"] = [](PlayerbotAI* ai) { return new RipTrigger(ai, 3); };
 #endif
@@ -246,6 +249,9 @@ namespace ai
                 creators["rebirth"] = [](PlayerbotAI* ai) { return new RebirthTrigger(ai); };
                 creators["innervate"] = [](PlayerbotAI* ai) { return new InnervateTrigger(ai); };
                 creators["lifebloom"] = [](PlayerbotAI* ai) { return new LifebloomTankTrigger(ai); };
+                creators["rejuvenation on tank"] = [](PlayerbotAI* ai) { return new TankHotTrigger(ai, "rejuvenation"); };
+                creators["regrowth on tank"] = [](PlayerbotAI* ai) { return new TankHotTrigger(ai, "regrowth"); };
+                creators["nature's swiftness active"] = [](PlayerbotAI* ai) { return new NaturesSwiftnessActiveTrigger(ai); };
                 creators["clearcasting"] = [](PlayerbotAI* ai) { return new ClearcastingTrigger(ai); };
             }
         };
@@ -287,6 +293,8 @@ namespace ai
                 creators["starfall"] = [](PlayerbotAI* ai) { return new CastStarfallAction(ai); };
                 creators["insect swarm"] = [](PlayerbotAI* ai) { return new CastInsectSwarmAction(ai); };
                 creators["moonfire"] = [](PlayerbotAI* ai) { return new CastMoonfireAction(ai); };
+                creators["moonfire on attacker"] = [](PlayerbotAI* ai) { return new CastMoonfireOnAttackerAction(ai); };
+                creators["force of nature"] = [](PlayerbotAI* ai) { return new CastForceOfNatureAction(ai); };
                 creators["starfire"] = [](PlayerbotAI* ai) { return new CastStarfireAction(ai); };
                 creators["nature's grasp"] = [](PlayerbotAI* ai) { return new CastNaturesGraspAction(ai); };
                 creators["claw"] = [](PlayerbotAI* ai) { return new CastClawAction(ai); };
@@ -342,6 +350,8 @@ namespace ai
                 creators["update pvp strats"] = [](PlayerbotAI* ai) { return new UpdateDruidPvpStrategiesAction(ai); };
                 creators["update raid strats"] = [](PlayerbotAI* ai) { return new UpdateDruidRaidStrategiesAction(ai); };
                 creators["lifebloom"] = [](PlayerbotAI* ai) { return new CastLifebloomAction(ai); };
+                creators["rejuvenation on tank"] = [](PlayerbotAI* ai) { return new CastHotOnTankAction(ai, "rejuvenation"); };
+                creators["regrowth on tank"] = [](PlayerbotAI* ai) { return new CastHotOnTankAction(ai, "regrowth"); };
             }
         };
     };

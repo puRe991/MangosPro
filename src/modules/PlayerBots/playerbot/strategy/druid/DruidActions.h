@@ -143,6 +143,18 @@ namespace ai
 		CastMoonfireAction(PlayerbotAI* ai) : CastRangedDebuffSpellAction(ai, "moonfire") {}
 	};
 
+	class CastMoonfireOnAttackerAction : public CastRangedDebuffSpellOnAttackerAction
+	{
+	public:
+		CastMoonfireOnAttackerAction(PlayerbotAI* ai) : CastRangedDebuffSpellOnAttackerAction(ai, "moonfire") {}
+	};
+
+	class CastForceOfNatureAction : public CastSpellAction
+	{
+	public:
+		CastForceOfNatureAction(PlayerbotAI* ai) : CastSpellAction(ai, "force of nature") {}
+	};
+
 	class CastInsectSwarmAction : public CastRangedDebuffSpellAction
 	{
 	public:
@@ -640,6 +652,16 @@ namespace ai
         explicit CastLifebloomAction(PlayerbotAI* ai) : CastSpellAction(ai, "lifebloom") {}
 
         std::string GetTargetName() override { return "party tank without lifebloom"; }
+    };
+
+    class CastHotOnTankAction : public CastSpellAction
+    {
+    public:
+        CastHotOnTankAction(PlayerbotAI* ai, std::string spell) : CastSpellAction(ai, spell) {}
+
+        std::string getName() override { return GetSpellName() + " on tank"; }
+        std::string GetTargetName() override { return "party tank without lifebloom"; }
+        std::string GetTargetQualifier() override { return GetSpellName(); }
     };
 
     class UpdateDruidPveStrategiesAction : public UpdateStrategyDependenciesAction

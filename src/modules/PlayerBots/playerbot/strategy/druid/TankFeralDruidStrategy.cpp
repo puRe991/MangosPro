@@ -525,6 +525,12 @@ void TankFeralDruidStrategy::InitCombatTriggers(std::list<TriggerNode*>& trigger
         "lacerate",
         NextAction::array(0, new NextAction("lacerate", ACTION_HIGH), NULL)));
 
+    // Single-target filler once Mangle is on cooldown and Lacerate is stacked;
+    // the rage floor leaves room for Maul, which does not use the GCD
+    triggers.push_back(new TriggerNode(
+        "medium rage available",
+        NextAction::array(0, new NextAction("swipe (bear)", ACTION_NORMAL + 2), NULL)));
+
     triggers.push_back(new TriggerNode(
         "mangle (bear) ready",
         NextAction::array(0, new NextAction("mangle (bear)", ACTION_HIGH + 3), NULL)));

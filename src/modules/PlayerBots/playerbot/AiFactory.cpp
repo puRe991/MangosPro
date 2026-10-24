@@ -427,6 +427,10 @@ void AiFactory::AddDefaultCombatStrategies(Player* player, PlayerbotAI* const fa
                 else
                 {
                     combatEngine->addStrategies("dps feral", "dps assist", "close", "behind", NULL);
+#ifdef MANGOSBOT_ONE
+                    // The trigger itself requires 5/5 Furor
+                    combatEngine->addStrategy("powershift");
+#endif
                     if (sPlayerbotAIConfig.enableOffSpecStrategies)
                         combatEngine->addStrategy("offheal");
                 }

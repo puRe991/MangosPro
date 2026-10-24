@@ -613,9 +613,11 @@ void DpsFeralDruidStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers
         "mangle (cat) debuff",
         NextAction::array(0, new NextAction("mangle (cat)", ACTION_NORMAL + 3), NULL)));
 
+    // Spend Omen of Clarity procs on Shred (falls back to Mangle when not behind);
+    // Rake is left out, Shred is the stronger filler in TBC
     triggers.push_back(new TriggerNode(
-        "rake",
-        NextAction::array(0, new NextAction("rake", ACTION_NORMAL + 2), NULL)));
+        "clearcasting",
+        NextAction::array(0, new NextAction("shred", ACTION_NORMAL + 2), NULL)));
 
     triggers.push_back(new TriggerNode(
         "behind target",
