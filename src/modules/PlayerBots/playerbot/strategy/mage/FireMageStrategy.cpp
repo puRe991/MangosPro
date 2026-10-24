@@ -398,6 +398,11 @@ void FireMageStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
     triggers.push_back(new TriggerNode(
         "fire spells locked",
         NextAction::array(0, new NextAction("frostbolt", ACTION_NORMAL), NULL)));
+
+    // Fire Blast is instant, so it keeps the bot moving
+    triggers.push_back(new TriggerNode(
+        "moving",
+        NextAction::array(0, new NextAction("fire blast", ACTION_HIGH), NULL)));
 }
 
 void FireMageStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
@@ -606,6 +611,14 @@ void FireMageBoostStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers
     triggers.push_back(new TriggerNode(
         "combustion",
         NextAction::array(0, new NextAction("combustion", ACTION_HIGH + 1), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "cold snap",
+        NextAction::array(0, new NextAction("cold snap", ACTION_HIGH + 4), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "icy veins",
+        NextAction::array(0, new NextAction("icy veins", ACTION_HIGH + 3), NULL)));
 }
 
 void FireMageBoostStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)

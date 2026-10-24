@@ -186,6 +186,7 @@ namespace ai
                 creators["fire spells locked"] = [](PlayerbotAI* ai) { return new FireSpellsLocked(ai); };
                 creators["frost spells locked"] = [](PlayerbotAI* ai) { return new FrostSpellsLocked(ai); };
                 creators["cold snap"] = [](PlayerbotAI* ai) { return new ColdSnapTrigger(ai); };
+                creators["moving"] = [](PlayerbotAI* ai) { return new MageMovingTrigger(ai); };
                 creators["ice barrier"] = [](PlayerbotAI* ai) { return new IceBarrierTrigger(ai); };
                 creators["hot streak"] = [](PlayerbotAI* ai) { return new HotStreakTrigger(ai); };
                 creators["free fireball"] = [](PlayerbotAI* ai) { return new FireballOrFrostfireBoltFreeTrigger(ai); };

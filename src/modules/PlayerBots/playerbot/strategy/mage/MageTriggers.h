@@ -266,9 +266,26 @@ namespace ai
 
         virtual bool IsActive() override
         {
-            return !bot->IsSpellReady(12472)    //icy veins on cooldown
-                && bot->IsSpellReady(11958);    //cold snap not on cooldown
+            return bot->HasSpell(12472)
+                && !bot->IsSpellReady(12472)    //icy veins on cooldown
+                && bot->IsSpellReady(11958)     //cold snap not on cooldown
+                && (!bot->HasSpell(31687) || !bot->IsSpellReady(31687)); //water elemental (if known) used too
         }
+    };
+
+    // Instant casts (Fire Blast, Ice Lance) do not stop the bot, cast-time spells do
+    class MageMovingTrigger : public Trigger
+    {
+    public:
+        MageMovingTrigger(PlayerbotAI* ai) : Trigger(ai, "moving") {}
+
+        virtual bool IsActive() override
+        {
+            Unit* target = GetTarget();
+            return target && target->IsAlive() && AI_VALUE2(bool, "moving", "self target");
+        }
+
+        virtual std::string GetTargetName() override { return "current target"; }
     };
 
     class NoFoodTrigger : public Trigger

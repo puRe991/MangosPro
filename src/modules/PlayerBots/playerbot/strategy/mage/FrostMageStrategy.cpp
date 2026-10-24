@@ -365,6 +365,11 @@ void FrostMageStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
     triggers.push_back(new TriggerNode(
         "ice lance",
         NextAction::array(0, new NextAction("ice lance", ACTION_NORMAL), NULL)));
+
+    // Ice Lance is instant, so it keeps the bot moving
+    triggers.push_back(new TriggerNode(
+        "moving",
+        NextAction::array(0, new NextAction("ice lance", ACTION_HIGH), NULL)));
 }
 
 void FrostMageStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)

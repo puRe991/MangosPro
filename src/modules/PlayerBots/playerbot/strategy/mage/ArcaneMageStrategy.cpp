@@ -395,6 +395,11 @@ void ArcaneMageStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
     triggers.push_back(new TriggerNode(
         "arcane blast full",
         NextAction::array(0, new NextAction("frostbolt", ACTION_NORMAL), NULL)));
+
+    // Fire Blast is instant, so it keeps the bot moving
+    triggers.push_back(new TriggerNode(
+        "moving",
+        NextAction::array(0, new NextAction("fire blast", ACTION_HIGH), NULL)));
 }
 
 void ArcaneMageStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
@@ -603,6 +608,14 @@ void ArcaneMageBoostStrategy::InitCombatTriggers(std::list<TriggerNode*>& trigge
     triggers.push_back(new TriggerNode(
         "presence of mind",
         NextAction::array(0, new NextAction("presence of mind", ACTION_HIGH + 1), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "cold snap",
+        NextAction::array(0, new NextAction("cold snap", ACTION_HIGH + 4), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "icy veins",
+        NextAction::array(0, new NextAction("icy veins", ACTION_HIGH + 3), NULL)));
 }
 
 void ArcaneMageBoostStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
