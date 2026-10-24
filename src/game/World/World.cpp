@@ -92,6 +92,48 @@ INSTANTIATE_SINGLETON_1(World);
 
 extern void LoadGameObjectModelList();
 
+namespace
+{
+    // MangosPro: rotating server announcements, configured by AutoBroadcast.* in mangosd.conf
+    struct AutoBroadcast
+    {
+        std::vector<std::string> messages;
+        IntervalTimer timer;
+        size_t next = 0;
+    };
+
+    AutoBroadcast s_autoBroadcast;
+
+    char const* const AUTO_BROADCAST_DEFAULTS[] =
+    {
+        "Du spielst auf MangosPro - TBC 2.4.3 mit Playerbots, die Raids wirklich spielen. Das Repack gibt es kostenlos auf github.com/puRe991/MangosPro",
+        "Von Karazhan bis Sunwell mit Bot-Raids: neue Versionen und Updates des MangosPro-Repacks findest du auf github.com/puRe991/MangosPro",
+        "Bug gefunden oder eine Idee? Melde sie als Issue auf github.com/puRe991/MangosPro - und lass gern einen Stern da!",
+    };
+
+    void LoadAutoBroadcast()
+    {
+        s_autoBroadcast.messages.clear();
+        s_autoBroadcast.next = 0;
+
+        if (!sConfig.GetBoolDefault("AutoBroadcast.Enable", true))
+            return;
+
+        std::string const prefix = sConfig.GetStringDefault("AutoBroadcast.Prefix", "|cff00ccff[MangosPro]|r ");
+        for (uint32 i = 1; i <= 20; ++i)
+        {
+            char const* def = i <= countof(AUTO_BROADCAST_DEFAULTS) ? AUTO_BROADCAST_DEFAULTS[i - 1] : "";
+            std::string const text = sConfig.GetStringDefault("AutoBroadcast.Message" + std::to_string(i), def);
+            if (!text.empty())
+                s_autoBroadcast.messages.push_back(prefix + text);
+        }
+
+        uint32 const minutes = std::max(1, sConfig.GetIntDefault("AutoBroadcast.Interval", 20));
+        s_autoBroadcast.timer.SetInterval(minutes * MINUTE * IN_MILLISECONDS);
+        s_autoBroadcast.timer.Reset();
+    }
+}
+
 std::atomic<bool> World::m_stopEvent { false };
 uint8 World::m_ExitCode = SHUTDOWN_EXIT_CODE;
 volatile uint32 World::m_worldLoopCounter = 0;
@@ -396,6 +438,7 @@ void World::LoadConfigSettings(bool reload)
     ///- Read the player limit and the Message of the day from the config file
     SetPlayerLimit(sConfig.GetIntDefault("PlayerLimit", DEFAULT_PLAYER_LIMIT), true);
     SetMotd(sConfig.GetStringDefault("Motd", "Welcome to the Massive Network Game Object Server."));
+    LoadAutoBroadcast();
 
     ///- Read all rates from the config file
     setConfigPos(CONFIG_FLOAT_RATE_HEALTH,                               "Rate.Health",                               1.0f);
@@ -1677,6 +1720,32 @@ void World::Update(uint32 diff)
     }
 
     /// <li> Handle all other objects
+    /// <li> Rotating server announcements (bots do not get them)
+    if (!s_autoBroadcast.messages.empty())
+    {
+        s_autoBroadcast.timer.Update(diff);
+        if (s_autoBroadcast.timer.Passed())
+        {
+            s_autoBroadcast.timer.Reset();
+
+            WorldPacket data;
+            ChatHandler::BuildChatPacket(data, CHAT_MSG_SYSTEM, s_autoBroadcast.messages[s_autoBroadcast.next].c_str());
+            s_autoBroadcast.next = (s_autoBroadcast.next + 1) % s_autoBroadcast.messages.size();
+
+            for (auto const& sessionPair : m_sessions)
+            {
+                Player* player = sessionPair.second ? sessionPair.second->GetPlayer() : nullptr;
+                if (!player || !player->IsInWorld())
+                    continue;
+#ifdef ENABLE_PLAYERBOTS
+                if (!player->isRealPlayer())
+                    continue;
+#endif
+                sessionPair.second->SendPacket(data);
+            }
+        }
+    }
+
     ///- Update objects (maps, transport, creatures,...)
 #ifdef BUILD_METRICS
     auto preMapTime = std::chrono::time_point_cast<std::chrono::milliseconds>(Clock::now());

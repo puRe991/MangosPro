@@ -851,6 +851,23 @@ LogColors = ""
 #                 0 (ignore commands)
 #
 ###################################################################################################################
+#    AutoBroadcast.Enable
+#        Periodically announce the MangosPro repack in the system chat of all real players (not bots).
+#        Default: 1 (enable)
+#                 0 (disable)
+#
+#    AutoBroadcast.Interval
+#        Minutes between two announcements. The messages are shown in turn.
+#        Default: 20
+#
+#    AutoBroadcast.Prefix
+#        Text put in front of every announcement (WoW color codes allowed).
+#        Default: "|cff00ccff[MangosPro]|r "
+#
+#    AutoBroadcast.Message1 ... AutoBroadcast.Message20
+#        The announcements. Message1-3 have built-in repack texts, set one to "" to drop it.
+#        Missing or empty entries are skipped.
+#
 
 GameType = 1
 RealmZone = 1
@@ -928,6 +945,12 @@ PlayerCommands = 1
 # PLAYER INTERACTION
 #
 #    AllowTwoSide.Accounts
+AutoBroadcast.Enable = 1
+AutoBroadcast.Interval = 20
+AutoBroadcast.Prefix = "|cff00ccff[MangosPro]|r "
+AutoBroadcast.Message1 = "Du spielst auf MangosPro - TBC 2.4.3 mit Playerbots, die Raids wirklich spielen. Das Repack gibt es kostenlos auf github.com/puRe991/MangosPro"
+AutoBroadcast.Message2 = "Von Karazhan bis Sunwell mit Bot-Raids: neue Versionen und Updates des MangosPro-Repacks findest du auf github.com/puRe991/MangosPro"
+AutoBroadcast.Message3 = "Bug gefunden oder eine Idee? Melde sie als Issue auf github.com/puRe991/MangosPro - und lass gern einen Stern da!"
 #        Allow accounts to create characters in both teams in any game type.
 #        Default: 0 (Not allowed)
 #                 1 (Allowed)
