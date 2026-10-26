@@ -40,6 +40,9 @@
 #include "Anticheat/Anticheat.hpp"
 #include "Spells/SpellMgr.h"
 #include "Entities/Transports.h"
+#ifdef ENABLE_PLAYERBOTS
+#include "playerbot/playerbot.h"
+#endif
 #ifdef _DEBUG_VMAPS
 #include "VMapFactory.h"
 #endif
@@ -393,6 +396,60 @@ bool ChatHandler::HandleGPSCommand(char* args)
     return true;
 }
 
+#ifdef ENABLE_PLAYERBOTS
+// Readies a bot for a summon whatever it is doing; returns 0 or the id of the error text
+static int32 PrepareBotForSummon(Player* bot, Player* summoner)
+{
+    // finish a pending teleport now instead of waiting for the bot's next AI tick
+    if (bot->IsBeingTeleported())
+        bot->GetPlayerbotAI()->HandleTeleportAck();
+
+    if (!bot->IsInWorld() || bot->IsBeingTeleported())
+        return LANG_IS_TELEPORTED;
+
+    // charmed players cannot teleport
+    if (bot->HasCharmer())
+    {
+        bot->RemoveSpellsCausingAura(SPELL_AURA_MOD_CHARM);
+        bot->RemoveSpellsCausingAura(SPELL_AURA_MOD_POSSESS);
+    }
+
+    Map* pMap = summoner->GetMap();
+
+    // another copy of the same map would make this a near teleport inside the bot's copy
+    if (pMap->Instanceable() && bot->GetMapId() == pMap->GetId() && bot->GetInstanceId() != pMap->GetInstanceId())
+        return LANG_CANNOT_SUMMON_TO_INST;
+
+    if (pMap->IsBattleGroundOrArena())
+    {
+        if (bot->GetBattleGroundId() != summoner->GetBattleGroundId())
+        {
+            if (bot->InBattleGround())
+                bot->LeaveBattleground(false);
+            bot->SetBattleGroundId(summoner->GetBattleGroundId(), summoner->GetBattleGroundTypeId());
+            if (!bot->GetMap()->IsBattleGroundOrArena())
+                bot->SetBattleGroundEntryPoint();
+        }
+    }
+    else if (pMap->IsDungeon() && bot->GetMapId() != pMap->GetId())
+    {
+        // the bot has to enter the summoner's copy, not the one of its own or its group's bind
+        DungeonPersistentState* state = static_cast<DungeonMap*>(pMap)->GetPersistanceState();
+        bot->SetDifficulty(pMap->GetDifficulty());
+        if (bot->GetBoundInstanceSaveForSelfOrGroup(pMap->GetId()) != state)
+        {
+            bot->UnbindInstance(pMap->GetId(), pMap->GetDifficulty());
+            bot->BindToInstance(state, false);
+        }
+        // a permanent bind outranks a group bound to another copy
+        if (bot->GetBoundInstanceSaveForSelfOrGroup(pMap->GetId()) != state)
+            bot->BindToInstance(state, true);
+    }
+
+    return 0;
+}
+#endif
+
 // Summon Player
 bool ChatHandler::HandleNamegoCommand(char* args)
 {
@@ -417,20 +474,39 @@ bool ChatHandler::HandleNamegoCommand(char* args)
         if (HasLowerSecurity(target))
             return false;
 
+        Map* pMap = player->GetMap();
+
+        if (!pMap)
+            return false;
+
+        bool isBot = false;
+#ifdef ENABLE_PLAYERBOTS
+        // bots always answer a summon, the group, instance and battleground rules below are for players
+        isBot = target->GetPlayerbotAI() && !target->isRealPlayer();
+        if (isBot)
+        {
+            if (int32 error = PrepareBotForSummon(target, player))
+            {
+                PSendSysMessage(error, nameLink.c_str());
+                SetSentErrorMessage(true);
+                return false;
+            }
+        }
+#endif
+
         // make sure player is in world
-        if (!target->IsInWorld() || target->IsBeingTeleported())
+        if (!isBot && (!target->IsInWorld() || target->IsBeingTeleported()))
         {
             PSendSysMessage(LANG_IS_TELEPORTED, nameLink.c_str());
             SetSentErrorMessage(true);
             return false;
         }
 
-        Map* pMap = player->GetMap();
-
-        if (!pMap)
-            return false;
-
-        if (pMap->IsBattleGroundOrArena())
+        if (isBot)
+        {
+            // already prepared by PrepareBotForSummon
+        }
+        else if (pMap->IsBattleGroundOrArena())
         {
             // only allow if gm mode is on
             if (!player->IsGameMaster())
@@ -486,7 +562,12 @@ bool ChatHandler::HandleNamegoCommand(char* args)
         // before GM
         float x, y, z;
         player->GetClosePoint(x, y, z, target->GetObjectBoundingRadius());
-        target->TeleportTo(player->GetMapId(), x, y, z, target->GetOrientation());
+        if (!target->TeleportTo(player->GetMapId(), x, y, z, target->GetOrientation(), isBot ? TELE_TO_GM_MODE : 0) && isBot)
+        {
+            PSendSysMessage("%s could not be teleported.", nameLink.c_str());
+            SetSentErrorMessage(true);
+            return false;
+        }
     }
     else
     {

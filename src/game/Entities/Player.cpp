@@ -1986,8 +1986,8 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
         assignedAreaTrigger = true;
     }
 
-    // Check requirements for teleport
-    if (at)
+    // Check requirements for teleport (GM teleports and summons ignore entrance locks)
+    if (at && !(options & TELE_TO_GM_MODE))
     {
         uint32 miscRequirement = 0;
         AreaLockStatus lockStatus = GetAreaTriggerLockStatus(at, miscRequirement);
