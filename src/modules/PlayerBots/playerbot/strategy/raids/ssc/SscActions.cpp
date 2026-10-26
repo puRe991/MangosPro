@@ -289,7 +289,8 @@ bool SscHydrossFrostPhaseSpreadOutAction::Execute(Event& event)
     if (!hydross || hydross->HasAura(SPELL_CORRUPTION))
         return false;
 
-    Unit* target = AI_VALUE(Unit*, "current target");
+    // "current target" holds a guid; reading it as Unit* fails the cast and crashes
+    Unit* target = ai->GetUnit(AI_VALUE(ObjectGuid, "current target"));
     Unit* anchor = target ? target : hydross;
     if (!raidboss::IsMeleePlayer(bot))
     {
