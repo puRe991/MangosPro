@@ -1,0 +1,7 @@
+## Interface: 20400
+## Title: MangosPro Support
+## Notes: Fills the Customer Support / Knowledge Base window with MangosPro help articles.
+## Author: MangosPro
+## Version: 1.0
+Articles.lua
+MangosPro_Support.lua
