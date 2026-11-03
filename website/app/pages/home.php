@@ -2,6 +2,11 @@
 page_title('');
 $realms = Realm::all();
 $news = News::latest(4);
+$progressTop = [];
+try {
+    Progress::maybeSync(Realm::defaultId());
+    $progressTop = array_slice(Progress::ranking(Progress::kills(Realm::defaultId())), 0, 5);
+} catch (Throwable) {}
 $online = array_sum(array_map(fn($r) => $r['players']['total'], $realms));
 $bots = array_sum(array_map(fn($r) => $r['players']['bots'], $realms));
 $anyOnline = (bool)array_filter($realms, fn($r) => $r['online']);
@@ -70,6 +75,26 @@ try { $accounts = Account::totalCount(); } catch (PDOException) { $accounts = 0;
             <?php endif; ?>
             <?php foreach ($realms as $realm) render_partial('realm_card', ['realm' => $realm]); ?>
             <a class="btn btn-ghost btn-block btn-sm" href="<?= e(url('status')) ?>">Details zum Status</a>
+        </div>
+        <div class="panel">
+            <h2 class="panel-title">Progress Race</h2>
+            <?php if (!$progressTop): ?>
+                <p class="muted small">Noch hat keine Gilde einen Raidboss gelegt. Holt euch den ersten Realm-First!</p>
+            <?php else: ?>
+                <ol class="mini-ranking">
+                    <?php foreach ($progressTop as $i => $g):
+                        // höchster Raid mit Kills
+                        $best = null;
+                        foreach (array_reverse(Progress::RAIDS, true) as $map => $raid) { if (!empty($g['raids'][$map])) { $best = [$raid, $g['raids'][$map]]; break; } } ?>
+                        <li>
+                            <span class="rank rank-<?= $i + 1 ?>"><?= $i + 1 ?></span>
+                            <a href="<?= e(url('guild', ['id' => $g['guild_id']])) ?>">&lt;<?= e($g['name']) ?>&gt;</a>
+                            <?php if ($best): ?><span class="prog <?= $best[1] >= count($best[0]['bosses']) ? 'prog-full' : 'prog-part' ?>"><?= $best[1] ?>/<?= count($best[0]['bosses']) ?> <?= e($best[0]['short']) ?></span><?php endif; ?>
+                        </li>
+                    <?php endforeach; ?>
+                </ol>
+            <?php endif; ?>
+            <a class="btn btn-ghost btn-block btn-sm" href="<?= e(url('progress')) ?>">Zur Progress-Wertung</a>
         </div>
         <div class="panel">
             <h2 class="panel-title">In drei Schritten ins Spiel</h2>

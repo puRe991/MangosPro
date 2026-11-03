@@ -6,11 +6,12 @@ $route = current_route();
 $nav = [
     ''         => 'Start',
     'news'     => 'News',
-    'features' => 'Server',
-    'connect'  => 'Spielen',
-    'online'   => 'Online',
+    'updates'  => 'Updates',
+    'progress' => 'Progress',
     'ladder'   => 'Rangliste',
     'armory'   => 'Arsenal',
+    'online'   => 'Online',
+    'connect'  => 'Spielen',
 ];
 $isActive = function (string $r) use ($route): bool {
     if ($r === '') return $route === '';
@@ -94,13 +95,16 @@ $isActive = function (string $r) use ($route): bool {
                 <li><a href="<?= e(url('register')) ?>">Account erstellen</a></li>
                 <li><a href="<?= e(url('connect')) ?>">Verbindungsanleitung</a></li>
                 <li><a href="<?= e(url('status')) ?>">Serverstatus</a></li>
+                <li><a href="<?= e(url('features')) ?>">Über den Server</a></li>
                 <li><a href="<?= e(url('rules')) ?>">Regeln</a></li>
             </ul>
         </div>
         <div>
             <h4>Community</h4>
             <ul>
-                <li><a href="<?= e(url('news')) ?>">News &amp; Patch-Notes</a></li>
+                <li><a href="<?= e(url('news')) ?>">News</a></li>
+                <li><a href="<?= e(url('updates')) ?>">Updates &amp; Patch-Notes</a></li>
+                <li><a href="<?= e(url('progress')) ?>">Progress Race</a></li>
                 <li><a href="<?= e(url('ladder')) ?>">Ranglisten</a></li>
                 <li><a href="<?= e(url('armory')) ?>">Arsenal</a></li>
                 <?php if (config('site.discord')): ?>

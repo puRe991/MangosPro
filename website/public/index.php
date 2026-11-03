@@ -11,6 +11,8 @@ require dirname(__DIR__) . '/app/bootstrap.php';
 $routes = [
     ''                 => 'home',
     'news'             => 'news',
+    'updates'          => 'updates',
+    'progress'         => 'progress',
     'register'         => 'register',
     'login'            => 'login',
     'logout'           => 'logout',
@@ -33,6 +35,7 @@ $routes = [
     'admin'            => 'admin/index',
     'admin/news'       => 'admin/news',
     'admin/news/edit'  => 'admin/news_edit',
+    'admin/progress'   => 'admin/progress',
     'api/status'       => 'api_status',
 ];
 

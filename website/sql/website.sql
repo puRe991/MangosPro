@@ -43,6 +43,20 @@ CREATE TABLE IF NOT EXISTS `web_registrations` (
   KEY `idx_ip` (`ip`, `created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Website Registrierungen (IP-Limit)';
 
+CREATE TABLE IF NOT EXISTS `web_progress_kills` (
+  `id`         int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `realm_id`   int(10) unsigned NOT NULL,
+  `guild_id`   int(10) unsigned NOT NULL,
+  `guild_name` varchar(64) NOT NULL,
+  `map_id`     smallint(5) unsigned NOT NULL,
+  `boss_index` tinyint(3) unsigned NOT NULL,
+  `killed_at`  int(10) unsigned NOT NULL,
+  `source`     enum('auto','manual') NOT NULL DEFAULT 'auto',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_kill` (`realm_id`, `guild_id`, `map_id`, `boss_index`),
+  KEY `idx_first` (`realm_id`, `map_id`, `boss_index`, `killed_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Progress Race: erster Kill je Gilde und Boss';
+
 INSERT INTO `web_news` (`title`, `category`, `body`, `author`, `pinned`)
 SELECT 'Willkommen auf MangosPro!', 'news',
 'Der Server ist online. Erstelle dir oben über **Registrieren** einen Account, stelle deine `realmlist.wtf` um und leg los.

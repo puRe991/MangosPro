@@ -26,6 +26,7 @@ require APP_DIR . '/lib/Mailer.php';
 require APP_DIR . '/lib/GameData.php';
 require APP_DIR . '/lib/Realm.php';
 require APP_DIR . '/lib/News.php';
+require APP_DIR . '/lib/Progress.php';
 
 date_default_timezone_set((string)config('site.timezone', 'Europe/Berlin'));
 

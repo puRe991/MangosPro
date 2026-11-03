@@ -34,6 +34,16 @@ return [
         'account_prefix' => 'RNDBOT',
     ],
 
+    // Progress Race (Seite /progress): Kills werden aus characters.instance.encountersMask erkannt
+    'progress' => [
+        'auto_sync'       => true,   // beim Seitenaufruf abgleichen (alternativ Cron: php bin/progress_sync.php)
+        'sync_interval'   => 120,    // Sekunden zwischen zwei Abgleichen
+        'min_members_10'  => 5,      // so viele Gildenmitglieder müssen in einer 10er-Raid-ID gebunden sein
+        'min_members_25'  => 10,     // ... in einer 25er-Raid-ID
+        'hide_bot_guilds' => true,   // Gilden mit Random-Bot als Gildenmeister nicht werten
+        'season_start'    => '',     // optional, z. B. '2026-11-01' – nur als Text auf der Seite
+    ],
+
     'db' => [
         // realmd / Login-Datenbank
         'auth' => [

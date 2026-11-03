@@ -22,6 +22,7 @@ $items = News::all();
     <nav class="segmented">
         <a href="<?= e(url('admin')) ?>">Übersicht</a>
         <a class="active" href="<?= e(url('admin/news')) ?>">News</a>
+        <a href="<?= e(url('admin/progress')) ?>">Progress</a>
     </nav>
     <p><a class="btn btn-primary" href="<?= e(url('admin/news/edit')) ?>">+ Neuer Beitrag</a></p>
     <div class="card table-wrap">

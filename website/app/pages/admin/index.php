@@ -25,6 +25,7 @@ if (config('bots.hide', true) && $prefix !== '') {
     <nav class="segmented">
         <a class="active" href="<?= e(url('admin')) ?>">Übersicht</a>
         <a href="<?= e(url('admin/news')) ?>">News</a>
+        <a href="<?= e(url('admin/progress')) ?>">Progress</a>
     </nav>
     <div class="stat-grid">
         <?php foreach ($stats as $label => $v): ?>
