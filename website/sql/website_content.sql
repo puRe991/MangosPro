@@ -122,8 +122,9 @@ INSERT INTO `web_news` (`title`, `category`, `body`, `author`, `published`, `pin
 SELECT 'Progress Race eröffnet: Wer holt den ersten Realm-First?', 'event', 'Das Rennen um die Scherbenwelt beginnt! Ab heute zeichnet die Website jeden ersten Boss-Kill einer Gilde automatisch auf.
 
 ## So funktioniert es
-- Gewertet wird die Gilde, die in einer Raid-ID die meisten Mitglieder stellt – mindestens 5 im 10er- und 10 im 25er-Raid
-- **Eure eigenen Playerbots zählen mit**, wenn sie in der Gilde sind. Eine kleine Gilde mit gut ausgerüsteten Bots kann also ganz vorne mitspielen
+- Ein Kill zählt nur als **Gilden-Kill**, wenn genug Mitglieder eurer Gilde in der Raid-ID sind: **mindestens 10 in Karazhan und Zul''Aman, mindestens 20 in allen anderen Raids**
+- Mitglieder können Spieler oder Playerbots sein – **eure eigenen Bots zählen mit**, wenn sie in der Gilde sind. Eine kleine Gilde mit gut ausgerüsteten Bots kann also ganz vorne mitspielen
+- Gemischte Gruppen mit zu wenigen Gildenmitgliedern werden nicht gewertet
 - Gilden, die von Random-Bots geführt werden, laufen außer Konkurrenz
 - Die Rangfolge richtet sich nach der höchsten Raidstufe: Sunwell vor Tier 6, vor Tier 5, vor Zul''Aman, vor Tier 4. Bei Gleichstand gewinnt, wer zuerst dort war
 
@@ -184,3 +185,22 @@ SELECT 'Wartung: Neustart für Update 1.3', 'maintenance', 'Der Server wird für
 
 Laufende Raid-IDs bleiben erhalten. Bitte loggt euch vorher an einem sicheren Ort aus.', 'ADMINISTRATOR', 1, 0, '2026-10-23 20:30:00'
 FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `web_news` WHERE `title` = 'Wartung: Neustart für Update 1.3');
+
+-- Bereits eingespielter Event-Beitrag: neue Mindestanzahl übernehmen
+UPDATE `web_news` SET `body` = 'Das Rennen um die Scherbenwelt beginnt! Ab heute zeichnet die Website jeden ersten Boss-Kill einer Gilde automatisch auf.
+
+## So funktioniert es
+- Ein Kill zählt nur als **Gilden-Kill**, wenn genug Mitglieder eurer Gilde in der Raid-ID sind: **mindestens 10 in Karazhan und Zul''Aman, mindestens 20 in allen anderen Raids**
+- Mitglieder können Spieler oder Playerbots sein – **eure eigenen Bots zählen mit**, wenn sie in der Gilde sind. Eine kleine Gilde mit gut ausgerüsteten Bots kann also ganz vorne mitspielen
+- Gemischte Gruppen mit zu wenigen Gildenmitgliedern werden nicht gewertet
+- Gilden, die von Random-Bots geführt werden, laufen außer Konkurrenz
+- Die Rangfolge richtet sich nach der höchsten Raidstufe: Sunwell vor Tier 6, vor Tier 5, vor Zul''Aman, vor Tier 4. Bei Gleichstand gewinnt, wer zuerst dort war
+
+## Die Stationen
+- **Tier 4:** Karazhan, Gruul''s Lair, Magtheridon
+- **Tier 5:** Serpentshrine Cavern, Festung der Stürme
+- **Zul''Aman**
+- **Tier 6:** Hyjal, Black Temple
+- **Sunwell Plateau**
+
+Den aktuellen Stand seht ihr jederzeit unter **Progress**. Viel Erfolg – und vergesst nicht, `lust` im richtigen Moment zu rufen!' WHERE `title` = 'Progress Race eröffnet: Wer holt den ersten Realm-First?' AND `body` LIKE '%mindestens 5 im 10er%';

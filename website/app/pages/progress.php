@@ -42,8 +42,8 @@ $season = (string)config('progress.season_start', '');
         <?php if (!$ranking): ?>
             <div class="empty">
                 <p><strong>Das Rennen ist eröffnet – noch hat keine Gilde einen Raidboss gelegt.</strong></p>
-                <p class="small">Sobald eine Gilde mit mindestens <?= (int)config('progress.min_members_10', 5) ?> (10er) bzw.
-                    <?= (int)config('progress.min_members_25', 10) ?> (25er) Mitgliedern einen Boss besiegt, erscheint sie hier.</p>
+                <p class="small">Sobald eine Gilde mit mindestens <?= Progress::minMembers(532) ?> eigenen Mitgliedern in Karazhan/Zul'Aman
+                    bzw. <?= Progress::minMembers(548) ?> in den übrigen Raids einen Boss besiegt, erscheint sie hier.</p>
             </div>
         <?php else: ?>
             <table class="table progress-table">
@@ -90,7 +90,7 @@ $season = (string)config('progress.season_start', '');
                     <header>
                         <div>
                             <h4><?= e($raid['name']) ?></h4>
-                            <p class="muted small"><?= (int)$raid['size'] ?> Spieler · <?= $max ?> Bosse</p>
+                            <p class="muted small"><?= (int)$raid['size'] ?> Spieler · <?= $max ?> Bosse · Wertung ab <?= Progress::minMembers($map) ?> aus der Gilde</p>
                         </div>
                         <span class="prog <?= $done === 0 ? 'prog-none' : ($done >= $max ? 'prog-full' : 'prog-part') ?>"><?= $done ?>/<?= $max ?></span>
                     </header>
@@ -136,9 +136,11 @@ $season = (string)config('progress.season_start', '');
         <div class="card">
             <h2 class="card-title">So wird gewertet</h2>
             <ul class="checklist">
-                <li>Ein Kill zählt für die Gilde, die in der Raid-ID die meisten Mitglieder stellt – mindestens
-                    <?= (int)config('progress.min_members_10', 5) ?> im 10er- und <?= (int)config('progress.min_members_25', 10) ?> im 25er-Raid.</li>
-                <li>Eigene Playerbots in der Gilde zählen als Mitglieder – genau dafür sind sie da.</li>
+                <li>Ein Kill zählt nur als <strong>Gilden-Kill</strong>, wenn genug Gildenmitglieder in der Raid-ID sind:
+                    mindestens <strong><?= Progress::minMembers(532) ?></strong> in Karazhan und Zul'Aman,
+                    mindestens <strong><?= Progress::minMembers(548) ?></strong> in allen anderen Raids.</li>
+                <li>Mitglieder können Spieler oder Playerbots sein – Hauptsache, sie sind in der Gilde.</li>
+                <li>Kills mit weniger Gildenmitgliedern (z. B. gemischte Gruppen) erscheinen weder in der Wertung noch bei den Realm-Firsts.</li>
                 <li>Gilden, die von Random-Bots geführt werden, laufen außer Konkurrenz.</li>
                 <li>Gewertet wird der erste Kill je Boss; der Zeitpunkt ist die Erkennung durch die Website (wenige Minuten Verzögerung möglich).</li>
                 <li>Nur normale Raid-Schwierigkeit (TBC hat keine heroischen Raids).</li>

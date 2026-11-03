@@ -45,6 +45,14 @@ final class Progress
         'T4'   => 'Tier 4',
     ];
 
+    /** Mindestzahl gebundener Gildenmitglieder (Spieler oder Bots) für einen Gilden-Kill */
+    public static function minMembers(int $map): int
+    {
+        return (self::RAIDS[$map]['size'] ?? 25) >= 25
+            ? (int)config('progress.min_members_25', 20)
+            : (int)config('progress.min_members_10', 10);
+    }
+
     public static function lastBoss(int $map): int
     {
         return count(self::RAIDS[$map]['bosses']) - 1;
@@ -110,7 +118,7 @@ final class Progress
         foreach ($best as $r) {
             $map = (int)$r['map'];
             $raid = self::RAIDS[$map];
-            $min = $raid['size'] >= 25 ? (int)config('progress.min_members_25', 10) : (int)config('progress.min_members_10', 5);
+            $min = self::minMembers($map);
             if ((int)$r['members'] < $min || isset($botGuildLeaders[(int)$r['leaderguid']])) continue;
             $mask = (int)$r['encountersMask'];
             foreach ($raid['bosses'] as $idx => $_) {

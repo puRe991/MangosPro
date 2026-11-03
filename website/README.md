@@ -73,7 +73,8 @@ GRANT SELECT ON tbccharacters.* TO 'mpweb'@'localhost';
 
 Der Core setzt beim Boss-Kill ein Bit in `characters.instance.encountersMask` (Index aus `DungeonEncounter.sql`;
 die World-DB braucht dafür die `instance_encounters`-Daten aus tbc-db). Die Website ordnet jede Raid-ID der Gilde
-mit den meisten gebundenen Mitgliedern zu (mindestens `min_members_10` bzw. `min_members_25`) und speichert den
+mit den meisten gebundenen Mitgliedern zu – Spieler oder Bots, standardmäßig mindestens 10 in Karazhan/Zul'Aman
+(`min_members_10`) und 20 in allen anderen Raids (`min_members_25`) – und speichert den
 ersten Kill je Gilde und Boss in `web_progress_kills`. Gilden mit Random-Bot als Gildenmeister werden nicht gewertet.
 
 - Ohne Cron: Abgleich beim Seitenaufruf, höchstens alle `sync_interval` Sekunden (Standard)
