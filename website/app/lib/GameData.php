@@ -89,7 +89,9 @@ final class GameData
     /** Kleines Badge mit Fraktion + farbigem Klassennamen. */
     public static function charBadge(array $c): string
     {
-        return '<span class="faction-dot ' . self::faction((int)$c['race']) . '" title="' . e(self::factionName((int)$c['race'])) . '"></span>'
-            . '<span class="cls-' . self::classSlug((int)$c['class']) . '">' . e($c['name']) . '</span>';
+        $slug = self::classSlug((int)$c['class']);
+        return '<span class="char-badge"><span class="sigil sigil-' . $slug . ' ' . self::faction((int)$c['race']) . '" title="'
+            . e(self::className((int)$c['class']) . ' · ' . self::factionName((int)$c['race'])) . '">' . icon('c-' . $slug) . '</span>'
+            . '<span class="cls-' . $slug . '">' . e($c['name']) . '</span></span>';
     }
 }

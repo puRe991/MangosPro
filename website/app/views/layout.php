@@ -27,7 +27,10 @@ $isActive = function (string $r) use ($route): bool {
     <meta name="description" content="<?= e(config('site.tagline')) ?>">
     <meta name="theme-color" content="#0b0d12">
     <link rel="icon" href="<?= e(asset('img/emblem.svg')) ?>" type="image/svg+xml">
+    <link rel="preload" href="<?= e(base_url()) ?>/assets/fonts/InterDisplay-ExtraBold.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="<?= e(base_url()) ?>/assets/fonts/Inter-Regular.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="<?= e(asset('css/style.css')) ?>">
+    <script src="<?= e(asset('js/boot.js')) ?>"></script>
     <script src="<?= e(asset('js/app.js')) ?>" defer></script>
 </head>
 <body class="route-<?= e($route === '' ? 'home' : str_replace('/', '-', $route)) ?>">
@@ -53,15 +56,15 @@ $isActive = function (string $r) use ($route): bool {
             <div class="nav-user">
                 <?php if (Auth::check()): ?>
                     <?php if (Auth::isAdmin()): ?>
-                        <a class="btn btn-ghost btn-sm" href="<?= e(url('admin')) ?>">Admin</a>
+                        <a class="btn btn-ghost btn-sm" href="<?= e(url('admin')) ?>"><?= icon('wrench') ?> Admin</a>
                     <?php endif; ?>
-                    <a class="btn btn-ghost btn-sm" href="<?= e(url('account')) ?>"><?= e(ucfirst(strtolower(Auth::name()))) ?></a>
+                    <a class="btn btn-ghost btn-sm" href="<?= e(url('account')) ?>"><?= icon('user') ?> <?= e(ucfirst(strtolower(Auth::name()))) ?></a>
                     <form method="post" action="<?= e(url('logout')) ?>" class="inline">
                         <?= csrf_field() ?>
-                        <button class="btn btn-link btn-sm" type="submit">Abmelden</button>
+                        <button class="btn btn-link btn-sm" type="submit" title="Abmelden"><?= icon('logout') ?><span class="sr">Abmelden</span></button>
                     </form>
                 <?php else: ?>
-                    <a class="btn btn-ghost btn-sm" href="<?= e(url('login')) ?>">Anmelden</a>
+                    <a class="btn btn-ghost btn-sm" href="<?= e(url('login')) ?>"><?= icon('key') ?> Anmelden</a>
                     <a class="btn btn-primary btn-sm" href="<?= e(url('register')) ?>">Account erstellen</a>
                 <?php endif; ?>
             </div>
@@ -73,7 +76,7 @@ $isActive = function (string $r) use ($route): bool {
     <?php $flashes = take_flashes(); if ($flashes): ?>
         <div class="wrap flashes">
             <?php foreach ($flashes as $f): ?>
-                <div class="alert alert-<?= e($f['type']) ?>" role="status"><?= e($f['msg']) ?></div>
+                <div class="alert alert-<?= e($f['type']) ?>" role="status"><?= icon(['success' => 'check', 'error' => 'x', 'info' => 'sparkle'][$f['type']] ?? 'sparkle') ?><span><?= e($f['msg']) ?></span></div>
             <?php endforeach; ?>
         </div>
     <?php endif; ?>
@@ -84,10 +87,11 @@ $isActive = function (string $r) use ($route): bool {
     <div class="wrap footer-grid">
         <div>
             <a class="brand brand-sm" href="<?= e(url()) ?>">
-                <img src="<?= e(asset('img/emblem.svg')) ?>" alt="" width="28" height="28">
+                <img src="<?= e(asset('img/emblem.svg')) ?>" alt="" width="34" height="34">
                 <span><?= e($siteName) ?></span>
             </a>
             <p class="muted small"><?= e(config('site.tagline')) ?></p>
+            <p class="small"><a class="more" href="<?= e(url('register')) ?>">Jetzt kostenlos mitspielen <?= icon('arrow-right') ?></a></p>
         </div>
         <div>
             <h4>Spielen</h4>

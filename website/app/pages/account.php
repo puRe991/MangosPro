@@ -46,10 +46,10 @@ $gmNames = [0 => 'Spieler', 1 => 'Moderator', 2 => 'Gamemaster', 3 => 'Administr
 <section class="wrap section account-grid">
     <aside class="account-nav">
         <nav class="panel" aria-label="Account">
-            <a class="active" href="<?= e(url('account')) ?>">Übersicht</a>
-            <a href="<?= e(url('account/password')) ?>">Passwort ändern</a>
-            <a href="<?= e(url('account/email')) ?>">E-Mail ändern</a>
-            <a href="<?= e(url('connect')) ?>">Verbindungsanleitung</a>
+            <a class="active" href="<?= e(url('account')) ?>"><?= icon('user') ?> Übersicht</a>
+            <a href="<?= e(url('account/password')) ?>"><?= icon('lock') ?> Passwort ändern</a>
+            <a href="<?= e(url('account/email')) ?>"><?= icon('mail') ?> E-Mail ändern</a>
+            <a href="<?= e(url('connect')) ?>"><?= icon('book') ?> Verbindungsanleitung</a>
         </nav>
     </aside>
 
@@ -61,7 +61,7 @@ $gmNames = [0 => 'Spieler', 1 => 'Moderator', 2 => 'Gamemaster', 3 => 'Administr
             </div>
         <?php endif; ?>
 
-        <div class="stat-grid">
+        <div class="stat-grid" data-stagger>
             <div class="stat"><span>Status</span><strong><?= e($gmNames[(int)$acc['gmlevel']] ?? 'GM ' . (int)$acc['gmlevel']) ?></strong></div>
             <div class="stat"><span>Mitglied seit</span><strong><?= e(fmt_date($acc['joindate'])) ?></strong></div>
             <div class="stat"><span>Charaktere</span><strong><?= count($chars) ?></strong></div>
@@ -71,7 +71,7 @@ $gmNames = [0 => 'Spieler', 1 => 'Moderator', 2 => 'Gamemaster', 3 => 'Administr
         </div>
 
         <div class="card">
-            <h2 class="card-title">Deine Charaktere</h2>
+            <h2 class="card-title"><?= icon('users') ?> Deine Charaktere</h2>
             <?php if (!$chars): ?>
                 <div class="empty">
                     <p>Du hast noch keine Charaktere. Logge dich im Spiel ein und erstelle deinen ersten Helden!</p>
@@ -103,7 +103,7 @@ $gmNames = [0 => 'Spieler', 1 => 'Moderator', 2 => 'Gamemaster', 3 => 'Administr
         </div>
 
         <div class="card">
-            <h2 class="card-title">Sicherheit</h2>
+            <h2 class="card-title"><?= icon('lock') ?> Sicherheit</h2>
             <dl class="kv">
                 <div><dt>E-Mail</dt><dd><?= $acc['email'] ? e($acc['email']) : '<span class="muted">nicht hinterlegt</span>' ?> · <a href="<?= e(url('account/email')) ?>">ändern</a></dd></div>
                 <div><dt>Letzter Spiel-Login</dt><dd><?= $lastLogin ? e(fmt_date($lastLogin['loginTime'], true)) . ' von ' . e($lastLogin['ip']) : '<span class="muted">noch nie</span>' ?></dd></div>

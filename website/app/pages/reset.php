@@ -25,8 +25,8 @@ if ($acc && is_post()) {
 $err = fn(string $k) => isset($errors[$k]) ? '<p class="field-error">' . e($errors[$k]) . '</p>' : '';
 ?>
 <section class="wrap section auth-page narrow">
-    <div class="card auth-card">
-        <h1 class="card-title">Neues Passwort</h1>
+    <div class="card auth-card frame" data-reveal>
+        <h1 class="card-title"><?= icon('lock') ?> Neues Passwort</h1>
         <?php if (!$acc): ?>
             <div class="alert alert-error">Dieser Link ist ungültig oder abgelaufen.</div>
             <a class="btn btn-ghost btn-block" href="<?= e(url('forgot')) ?>">Neuen Link anfordern</a>

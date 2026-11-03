@@ -49,7 +49,7 @@ $rows = Database::run(Database::web(),
 
     <div class="grid-main">
         <div class="card table-wrap">
-            <h2 class="card-title">Erfasste Kills <span class="muted">(<?= count($rows) ?>)</span></h2>
+            <h2 class="card-title"><?= icon('skull') ?> Erfasste Kills <span class="muted">(<?= count($rows) ?>)</span></h2>
             <?php if (!$rows): ?><p class="empty">Noch keine Kills erfasst.</p><?php else: ?>
                 <table class="table">
                     <thead><tr><th>Datum</th><th>Gilde</th><th>Boss</th><th>Quelle</th><th></th></tr></thead>
@@ -76,7 +76,7 @@ $rows = Database::run(Database::web(),
 
         <aside class="sidebar">
             <div class="panel">
-                <h2 class="panel-title">Automatischer Abgleich</h2>
+                <h2 class="panel-title"><?= icon('clock') ?> Automatischer Abgleich</h2>
                 <p class="small muted">Liest <code>instance.encountersMask</code> aus der Characters-DB und erkennt neue Boss-Kills.
                     Läuft <?= config('progress.auto_sync', true) ? 'automatisch alle ' . (int)config('progress.sync_interval', 120) . ' s beim Seitenaufruf' : 'per Cron (<code>bin/progress_sync.php</code>)' ?>.</p>
                 <form method="post" action="<?= e(url('admin/progress', ['realm' => $realmId])) ?>">
@@ -85,7 +85,7 @@ $rows = Database::run(Database::web(),
                 </form>
             </div>
             <form class="panel" method="post" action="<?= e(url('admin/progress', ['realm' => $realmId])) ?>">
-                <h2 class="panel-title">Kill manuell eintragen</h2>
+                <h2 class="panel-title"><?= icon('trophy') ?> Kill manuell eintragen</h2>
                 <?= csrf_field() ?><input type="hidden" name="action" value="add">
                 <div class="field">
                     <label for="guild_id">Gilde</label>

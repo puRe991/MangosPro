@@ -34,8 +34,8 @@ if (is_post() && Mailer::enabled()) {
 }
 ?>
 <section class="wrap section auth-page narrow">
-    <div class="card auth-card">
-        <h1 class="card-title">Passwort vergessen</h1>
+    <div class="card auth-card frame" data-reveal>
+        <h1 class="card-title"><?= icon('key') ?> Passwort vergessen</h1>
         <?php if (!Mailer::enabled()): ?>
             <div class="alert alert-info">Das automatische Zurücksetzen ist auf diesem Server nicht aktiviert.
                 Bitte wende dich an <a href="mailto:<?= e(config('site.contact')) ?>"><?= e(config('site.contact')) ?></a>

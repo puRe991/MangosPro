@@ -36,7 +36,7 @@ $current = $items ? $split($items[0]['title'])[0] : null;
 <section class="wrap section updates-layout">
     <aside class="updates-nav">
         <div class="panel">
-            <h2 class="panel-title">Versionen</h2>
+            <h2 class="panel-title"><?= icon('scroll') ?> Versionen</h2>
             <?php if (!$items): ?><p class="muted small">Noch keine Updates.</p><?php endif; ?>
             <ul>
                 <?php foreach ($items as $n): [$ver, $t] = $split($n['title']); ?>
@@ -51,7 +51,7 @@ $current = $items ? $split($items[0]['title'])[0] : null;
             <div class="card empty"><p>Noch keine Patch-Notes veröffentlicht.</p></div>
         <?php endif; ?>
         <?php foreach ($items as $i => $n): [$ver, $t] = $split($n['title']); ?>
-            <article class="card release" id="u<?= (int)$n['id'] ?>">
+            <article class="card release" id="u<?= (int)$n['id'] ?>" data-reveal>
                 <header class="release-head">
                     <?php if ($ver): ?><span class="version<?= $i === 0 ? ' latest' : '' ?>">v<?= e($ver) ?></span><?php endif; ?>
                     <div>

@@ -87,7 +87,7 @@ $err = fn(string $k) => isset($errors[$k]) ? '<p class="field-error">' . e($erro
         <p class="muted small">Schon registriert? <a href="<?= e(url('login')) ?>">Hier anmelden</a>.</p>
     </div>
 
-    <div class="card auth-card">
+    <div class="card auth-card frame" data-reveal>
         <?php if (!$open): ?>
             <div class="alert alert-info">Die Registrierung ist momentan geschlossen.</div>
         <?php else: ?>

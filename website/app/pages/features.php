@@ -21,14 +21,14 @@ $raids = [
 </section>
 
 <section class="wrap section">
-    <div class="feature-grid">
-        <div class="feature"><div class="feature-icon" aria-hidden="true">⚙</div><h3>Core</h3>
+    <div class="feature-grid" data-stagger>
+        <div class="feature"><div class="feature-icon"><?= icon('server') ?></div><h3>Core</h3>
             <p>CMaNGOS mangos-tbc, Client <?= e(config('site.client')) ?>. Open Source, GPL-2.0.</p></div>
-        <div class="feature"><div class="feature-icon" aria-hidden="true">🤖</div><h3>Playerbots</h3>
+        <div class="feature"><div class="feature-icon"><?= icon('bot') ?></div><h3>Playerbots</h3>
             <p>Fest integriertes Playerbots-Modul mit eigenen Raid-Strategien (Strategie <code>tbc raid</code>).</p></div>
-        <div class="feature"><div class="feature-icon" aria-hidden="true">📈</div><h3>Raten</h3>
+        <div class="feature"><div class="feature-icon"><?= icon('chart') ?></div><h3>Raten</h3>
             <p><?php foreach ((array)config('realms', []) as $r): ?><?= e($r['rates'] ?? '') ?><br><?php endforeach; ?></p></div>
-        <div class="feature"><div class="feature-icon" aria-hidden="true">🗺</div><h3>Inhalte</h3>
+        <div class="feature"><div class="feature-icon"><?= icon('map') ?></div><h3>Inhalte</h3>
             <p>Alle Zonen der Scherbenwelt, Dungeons inkl. heroischer Modi, Schlachtfelder und Arena.</p></div>
     </div>
 </section>
@@ -53,9 +53,9 @@ $raids = [
 </section>
 
 <section class="wrap section">
-    <div class="grid-2">
+    <div class="grid-2" data-stagger>
         <div class="card">
-            <h2 class="card-title">Bots im Raid</h2>
+            <h2 class="card-title"><?= icon('bot') ?> Bots im Raid</h2>
             <ul class="checklist">
                 <li>Tanks halten Aggro und spotten bei Tank-Wechsel-Mechaniken</li>
                 <li>Heiler priorisieren Tank und Ziele mit Debuffs</li>
@@ -65,7 +65,7 @@ $raids = [
             </ul>
         </div>
         <div class="card">
-            <h2 class="card-title">Fair Play</h2>
+            <h2 class="card-title"><?= icon('shield') ?> Fair Play</h2>
             <ul class="checklist">
                 <li>Kein Item-Shop, keine Spenden-Vorteile</li>
                 <li>Aktive Moderation und klare <a href="<?= e(url('rules')) ?>">Regeln</a></li>

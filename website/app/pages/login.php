@@ -37,8 +37,8 @@ if (is_post()) {
 }
 ?>
 <section class="wrap section auth-page narrow">
-    <div class="card auth-card">
-        <h1 class="card-title">Anmelden</h1>
+    <div class="card auth-card frame" data-reveal>
+        <h1 class="card-title"><?= icon('key') ?> Anmelden</h1>
         <p class="muted">Mit deinem Spiel-Account (gleiche Daten wie im WoW-Client).</p>
         <?php if ($error): ?><div class="alert alert-error"><?= e($error) ?></div><?php endif; ?>
         <form method="post" action="<?= e(url('login')) ?>">

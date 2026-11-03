@@ -24,11 +24,11 @@ page_title('<' . $g['name'] . '>');
 </section>
 <section class="wrap section">
     <?php if (trim((string)$g['info']) !== ''): ?>
-        <div class="card"><h2 class="card-title">Gildeninfo</h2><p><?= nl2br(e($g['info'])) ?></p></div>
+        <div class="card"><h2 class="card-title"><?= icon('scroll') ?> Gildeninfo</h2><p><?= nl2br(e($g['info'])) ?></p></div>
     <?php endif; ?>
     <?php if ($gk): ?>
         <div class="card">
-            <h2 class="card-title">Raid-Fortschritt <a class="more small" href="<?= e(url('progress', ['realm' => $realmId])) ?>">Progress Race →</a></h2>
+            <h2 class="card-title"><?= icon('trophy') ?> Raid-Fortschritt <a class="more small" href="<?= e(url('progress', ['realm' => $realmId])) ?>">Progress Race <?= icon('arrow-right') ?></a></h2>
             <div class="guild-progress">
                 <?php foreach (Progress::RAIDS as $map => $raid): $n = count($gk[$map] ?? []); $max = count($raid['bosses']); if (!$n) continue; ?>
                     <div class="skillbar">

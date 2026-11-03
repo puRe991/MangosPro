@@ -27,14 +27,14 @@ if (config('bots.hide', true) && $prefix !== '') {
         <a href="<?= e(url('admin/news')) ?>">News</a>
         <a href="<?= e(url('admin/progress')) ?>">Progress</a>
     </nav>
-    <div class="stat-grid">
+    <div class="stat-grid" data-stagger>
         <?php foreach ($stats as $label => $v): ?>
             <div class="stat"><span><?= e($label) ?></span><strong><?= fmt_number($v) ?></strong></div>
         <?php endforeach; ?>
         <div class="stat"><span>SRP6-Backend</span><strong><?= e(Srp6::backend()) ?></strong></div>
     </div>
     <div class="card table-wrap">
-        <h2 class="card-title">Neueste Accounts</h2>
+        <h2 class="card-title"><?= icon('users') ?> Neueste Accounts</h2>
         <table class="table">
             <thead><tr><th>ID</th><th>Name</th><th>E-Mail</th><th>Registriert</th><th>GM</th></tr></thead>
             <tbody>

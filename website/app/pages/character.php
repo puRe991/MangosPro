@@ -32,7 +32,7 @@ $faction = GameData::faction((int)$c['race']);
 ?>
 <section class="page-head char-head <?= e($faction) ?>">
     <div class="wrap char-head-inner">
-        <div class="char-crest cls-bg-<?= GameData::classSlug((int)$c['class']) ?>" aria-hidden="true"><?= e(mb_substr($c['name'], 0, 1)) ?></div>
+        <div class="char-crest cls-bg-<?= GameData::classSlug((int)$c['class']) ?>" aria-hidden="true"><?= icon('c-' . GameData::classSlug((int)$c['class'])) ?></div>
         <div>
             <p class="eyebrow"><?= e(GameData::factionName((int)$c['race'])) ?><?= $isBot ? ' · Playerbot' : '' ?></p>
             <h1 class="cls-<?= GameData::classSlug((int)$c['class']) ?>"><?= e($c['name']) ?></h1>
@@ -44,7 +44,7 @@ $faction = GameData::faction((int)$c['race']);
     </div>
 </section>
 <section class="wrap section">
-    <div class="stat-grid">
+    <div class="stat-grid" data-stagger>
         <div class="stat"><span>Ehrenhafte Siege</span><strong><?= fmt_number($c['totalKills']) ?></strong></div>
         <div class="stat"><span>Ehrenpunkte</span><strong><?= fmt_number($c['totalHonorPoints']) ?></strong></div>
         <div class="stat"><span>Arenapunkte</span><strong><?= fmt_number($c['arenaPoints']) ?></strong></div>
@@ -52,7 +52,7 @@ $faction = GameData::faction((int)$c['race']);
     </div>
     <div class="grid-2">
         <div class="card">
-            <h2 class="card-title">Berufe</h2>
+            <h2 class="card-title"><?= icon('gem') ?> Berufe</h2>
             <?php if (!$professions): ?><p class="muted">Keine Berufe erlernt.</p><?php endif; ?>
             <?php foreach ($professions as $p): ?>
                 <div class="skillbar">
@@ -62,7 +62,7 @@ $faction = GameData::faction((int)$c['race']);
             <?php endforeach; ?>
         </div>
         <div class="card">
-            <h2 class="card-title">Arena-Teams</h2>
+            <h2 class="card-title"><?= icon('swords') ?> Arena-Teams</h2>
             <?php if (!$teams): ?><p class="muted">Kein Arena-Team.</p><?php else: ?>
                 <ul class="result-list">
                     <?php foreach ($teams as $t): ?>

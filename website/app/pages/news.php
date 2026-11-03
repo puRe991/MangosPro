@@ -6,8 +6,8 @@ if ($id > 0) {
     page_title($n['title']);
     ?>
     <section class="wrap section narrow-content">
-        <p><a class="muted small" href="<?= e(url('news')) ?>">← Alle News</a></p>
-        <article class="card article">
+        <p><a class="more" href="<?= e(url('news')) ?>">← Alle News</a></p>
+        <article class="card article frame">
             <div class="news-meta">
                 <span class="tag tag-<?= e($n['category']) ?>"><?= e(News::CATEGORIES[$n['category']] ?? 'News') ?></span>
                 <time datetime="<?= e(date('c', strtotime($n['created_at']))) ?>"><?= e(fmt_date($n['created_at'], true)) ?></time>
@@ -43,12 +43,12 @@ $items = News::latest($perPage, ($page - 1) * $perPage, $cat ?: null);
         <?php foreach (News::CATEGORIES as $k => $label): ?>
             <a href="<?= e(url('news', ['cat' => $k])) ?>"<?= $cat === $k ? ' class="active"' : '' ?>><?= e($label) ?></a>
         <?php endforeach; ?>
-        <a href="<?= e(url('updates')) ?>">Changelog →</a>
+        <a href="<?= e(url('updates')) ?>">Changelog <?= icon('arrow-right') ?></a>
     </nav>
     <?php if (!$items): ?><p class="muted">Noch keine Neuigkeiten.</p><?php endif; ?>
-    <div class="news-list">
+    <div class="news-list" data-stagger>
         <?php foreach ($items as $n): ?>
-            <article class="news-card">
+            <article class="news-card cat-<?= e($n['category']) ?>">
                 <div class="news-meta">
                     <span class="tag tag-<?= e($n['category']) ?>"><?= e(News::CATEGORIES[$n['category']] ?? 'News') ?></span>
                     <?php if ($n['pinned']): ?><span class="tag tag-pinned">Angeheftet</span><?php endif; ?>
@@ -56,7 +56,7 @@ $items = News::latest($perPage, ($page - 1) * $perPage, $cat ?: null);
                 </div>
                 <h2><a href="<?= e(url('news', ['id' => $n['id']])) ?>"><?= e($n['title']) ?></a></h2>
                 <p class="muted"><?= e(News::excerpt($n['body'], 400)) ?></p>
-                <a class="more" href="<?= e(url('news', ['id' => $n['id']])) ?>">Weiterlesen →</a>
+                <a class="more" href="<?= e(url('news', ['id' => $n['id']])) ?>">Weiterlesen <?= icon('arrow-right') ?></a>
             </article>
         <?php endforeach; ?>
     </div>

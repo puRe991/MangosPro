@@ -31,9 +31,9 @@ if (is_post()) {
 $err = fn(string $k) => isset($errors[$k]) ? '<p class="field-error">' . e($errors[$k]) . '</p>' : '';
 ?>
 <section class="wrap section auth-page narrow">
-    <div class="card auth-card">
+    <div class="card auth-card frame" data-reveal>
         <p><a class="muted small" href="<?= e(url('account')) ?>">← Zurück zum Account</a></p>
-        <h1 class="card-title">Passwort ändern</h1>
+        <h1 class="card-title"><?= icon('lock') ?> Passwort ändern</h1>
         <?php if (isset($errors['form'])): ?><div class="alert alert-error"><?= e($errors['form']) ?></div><?php endif; ?>
         <form method="post" action="<?= e(url('account/password')) ?>">
             <?= csrf_field() ?>
