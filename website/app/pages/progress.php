@@ -24,8 +24,8 @@ $season = (string)config('progress.season_start', '');
         <p class="lead">Welche Gilde legt die Bosse der Scherbenwelt zuerst? Kills werden automatisch aus den Raid-IDs erkannt.<?= $season !== '' ? ' Wertung seit ' . e(fmt_date($season)) . '.' : '' ?></p>
         <ul class="hero-stats progress-stats" data-stagger>
             <li><span class="stat-ico"><?= icon('users') ?></span><span class="stat-txt"><strong data-count="<?= count($ranking) ?>"><?= count($ranking) ?></strong><span>Gilden im Rennen</span></span></li>
-            <li><span class="stat-ico ok"><?= icon('skull') ?></span><span class="stat-txt"><strong><?= $firstCount ?> / <?= $totalBosses ?></strong><span>Bosse besiegt</span></span></li>
-            <li><span class="stat-ico"><?= icon('crown') ?></span><span class="stat-txt"><strong><?= $latest ? e(Progress::bossName((int)$latest['map_id'], (int)$latest['boss_index'])) : '–' ?></strong>
+            <li><span class="stat-ico ok"><?= icon('g-skull') ?></span><span class="stat-txt"><strong><?= $firstCount ?> / <?= $totalBosses ?></strong><span>Bosse besiegt</span></span></li>
+            <li><span class="stat-ico"><?= icon('g-crown') ?></span><span class="stat-txt"><strong><?= $latest ? e(Progress::bossName((int)$latest['map_id'], (int)$latest['boss_index'])) : '–' ?></strong>
                 <span><?= $latest ? 'Letzter Realm-First · ' . e($latest['guild_name']) : 'Noch kein Realm-First' ?></span></span></li>
         </ul>
     </div>
@@ -50,7 +50,7 @@ $season = (string)config('progress.season_start', '');
             <?php foreach ([1, 0, 2] as $pos): if (!isset($ranking[$pos])) continue; $g = $ranking[$pos]; $b = $bestRaid($g); ?>
                 <div class="podium-slot p<?= $pos + 1 ?>" data-reveal>
                     <span class="place"><?= $pos + 1 ?></span>
-                    <?php if ($pos === 0): ?><span class="crown"><?= icon('crown') ?></span><?php endif; ?>
+                    <?php if ($pos === 0): ?><span class="crown"><?= icon('g-crown') ?></span><?php endif; ?>
                     <h3><a href="<?= e(url('guild', ['realm' => $realmId, 'id' => $g['guild_id']])) ?>">&lt;<?= e($g['name']) ?>&gt;</a></h3>
                     <p class="best"><?= $b ? e($b[1]['name']) . ' ' . $b[2] . '/' . count($b[1]['bosses']) : '' ?></p>
                     <div class="score"><?= (int)$g['total'] ?><small>Bosse besiegt</small></div>
@@ -61,7 +61,7 @@ $season = (string)config('progress.season_start', '');
     <div class="card table-wrap" data-reveal>
         <?php if (!$ranking): ?>
             <div class="empty">
-                <?= icon('trophy', 'icon-xl') ?>
+                <?= icon('g-trophy', 'icon-xl') ?>
                 <p><strong>Das Rennen ist eröffnet – noch hat keine Gilde einen Raidboss gelegt.</strong></p>
                 <p class="small">Sobald eine Gilde mit mindestens <?= Progress::minMembers(532) ?> eigenen Mitgliedern in Karazhan/Zul'Aman
                     bzw. <?= Progress::minMembers(548) ?> in den übrigen Raids einen Boss besiegt, erscheint sie hier.</p>
@@ -111,7 +111,7 @@ $season = (string)config('progress.season_start', '');
                 $done = count($firsts[$map] ?? []); $max = count($raid['bosses']); ?>
                 <article class="raid-card<?= $done >= $max ? ' cleared' : '' ?>" data-raid="<?= (int)$map ?>" id="raid-<?= (int)$map ?>">
                     <header class="raid-banner">
-                        <span class="raid-emblem"><?= icon('r-' . $map) ?></span>
+                        <span class="raid-emblem wow-icon"><?= icon('r-' . $map) ?></span>
                         <div class="raid-info">
                             <h4><?= e($raid['name']) ?></h4>
                             <p><?= (int)$raid['size'] ?> Spieler · <?= $max ?> Bosse · Wertung ab <?= Progress::minMembers($map) ?> aus der Gilde</p>
@@ -121,7 +121,7 @@ $season = (string)config('progress.season_start', '');
                     <ol class="boss-list">
                         <?php foreach ($raid['bosses'] as $b => $boss): $f = $firsts[$map][$b] ?? null; ?>
                             <li class="<?= $f ? 'down' : 'alive' ?>">
-                                <span class="boss-name"><span class="boss-mark"><?= icon($f ? 'check' : 'skull') ?></span><?= e($boss) ?></span>
+                                <span class="boss-name"><span class="boss-mark"><?= icon($f ? 'check' : 'g-skull') ?></span><?= e($boss) ?></span>
                                 <?php if ($f): ?>
                                     <span class="boss-first">
                                         <a href="<?= e(url('guild', ['realm' => $realmId, 'id' => $f['guild_id']])) ?>">&lt;<?= e($f['guild_name']) ?>&gt;</a>
@@ -140,7 +140,7 @@ $season = (string)config('progress.season_start', '');
 
     <div class="grid-2" data-stagger>
         <div class="card">
-            <h2 class="card-title"><?= icon('scroll') ?> Chronik der Realm-Firsts</h2>
+            <h2 class="card-title"><?= icon('g-scroll') ?> Chronik der Realm-Firsts</h2>
             <?php if (!$timeline): ?>
                 <p class="muted">Noch keine Einträge – wer schreibt Geschichte?</p>
             <?php else: ?>

@@ -127,6 +127,9 @@ $isActive = function (string $r) use ($route): bool {
     <div class="wrap footer-legal small muted">
         <p>&copy; <?= date('Y') ?> <?= e($siteName) ?>. Ein privates, nicht-kommerzielles Fanprojekt auf Basis von CMaNGOS (GPL-2.0).
             World of Warcraft und The Burning Crusade sind Marken von Blizzard Entertainment, Inc.; dieses Projekt steht in keiner Verbindung zu Blizzard.</p>
+        <p>Icons made by Lorc and Delapouite, available on <a href="https://game-icons.net" rel="noopener" target="_blank">game-icons.net</a>
+            (<a href="https://creativecommons.org/licenses/by/3.0/" rel="noopener license" target="_blank">CC BY 3.0</a>, eingefärbt).
+            Schriften: Inter, JetBrains Mono (SIL OFL).</p>
     </div>
 </footer>
 </body>

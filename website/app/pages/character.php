@@ -62,7 +62,7 @@ $faction = GameData::faction((int)$c['race']);
             <?php endforeach; ?>
         </div>
         <div class="card">
-            <h2 class="card-title"><?= icon('swords') ?> Arena-Teams</h2>
+            <h2 class="card-title"><?= icon('g-swords') ?> Arena-Teams</h2>
             <?php if (!$teams): ?><p class="muted">Kein Arena-Team.</p><?php else: ?>
                 <ul class="result-list">
                     <?php foreach ($teams as $t): ?>

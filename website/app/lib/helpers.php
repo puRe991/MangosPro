@@ -208,7 +208,7 @@ function icon(string $name, string $class = ''): string
 {
     static $sprite = null;
     $sprite ??= asset('img/icons.svg');
-    $id = preg_match('/^[cr]-/', $name) ? $name : 'i-' . $name;
+    $id = preg_match('/^[crg]-/', $name) ? $name : 'i-' . $name;
     return '<svg class="icon' . ($class !== '' ? ' ' . e($class) : '') . '" aria-hidden="true" focusable="false"><use href="'
         . e($sprite) . '#' . e($id) . '"></use></svg>';
 }

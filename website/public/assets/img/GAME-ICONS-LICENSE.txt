@@ -1,0 +1,43 @@
+Ein Teil der Icons in icons.svg stammt von https://game-icons.net und steht unter der
+Creative Commons Attribution 3.0 Unported (CC BY 3.0): https://creativecommons.org/licenses/by/3.0/
+Änderung: Farbe auf currentColor gesetzt und in ein SVG-Sprite übernommen.
+
+Icons made by Lorc and Delapouite. Available on https://game-icons.net
+
+Lorc (http://lorcblog.blogspot.com):
+  - battle-axe → c-warrior
+  - high-shot → c-hunter
+  - plain-dagger → c-rogue
+  - holy-symbol → c-priest
+  - magic-swirl → c-mage
+  - daemon-skull → c-warlock
+  - paw → c-druid
+  - stone-tower → r-532
+  - horned-skull → r-544
+  - trident → r-548
+  - burning-meteor → r-550
+  - tribal-mask → r-568
+  - oak → r-534
+  - sunbeams → r-580
+  - castle → g-castle
+  - crossed-swords → g-swords
+  - gems → g-gems
+  - crown → g-crown
+  - trophy → g-trophy
+  - skull-crossed-bones → g-skull
+  - magic-portal → g-portal
+  - scroll-unfurled → g-scroll
+  - laurel-crown → g-laurel
+  - broadsword → g-sword
+  - winged-sword → g-winged-sword
+  - dragon-head → g-dragon
+
+Delapouite (https://delapouite.com):
+  - warhammer → c-paladin
+  - totem → c-shaman
+  - ogre → r-565
+  - devil-mask → r-564
+  - robot-helmet → g-bot
+  - podium-winner → g-podium
+
+Alle übrigen Icons (Präfix i-) sowie hero.svg und emblem.svg sind eigene Zeichnungen dieses Projekts.

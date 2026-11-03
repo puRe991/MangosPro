@@ -742,7 +742,9 @@ html.js [data-reveal].is-visible { opacity: 1; transform: none; }
 
 /* ---------------------------------------------------------------- Startseite: Raid-Showcase & CTA */
 .raid-showcase { padding-top: 80px; }
-.showcase-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px; }
+.showcase-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 900px) { .showcase-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .showcase-grid { grid-template-columns: 1fr; } }
 .showcase-tile { display: grid; grid-template-columns: auto 1fr auto; grid-template-rows: auto auto; column-gap: 14px; row-gap: 2px; align-items: center; padding: 16px; color: var(--text);
     background: radial-gradient(200px 120px at 0% 0%, color-mix(in srgb, var(--ra) 30%, transparent), transparent 75%), linear-gradient(180deg, rgba(25, 29, 41, .85), rgba(12, 14, 20, .94)); }
 .showcase-tile:hover { color: #fff; }
@@ -772,3 +774,41 @@ html.js [data-reveal].is-visible { opacity: 1; transform: none; }
     .hero-stats .stat-txt > span { font-size: .64rem; letter-spacing: .08em; }
     .eyebrow { letter-spacing: .16em; }
 }
+
+/* ---------------------------------------------------------------- WoW-artige Icon-Rahmen (game-icons.net-Motive) */
+.wow-icon { position: relative; display: grid; place-items: center; width: 56px; height: 56px; flex: none; border-radius: 8px; color: var(--wi, var(--gold-1));
+    background:
+        radial-gradient(circle at 50% 38%, color-mix(in srgb, var(--wi-bg, #6a4a1c) 75%, transparent), transparent 72%),
+        linear-gradient(160deg, #20242f, #07080c);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    box-shadow:
+        0 0 0 1px #000,
+        0 0 0 3px #6b4b1d,
+        0 0 0 4px #e9c26b,
+        0 0 0 5px #3a2a10,
+        inset 0 0 14px rgba(0, 0, 0, .9),
+        0 10px 22px -8px rgba(0, 0, 0, .9),
+        0 0 26px -6px color-mix(in srgb, var(--wi-glow, #f3cf7a) 55%, transparent); }
+.wow-icon::before { content: ""; position: absolute; inset: 0; border-radius: 6px; pointer-events: none;
+    background: linear-gradient(155deg, rgba(255, 255, 255, .28), rgba(255, 255, 255, 0) 38%), linear-gradient(0deg, rgba(0, 0, 0, .45), transparent 45%); }
+.wow-icon .icon { position: relative; width: 66%; height: 66%; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .8)) drop-shadow(0 0 8px color-mix(in srgb, var(--wi-glow, #f3cf7a) 45%, transparent)); }
+.wow-icon.feature-icon::before { transform: none; border: 0; inset: 0; box-shadow: none; }
+.feature-icon.wow-icon { width: 60px; height: 60px; margin-bottom: 20px; --wi-bg: #7a5418; }
+.feature:hover .wow-icon { --wi-glow: #ffe7a6; }
+.raid-emblem.wow-icon { --wi: #fff; --wi-bg: var(--ra); --wi-glow: var(--ra); width: 54px; height: 54px; border-radius: 8px; border: 2px solid transparent; }
+.raid-emblem.wow-icon .icon { width: 68%; height: 68%; }
+.showcase-tile .raid-emblem.wow-icon { width: 48px; height: 48px; }
+.panel-title .icon[class], .card-title .icon[class] { width: 1.25em; height: 1.25em; }
+.boss-list li.alive .boss-mark .icon { width: 13px; height: 13px; }
+.sigil .icon { width: 16px; height: 16px; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .7)); }
+.char-crest .icon { width: 60px; height: 60px; }
+.podium-slot .crown .icon { width: 36px; height: 36px; }
+.footer-legal p + p { margin-top: 6px; }
+/* Klassen-Sigillen als kleine Icon-Kacheln mit Goldrahmen */
+.sigil { width: 26px; height: 26px; border-radius: 5px; border: 0;
+    background: radial-gradient(circle at 50% 38%, color-mix(in srgb, var(--cc, #ccc) 38%, transparent), transparent 75%), linear-gradient(160deg, #1d212b, #07080c);
+    box-shadow: 0 0 0 1px #000, 0 0 0 2px #8a6324, 0 0 0 2.6px #e9c26b55, inset 0 0 6px rgba(0, 0, 0, .9); }
+.sigil::before { content: ""; position: absolute; inset: 0; border-radius: 5px; background: linear-gradient(155deg, rgba(255, 255, 255, .22), transparent 40%); pointer-events: none; }
+.sigil .icon { position: relative; }
+.char-badge { gap: 11px; }

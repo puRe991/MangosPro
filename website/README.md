@@ -15,7 +15,7 @@ Server-Website für MangosPro (CMaNGOS TBC 2.4.3). Läuft auf Apache mit PHP; Fr
 | **Inhalte** | News mit Kategorien, Changelog-Seite `/updates` für Patch-Notes, Admin-Editor (ab `gmlevel` 3), Verbindungsanleitung, Regeln, Impressum, Datenschutz |
 | **Sicherheit** | CSRF-Tokens, Prepared Statements, Rate-Limiting (Login, Passwort, Reset), lokale Captcha + Honeypot, IP-Limit pro Tag, `ip_banned`-Prüfung, strikte CSP, Session-Härtung |
 | **DSGVO** | Keine externen Schriften, kein Tracking, nur ein technisch notwendiges Session-Cookie |
-| **Design** | Eigene Grafiken (Hero-Artwork, Logo, 56 SVG-Icons inkl. Klassen-Sigillen und Raid-Emblemen), selbst gehostete Schriften Inter / Inter Display / JetBrains Mono (SIL OFL, `public/assets/fonts/LICENSE.txt`), Glut-Partikel und Scroll-Animationen – abschaltbar über die Betriebssystem-Einstellung „Bewegung reduzieren“ |
+| **Design** | Eigene Grafiken (Hero-Artwork, Logo, UI-Icons) plus 32 Fantasy-Icons von game-icons.net für Klassen, Raids und Themen (CC BY 3.0, Lorc & Delapouite – Nennung im Footer, Details in `public/assets/img/GAME-ICONS-LICENSE.txt`), selbst gehostete Schriften Inter / Inter Display / JetBrains Mono (SIL OFL, `public/assets/fonts/LICENSE.txt`), Glut-Partikel und Scroll-Animationen – abschaltbar über die Betriebssystem-Einstellung „Bewegung reduzieren“ |
 
 ## Voraussetzungen
 

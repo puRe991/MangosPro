@@ -28,7 +28,7 @@ page_title('<' . $g['name'] . '>');
     <?php endif; ?>
     <?php if ($gk): ?>
         <div class="card">
-            <h2 class="card-title"><?= icon('trophy') ?> Raid-Fortschritt <a class="more small" href="<?= e(url('progress', ['realm' => $realmId])) ?>">Progress Race <?= icon('arrow-right') ?></a></h2>
+            <h2 class="card-title"><?= icon('g-trophy') ?> Raid-Fortschritt <a class="more small" href="<?= e(url('progress', ['realm' => $realmId])) ?>">Progress Race <?= icon('arrow-right') ?></a></h2>
             <div class="guild-progress">
                 <?php foreach (Progress::RAIDS as $map => $raid): $n = count($gk[$map] ?? []); $max = count($raid['bosses']); if (!$n) continue; ?>
                     <div class="skillbar">

@@ -22,13 +22,13 @@ $raids = [
 
 <section class="wrap section">
     <div class="feature-grid" data-stagger>
-        <div class="feature"><div class="feature-icon"><?= icon('server') ?></div><h3>Core</h3>
+        <div class="feature"><div class="feature-icon wow-icon"><?= icon('g-castle') ?></div><h3>Core</h3>
             <p>CMaNGOS mangos-tbc, Client <?= e(config('site.client')) ?>. Open Source, GPL-2.0.</p></div>
-        <div class="feature"><div class="feature-icon"><?= icon('bot') ?></div><h3>Playerbots</h3>
+        <div class="feature"><div class="feature-icon wow-icon"><?= icon('g-bot') ?></div><h3>Playerbots</h3>
             <p>Fest integriertes Playerbots-Modul mit eigenen Raid-Strategien (Strategie <code>tbc raid</code>).</p></div>
-        <div class="feature"><div class="feature-icon"><?= icon('chart') ?></div><h3>Raten</h3>
+        <div class="feature"><div class="feature-icon wow-icon"><?= icon('g-laurel') ?></div><h3>Raten</h3>
             <p><?php foreach ((array)config('realms', []) as $r): ?><?= e($r['rates'] ?? '') ?><br><?php endforeach; ?></p></div>
-        <div class="feature"><div class="feature-icon"><?= icon('map') ?></div><h3>Inhalte</h3>
+        <div class="feature"><div class="feature-icon wow-icon"><?= icon('g-dragon') ?></div><h3>Inhalte</h3>
             <p>Alle Zonen der Scherbenwelt, Dungeons inkl. heroischer Modi, Schlachtfelder und Arena.</p></div>
     </div>
 </section>

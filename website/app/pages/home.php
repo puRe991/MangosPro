@@ -60,7 +60,7 @@ $catIcon = ['news' => 'news', 'update' => 'scroll', 'event' => 'sparkle', 'maint
     <div class="showcase-grid" data-stagger>
         <?php foreach (Progress::RAIDS as $map => $raid): $done = count($firsts[$map] ?? []); $max = count($raid['bosses']); ?>
             <a class="showcase-tile raid-card" data-raid="<?= (int)$map ?>" href="<?= e(url('progress')) ?>#raid-<?= (int)$map ?>">
-                <span class="raid-emblem"><?= icon('r-' . $map) ?></span>
+                <span class="raid-emblem wow-icon"><?= icon('r-' . $map) ?></span>
                 <span class="showcase-name"><?= e($raid['name']) ?></span>
                 <span class="showcase-meta"><?= e(Progress::TIERS[$raid['tier']] ?? $raid['tier']) ?> · <?= (int)$raid['size'] ?>er</span>
                 <?= ring($done, $max) ?>
@@ -111,7 +111,7 @@ $catIcon = ['news' => 'news', 'update' => 'scroll', 'event' => 'sparkle', 'maint
             <a class="btn btn-ghost btn-block btn-sm" href="<?= e(url('status')) ?>">Details zum Status</a>
         </div>
         <div class="panel" data-reveal>
-            <h2 class="panel-title"><?= icon('trophy') ?> Progress Race</h2>
+            <h2 class="panel-title"><?= icon('g-trophy') ?> Progress Race</h2>
             <?php if (!$progressTop): ?>
                 <p class="muted small">Noch hat keine Gilde einen Raidboss gelegt. Holt euch den ersten Realm-First!</p>
             <?php else: ?>
@@ -130,7 +130,7 @@ $catIcon = ['news' => 'news', 'update' => 'scroll', 'event' => 'sparkle', 'maint
             <a class="btn btn-ghost btn-block btn-sm" href="<?= e(url('progress')) ?>">Zur Progress-Wertung</a>
         </div>
         <div class="panel frame" data-reveal>
-            <h2 class="panel-title"><?= icon('portal') ?> In drei Schritten ins Spiel</h2>
+            <h2 class="panel-title"><?= icon('g-portal') ?> In drei Schritten ins Spiel</h2>
             <ol class="steps">
                 <li><strong>Account erstellen</strong><span>Name, Passwort, fertig – dauert 30 Sekunden.</span></li>
                 <li><strong>Client 2.4.3 bereithalten</strong><span>Version <?= e(config('site.client')) ?>, englisch oder deutsch.</span></li>
@@ -151,22 +151,22 @@ $catIcon = ['news' => 'news', 'update' => 'scroll', 'event' => 'sparkle', 'maint
         </div>
         <div class="feature-grid" data-stagger>
             <div class="feature">
-                <div class="feature-icon"><?= icon('bot') ?></div>
+                <div class="feature-icon wow-icon"><?= icon('g-bot') ?></div>
                 <h3>Raid-fähige Playerbots</h3>
                 <p>Bots kennen die Mechaniken von Karazhan bis Sunwell: Positionierung, Interrupts, Spread, Tank-Wechsel.</p>
             </div>
             <div class="feature">
-                <div class="feature-icon"><?= icon('shield') ?></div>
+                <div class="feature-icon wow-icon"><?= icon('g-castle') ?></div>
                 <h3>Stabiler CMaNGOS-Core</h3>
                 <p>Bewährte Open-Source-Basis mit sauberem Scripting für Dungeons, Raids und Schlachtfelder.</p>
             </div>
             <div class="feature">
-                <div class="feature-icon"><?= icon('swords') ?></div>
+                <div class="feature-icon wow-icon"><?= icon('g-swords') ?></div>
                 <h3>Blizzlike-Gefühl</h3>
                 <p>Originale Raten und Progression – die Scherbenwelt so, wie du sie in Erinnerung hast.</p>
             </div>
             <div class="feature">
-                <div class="feature-icon"><?= icon('gem') ?></div>
+                <div class="feature-icon wow-icon"><?= icon('g-gems') ?></div>
                 <h3>Fair &amp; kostenlos</h3>
                 <p>Kein Shop, kein Pay-to-Win. Ein Community-Projekt aus Spaß an der Sache.</p>
             </div>
