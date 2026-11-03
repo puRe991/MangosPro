@@ -1,66 +1,117 @@
 # MangosPro
 
-TBC-Server (2.4.3) auf Basis von **CMaNGOS mangos-tbc** mit fest integriertem **Playerbots**-Modul.
-Ziel des Projekts: die Playerbots so zu verbessern, dass sie Raid-Bosse sinnvoll spielen.
+**English** · [Deutsch](README.de.md)
 
-## Herkunft der Quellen
+**A World of Warcraft: The Burning Crusade (2.4.3) server where playerbots handle raid boss mechanics.**
 
-| Teil | Upstream | Commit (Import) | Pfad |
-|------|----------|-----------------|------|
-| Core | https://github.com/cmangos/mangos-tbc | `4e329ff72a4f9c88bb754a10cf57c2a50ffaff2e` | `/` |
-| Playerbots | https://github.com/cmangos/playerbots | `2f5ace0061f2c94dcc92f6af5dd2c427dfa932d6` | `src/modules/PlayerBots/` |
+MangosPro is based on [CMaNGOS mangos-tbc](https://github.com/cmangos/mangos-tbc) and ships with the
+[Playerbots](https://github.com/cmangos/playerbots) module built in. The goal is that you can take a raid of bots
+into every TBC raid, and the bots handle the boss mechanics instead of just standing there and fighting.
 
-Beide sind GPL-2.0 (siehe `LICENSE`). Aus dem Playerbots-Modul wurden nur die
-Welt-SQL-Dateien für Classic und WotLK entfernt (`sql/world/classic`, `sql/world/wotlk`), da sie für TBC nicht gebraucht werden.
+> **Status: work in progress.** Every TBC raid has boss tactics in the code, but most of them have not yet been
+> confirmed by a full kill with bots. The [per-boss status table](doc/Bot_Boss_Status.md) shows what is fixed,
+> what is tested and what is still open.
 
-### Unterschied zum Upstream
-Upstream lädt das Playerbots-Modul beim CMake-Lauf per `FetchContent` von GitHub nach
-(und würde lokale Änderungen dabei überschreiben). In MangosPro liegt der Code direkt im Repo;
-`src/CMakeLists.txt` nutzt `src/modules/PlayerBots` direkt, wenn das Verzeichnis existiert.
-Änderungen an den Bots werden also einfach in `src/modules/PlayerBots/` gemacht und committet.
+## Features
 
-## Bauen (Linux)
+- **Boss tactics for every TBC raid:** Karazhan, Gruul's Lair, Magtheridon, Serpentshrine Cavern, Tempest Keep,
+  Mount Hyjal, Black Temple, Zul'Aman and Sunwell Plateau. The `tbc raid` strategy activates automatically inside a raid.
+- **Raid coordination:** kill orders, positioning, spreading, tank swaps, kiting and threat resets per boss.
+- **Raid buffs on command:** Bloodlust/Heroism (`lust`), paladin aura assignment per subgroup (`auras auto`),
+  resistance auras on matching bosses, warlock curse coordination.
+- **Gear and loot:** TBC rotations, gems, tier tokens and loot rolls that explain themselves (`roll feedback`).
+- **Server website** (Apache/PHP) with account registration (SRP6), realm status, armory, rankings and a guild progress race.
+- **Plain source code in the repo:** the bot module lives in `src/modules/PlayerBots/`, so changes to the bots are
+  normal commits instead of being overwritten by a download during the build.
+
+## What is (and isn't) included
+
+MangosPro contains **only the server source code**. It does not include a game client or any data extracted from
+one (maps, vmaps, mmaps, DBC). You extract these yourself from your own 2.4.3 client with the extractors that come
+with the core (`-DBUILD_EXTRACTORS=ON`).
+
+## Quick start
+
+### Build on Linux
 
 ```bash
 sudo apt install build-essential cmake git libboost-all-dev default-libmysqlclient-dev libssl-dev zlib1g-dev libbz2-dev
+git clone https://github.com/puRe991/MangosPro.git && cd MangosPro
 mkdir build && cd build
 cmake .. -DBUILD_PLAYERBOTS=ON -DPCH=ON -DCMAKE_INSTALL_PREFIX=$HOME/mangos-tbc
 make -j$(nproc) && make install
 ```
 
-Windows: CMake-GUI, Haken bei `BUILD_PLAYERBOTS`, dann Visual Studio-Projekt erzeugen.
-Ausführliche Anleitung: https://github.com/cmangos/issues/wiki/Installation-Instructions
+### Build on Windows
 
-## Datenbank
-- Welt-DB: https://github.com/cmangos/tbc-db (passend zum Core-Stand halten)
-- Playerbot-Tabellen: `src/modules/PlayerBots/sql/characters/*.sql` in die Characters-DB,
-  `src/modules/PlayerBots/sql/world/*.sql` und `sql/world/tbc/*.sql` in die World-DB.
-- Bot-Konfiguration: `aiplayerbot.conf` (wird beim Install aus `aiplayerbot.conf.dist` erzeugt).
+Open the project in the CMake GUI, tick `BUILD_PLAYERBOTS`, generate a Visual Studio solution and build it.
+Detailed steps for both platforms: [CMaNGOS installation instructions](https://github.com/cmangos/issues/wiki/Installation-Instructions).
 
-> **Hinweis zum Repack:** Ein vorhandenes Repack lässt sich nur mit diesem Core weiterbetreiben,
-> wenn es ebenfalls auf CMaNGOS-TBC basiert und die DB-Revision passt. Sonst die DBs aus
-> `tbc-db` neu aufsetzen (Charakter-DB vorher sichern).
+### Databases
 
-## Stand der Raid-Strategien (Playerbots)
-Alle TBC-Raids haben Boss-Taktiken: Karazhan, Gruul, Magtheridon, SSC, Festung der Stürme,
-Hyjal, Black Temple, Zul'Aman, Sunwell (Strategie `tbc raid`, wird im Raid automatisch aktiv).
-Details, Kill-Reihenfolgen und bekannte Grenzen: **[doc/TBC_Raid_Taktiken.md](doc/TBC_Raid_Taktiken.md)**.
+1. **World DB:** [cmangos/tbc-db](https://github.com/cmangos/tbc-db). Keep its revision in step with the core.
+2. **Playerbot tables:**
+   - `src/modules/PlayerBots/sql/characters/*.sql` go into the characters DB.
+   - `src/modules/PlayerBots/sql/world/*.sql` and `src/modules/PlayerBots/sql/world/tbc/*.sql` go into the world DB.
+3. **MangosPro changes:** see [sql/mangospro/README.md](sql/mangospro/README.md) (for example raid-wide Bloodlust/Heroism).
+4. **Bot configuration:** `aiplayerbot.conf` is created from `aiplayerbot.conf.dist` on install.
 
-Rotationen, Raid-Buffs (Befehle `lust` / `auras`), Edelsteine, Würfelregeln und Tank-Bedrohung:
-**[doc/Bot_Raidbuffs_und_Ausruestung.md](doc/Bot_Raidbuffs_und_Ausruestung.md)**.
-Zusätzliche SQL-Änderungen: **[sql/mangospro/README.md](sql/mangospro/README.md)**.
-Plan für Bekanntmachung und Verteilung: **[doc/Verbreitungsplan.md](doc/Verbreitungsplan.md)**.
+> **Using an existing repack:** you can only keep running a repack with this core if it is also based on CMaNGOS TBC
+> and its DB revision matches. Otherwise set up fresh DBs from `tbc-db` (back up your characters DB first).
 
-Relevanter Code:
-- `src/modules/PlayerBots/playerbot/strategy/generic/TbcRaidEncounters.cpp` – Boss-Tabelle der TBC-Raids
-- `src/modules/PlayerBots/playerbot/strategy/generic/*DungeonStrategies.*` – ältere Boss-Strategien
-- `src/modules/PlayerBots/playerbot/strategy/actions/*DungeonActions.*` – Boss-spezifische Aktionen
-- `src/modules/PlayerBots/playerbot/strategy/generic/DungeonStrategy.*` – Aktivierung je Instanz/Boss
+## Useful bot commands
 
-## Website
-Unter `website/` liegt eine Server-Website für Apache/PHP mit Registrierung (SRP6), Account-Verwaltung,
-Realmstatus, Online-Liste, Ranglisten, Arsenal, News-Admin sowie Impressum und Datenschutz.
-Installation: **[website/README.md](website/README.md)**.
+Whisper a bot, or use party/raid chat to address all bots.
+
+| Command | Effect |
+|---|---|
+| `lust` | One ready shaman casts Bloodlust/Heroism right away; the others keep theirs |
+| `lust hold` / `lust auto` | Save Bloodlust/Heroism for the `lust` command / let shamans time it per boss again |
+| `auras` | Every paladin reports its aura and the blessings it keeps up |
+| `auras auto` | The paladins of each subgroup share out the auras between them |
+| `roll feedback` | Bots explain their loot rolls in chat |
+
+Full list, rotations, gems and tank threat: [doc/Bot_Raidbuffs_und_Ausruestung.md](doc/Bot_Raidbuffs_und_Ausruestung.md).
+The original Playerbots command reference is in [doc/PlayerBot/commands.txt](doc/PlayerBot/commands.txt).
+
+## Documentation
+
+Most project docs are in German for now; English translations will follow.
+
+| Topic | File |
+|---|---|
+| Status per boss | [doc/Bot_Boss_Status.md](doc/Bot_Boss_Status.md) |
+| Raid tactics, kill orders, known limits | [doc/TBC_Raid_Taktiken.md](doc/TBC_Raid_Taktiken.md) |
+| Rotations, raid buffs, gear, threat | [doc/Bot_Raidbuffs_und_Ausruestung.md](doc/Bot_Raidbuffs_und_Ausruestung.md) |
+| Extra SQL changes | [sql/mangospro/README.md](sql/mangospro/README.md) |
+| Server website | [website/README.md](website/README.md) |
+
+Relevant code:
+- `src/modules/PlayerBots/playerbot/strategy/generic/TbcRaidEncounters.cpp`: boss table for the TBC raids
+- `src/modules/PlayerBots/playerbot/strategy/generic/*DungeonStrategies.*`: older boss strategies
+- `src/modules/PlayerBots/playerbot/strategy/actions/*DungeonActions.*`: boss-specific actions
+- `src/modules/PlayerBots/playerbot/strategy/generic/DungeonStrategy.*`: activation per instance/boss
+
+## Reporting bugs
+
+Found a boss where the bots fail? Please open an issue with the **Boss bug** template. It asks for the boss, your raid
+setup and a log, which makes the problem much faster to fix. There are also templates for build problems and feature requests.
+Contributions are welcome, see [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Credits and license
+
+| Part | Upstream | Imported commit | Path |
+|------|----------|-----------------|------|
+| Core | [cmangos/mangos-tbc](https://github.com/cmangos/mangos-tbc) | `4e329ff72a4f9c88bb754a10cf57c2a50ffaff2e` | `/` |
+| Playerbots | [cmangos/playerbots](https://github.com/cmangos/playerbots) (bot AI by ike3) | `2f5ace0061f2c94dcc92f6af5dd2c427dfa932d6` | `src/modules/PlayerBots/` |
+
+Both are licensed under GPL-2.0 (see `LICENSE`), and so is MangosPro. Only the Classic and WotLK world SQL files
+(`sql/world/classic`, `sql/world/wotlk`) were removed from the Playerbots module, because TBC does not need them.
+
+Upstream downloads the Playerbots module with CMake `FetchContent` at configure time, which would overwrite local
+changes. In MangosPro the code is part of the repo, and `src/CMakeLists.txt` uses `src/modules/PlayerBots` directly when it exists.
+
+World of Warcraft® is a trademark of Blizzard Entertainment, Inc. MangosPro is not affiliated with or endorsed by Blizzard.
 
 ---
 
