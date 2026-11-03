@@ -56,6 +56,11 @@ Relevanter Code:
 - `src/modules/PlayerBots/playerbot/strategy/actions/*DungeonActions.*` – Boss-spezifische Aktionen
 - `src/modules/PlayerBots/playerbot/strategy/generic/DungeonStrategy.*` – Aktivierung je Instanz/Boss
 
+## Website
+Unter `website/` liegt eine Server-Website für Apache/PHP mit Registrierung (SRP6), Account-Verwaltung,
+Realmstatus, Online-Liste, Ranglisten, Arsenal, News-Admin sowie Impressum und Datenschutz.
+Installation: **[website/README.md](website/README.md)**.
+
 ---
 
 # C(ontinued)-MaNGOS -- README

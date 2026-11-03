@@ -1,0 +1,21 @@
+<?php
+// php website/tests/srp6_test.php  – prüft den SRP6-Verifier gegen die Standard-Accounts aus sql/base/realmd.sql
+require __DIR__ . '/../app/lib/Srp6.php';
+$cases = [
+  ['ADMINISTRATOR','8EB5DE915AA3D805FA7099CF61C0BB8A77990EA869078A0C5B9EEE55828F4505','312B99EEF1C0196BB73B79D114CE161C5D089319E6EF54FAA6117DAB8B672C14'],
+  ['GAMEMASTER','8873CD861DEFBF124232D6A29E4884E34C73385304A8AC44175976B1003DCFD7','681F5A7D4DE26DBFD3060EE37E03B79FD154875FB18F44DBF843963F193FC1AC'],
+  ['MODERATOR','AD68B088D7BCE5E4B734495A7A956F1D5DD1BAB61FB0FEE46C737D93EC166DF5','2CA85C9853E44A6DCE09FC92EBDE57EF20975281EB7604326E25751AF8576859'],
+  ['PLAYER','EBA23AF194D89B8061CA7FEBA06D336B1C38D8FBDABA76F2C51D45141362D881','3738EC7E7C731FD431C716990C6D97CA5C1D50EF0DA7DE9819076DE1D03AA891'],
+];
+$fail = 0;
+echo 'Backend: ' . Srp6::backend() . PHP_EOL;
+foreach ($cases as [$u, $s, $v]) {
+    $ok = Srp6::check($u, strtolower($u), $s, $v) && !Srp6::check($u, 'wrong', $s, $v);
+    echo ($ok ? 'OK   ' : 'FAIL ') . $u . PHP_EOL;
+    $fail += $ok ? 0 : 1;
+}
+[$s, $v] = Srp6::makeRegistration('Tester', 'Geheim123');
+$ok = Srp6::check('TESTER', 'GEHEIM123', $s, $v);
+echo ($ok ? 'OK   ' : 'FAIL ') . 'Roundtrip' . PHP_EOL;
+$fail += $ok ? 0 : 1;
+exit($fail ? 1 : 0);
