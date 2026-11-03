@@ -11,9 +11,11 @@ Server-Website für MangosPro (CMaNGOS TBC 2.4.3). Läuft auf Apache mit PHP; Fr
 | **Server** | Live-Realmstatus (Port-Check + `realmflags`), Uptime, Allianz/Horde-Verteilung, JSON-API `/api/status` |
 | **Community** | Wer ist online, Ranglisten (Stufe, Ehrenhafte Siege, Arena 2v2/3v3/5v5, Spielzeit), Arsenal mit Charakter- und Gildenseiten |
 | **Playerbots** | Random-Bot-Accounts (`RNDBOT…`) werden aus Listen und Ranglisten gefiltert und separat gezählt; der Präfix ist für die Registrierung gesperrt |
-| **Inhalte** | News/Patch-Notes mit Admin-Editor (ab `gmlevel` 3), Verbindungsanleitung, Regeln, Impressum, Datenschutz |
+| **Progress Race** | Boss-Kills der Gilden werden automatisch aus `instance.encountersMask` erkannt: Realm-Firsts je Boss, Gildenwertung, Chronik, Fortschritt auf der Gildenseite, Korrektur im Admin-Bereich |
+| **Inhalte** | News mit Kategorien, Changelog-Seite `/updates` für Patch-Notes, Admin-Editor (ab `gmlevel` 3), Verbindungsanleitung, Regeln, Impressum, Datenschutz |
 | **Sicherheit** | CSRF-Tokens, Prepared Statements, Rate-Limiting (Login, Passwort, Reset), lokale Captcha + Honeypot, IP-Limit pro Tag, `ip_banned`-Prüfung, strikte CSP, Session-Härtung |
 | **DSGVO** | Keine externen Schriften, kein Tracking, nur ein technisch notwendiges Session-Cookie |
+| **Design** | Eigene Grafiken (Hero-Artwork, Logo, UI-Icons) plus 32 Fantasy-Icons von game-icons.net für Klassen, Raids und Themen (CC BY 3.0, Lorc & Delapouite – Nennung im Footer, Details in `public/assets/img/GAME-ICONS-LICENSE.txt`), selbst gehostete Schriften Inter / Inter Display / JetBrains Mono (SIL OFL, `public/assets/fonts/LICENSE.txt`), Glut-Partikel und Scroll-Animationen – abschaltbar über die Betriebssystem-Einstellung „Bewegung reduzieren“ |
 
 ## Voraussetzungen
 
@@ -33,6 +35,8 @@ sudo cp -r website /var/www/mangospro
 
 # 2. Website-Tabellen in die realmd-DB importieren (Core-Tabellen werden nicht verändert)
 mysql -u root -p tbcrealmd < /var/www/mangospro/sql/website.sql
+# optional: Start-News, Patch-Notes 1.0–1.4 und Event-Beitrag
+mysql -u root -p tbcrealmd < /var/www/mangospro/sql/website_content.sql
 
 # 3. Konfiguration
 sudo cp /var/www/mangospro/app/config.dist.php /var/www/mangospro/app/config.php
@@ -66,22 +70,39 @@ GRANT DELETE ON tbcrealmd.web_news TO 'mpweb'@'localhost';
 GRANT SELECT ON tbccharacters.* TO 'mpweb'@'localhost';
 ```
 
+## Progress Race
+
+Der Core setzt beim Boss-Kill ein Bit in `characters.instance.encountersMask` (Index aus `DungeonEncounter.sql`;
+die World-DB braucht dafür die `instance_encounters`-Daten aus tbc-db). Die Website ordnet jede Raid-ID der Gilde
+mit den meisten gebundenen Mitgliedern zu – Spieler oder Bots, standardmäßig mindestens 10 in Karazhan/Zul'Aman
+(`min_members_10`) und 20 in allen anderen Raids (`min_members_25`) – und speichert den
+ersten Kill je Gilde und Boss in `web_progress_kills`. Gilden mit Random-Bot als Gildenmeister werden nicht gewertet.
+
+- Ohne Cron: Abgleich beim Seitenaufruf, höchstens alle `sync_interval` Sekunden (Standard)
+- Mit Cron (genauer, keine Last beim Seitenaufruf): `*/2 * * * * www-data php /var/www/mangospro/bin/progress_sync.php`
+  und `'auto_sync' => false`
+- Der gespeicherte Zeitpunkt ist der Zeitpunkt der Erkennung. Raid-IDs werden beim wöchentlichen Reset gelöscht,
+  deshalb sollte der Abgleich mindestens täglich laufen. Falsche oder fehlende Kills unter **Admin → Progress** korrigieren.
+
 ## Admin
 
-Wer sich mit einem Account ab `gmlevel` 3 anmeldet (`security.admin_gmlevel`), sieht oben den Button **Admin**. Dort gibt es Statistiken, die neuesten Registrierungen und die News-Verwaltung. Sperren und GM-Rechte bleiben bei den Core-Befehlen (`.ban account`, `.account set gmlevel`).
+Wer sich mit einem Account ab `gmlevel` 3 anmeldet (`security.admin_gmlevel`), sieht oben den Button **Admin**. Dort gibt es Statistiken, die neuesten Registrierungen, die News-Verwaltung und die Progress-Korrektur. Sperren und GM-Rechte bleiben bei den Core-Befehlen (`.ban account`, `.account set gmlevel`).
 
 ## Aufbau
 
 ```
 website/
 ├── public/            ← DocumentRoot (index.php, .htaccess, assets/)
+│   └── assets/        css/, js/, fonts/, img/ (hero.svg, emblem.svg, icons.svg)
 ├── app/
 │   ├── config.dist.php
 │   ├── bootstrap.php
 │   ├── lib/           Srp6, Account, Auth, Realm, News, Mailer, RateLimiter, GameData
 │   ├── pages/         eine Datei pro Route (admin/ für den Admin-Bereich)
 │   └── views/         Layout und Teilansichten
+├── bin/progress_sync.php  Cron-Skript für das Progress Race
 ├── sql/website.sql    zusätzliche Tabellen (web_*)
+├── sql/website_content.sql  Start-Inhalte (News, Patch-Notes)
 ├── apache/            VirtualHost-Beispiel
 └── tests/srp6_test.php
 ```

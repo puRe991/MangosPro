@@ -1,0 +1,8 @@
+Schriften in diesem Ordner (als WOFF2 auf lateinische Zeichen reduziert):
+
+- Inter, Inter Display – Copyright 2016-2023 The Inter Project Authors (https://rsms.me/inter)
+- JetBrains Mono – Copyright 2020 The JetBrains Mono Project Authors (https://github.com/JetBrains/JetBrainsMono)
+
+Beide stehen unter der SIL Open Font License, Version 1.1:
+https://openfontlicense.org  –  Einbetten und Weitergabe sind erlaubt, die Schriften
+dürfen nicht einzeln verkauft werden. Quelle: Debian-Pakete fonts-inter und fonts-jetbrains-mono.

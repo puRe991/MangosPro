@@ -200,3 +200,32 @@ function page_title(?string $title = null): string
     if ($title !== null) $GLOBALS['__page_title'] = $title;
     return $GLOBALS['__page_title'] ?? '';
 }
+
+// ---------------------------------------------------------------- Grafik-Helfer
+
+/** Icon aus dem SVG-Sprite (assets/img/icons.svg), z. B. icon('sword') oder icon('c-mage', 'icon-lg') */
+function icon(string $name, string $class = ''): string
+{
+    static $sprite = null;
+    $sprite ??= asset('img/icons.svg');
+    $id = preg_match('/^[crg]-/', $name) ? $name : 'i-' . $name;
+    return '<svg class="icon' . ($class !== '' ? ' ' . e($class) : '') . '" aria-hidden="true" focusable="false"><use href="'
+        . e($sprite) . '#' . e($id) . '"></use></svg>';
+}
+
+/** Fortschrittsring als SVG; $value/$max, Beschriftung in der Mitte */
+function ring(int $value, int $max, string $label = '', string $class = ''): string
+{
+    $pct = $max > 0 ? max(0, min(100, round($value / $max * 100, 1))) : 0;
+    $label = $label !== '' ? $label : $value . '/' . $max;
+    return '<span class="ring' . ($class !== '' ? ' ' . e($class) : '') . ($pct >= 100 ? ' ring-full' : '') . '" role="img" aria-label="' . e("$value von $max") . '">'
+        . '<svg viewBox="0 0 40 40" aria-hidden="true"><circle class="ring-track" cx="20" cy="20" r="17" pathLength="100"/>'
+        . '<circle class="ring-value" cx="20" cy="20" r="17" pathLength="100" stroke-dasharray="' . $pct . ' 100"/></svg>'
+        . '<span class="ring-label">' . e($label) . '</span></span>';
+}
+
+/** Ornament-Trenner unter Überschriften */
+function ornament(string $class = ''): string
+{
+    return '<span class="ornament' . ($class !== '' ? ' ' . e($class) : '') . '" aria-hidden="true"><svg viewBox="0 0 120 12"><path d="M0 6h48M72 6h48" /><path d="M60 1l5 5-5 5-5-5z" /><circle cx="50" cy="6" r="1.4"/><circle cx="70" cy="6" r="1.4"/></svg></span>';
+}

@@ -39,7 +39,7 @@ if (mb_strlen($q) >= 2) {
     <?php else: ?>
         <div class="grid-2">
             <div class="card">
-                <h2 class="card-title">Charaktere <span class="muted">(<?= count($chars) ?>)</span></h2>
+                <h2 class="card-title"><?= icon('users') ?> Charaktere <span class="muted">(<?= count($chars) ?>)</span></h2>
                 <?php if (!$chars): ?><p class="muted">Keine Treffer.</p><?php else: ?>
                     <ul class="result-list">
                         <?php foreach ($chars as $c): ?>
@@ -52,7 +52,7 @@ if (mb_strlen($q) >= 2) {
                 <?php endif; ?>
             </div>
             <div class="card">
-                <h2 class="card-title">Gilden <span class="muted">(<?= count($guilds) ?>)</span></h2>
+                <h2 class="card-title"><?= icon('shield') ?> Gilden <span class="muted">(<?= count($guilds) ?>)</span></h2>
                 <?php if (!$guilds): ?><p class="muted">Keine Treffer.</p><?php else: ?>
                     <ul class="result-list">
                         <?php foreach ($guilds as $g): ?>

@@ -31,7 +31,7 @@ $realmlist = (string)config('site.realmlist');
             <p>Öffne im WoW-Ordner die Datei <code>realmlist.wtf</code> (bei deutschen Clients unter <code>Data/deDE/</code>, bei englischen unter <code>Data/enUS/</code> bzw. <code>enGB</code>) mit einem Texteditor und ersetze den Inhalt durch:</p>
             <div class="codebox">
                 <code id="realmlist-line">set realmlist <?= e($realmlist) ?></code>
-                <button class="btn btn-ghost btn-sm" type="button" data-copy="#realmlist-line">Kopieren</button>
+                <button class="btn btn-ghost btn-sm" type="button" data-copy="#realmlist-line"><?= icon('copy') ?> <span>Kopieren</span></button>
             </div>
             <p class="muted small">Tipp: Lösche zusätzlich den Ordner <code>Cache</code>, wenn du vorher auf einem anderen Server gespielt hast.</p>
         </li>
@@ -59,7 +59,7 @@ $realmlist = (string)config('site.realmlist');
     </ol>
 
     <div class="card">
-        <h2 class="card-title">Probleme?</h2>
+        <h2 class="card-title"><?= icon('chat') ?> Probleme?</h2>
         <dl class="faq">
             <dt>"Verbindung getrennt" direkt nach dem Login</dt>
             <dd>Falsche Client-Version oder Realmlist. Prüfe, dass du 2.4.3 (8606) nutzt und die <code>realmlist.wtf</code> korrekt ist.</dd>

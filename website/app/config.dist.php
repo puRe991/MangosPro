@@ -34,6 +34,17 @@ return [
         'account_prefix' => 'RNDBOT',
     ],
 
+    // Progress Race (Seite /progress): Kills werden aus characters.instance.encountersMask erkannt
+    'progress' => [
+        'auto_sync'       => true,   // beim Seitenaufruf abgleichen (alternativ Cron: php bin/progress_sync.php)
+        'sync_interval'   => 120,    // Sekunden zwischen zwei Abgleichen
+        // Gildenmitglieder (Spieler oder Bots), die in der Raid-ID gebunden sein müssen, damit ein Kill als Gilden-Kill zählt
+        'min_members_10'  => 10,     // Karazhan, Zul'Aman (10er)
+        'min_members_25'  => 20,     // Gruul, Magtheridon, SSC, TK, Hyjal, BT, Sunwell (25er)
+        'hide_bot_guilds' => true,   // Gilden mit Random-Bot als Gildenmeister nicht werten
+        'season_start'    => '',     // optional, z. B. '2026-11-01' – nur als Text auf der Seite
+    ],
+
     'db' => [
         // realmd / Login-Datenbank
         'auth' => [

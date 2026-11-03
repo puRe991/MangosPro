@@ -63,7 +63,7 @@ $err = fn(string $k) => isset($errors[$k]) ? '<p class="field-error">' . e($erro
     </form>
     <aside class="sidebar">
         <div class="panel">
-            <h2 class="panel-title">Formatierung</h2>
+            <h2 class="panel-title"><?= icon('book') ?> Formatierung</h2>
             <ul class="small format-help">
                 <li><code>**fett**</code> → <strong>fett</strong></li>
                 <li><code>*kursiv*</code> → <em>kursiv</em></li>

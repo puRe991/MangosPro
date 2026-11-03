@@ -13,7 +13,7 @@ $realms = Realm::all();
     <?php if (!$realms): ?>
         <div class="alert alert-error">Es konnten keine Realms geladen werden.</div>
     <?php endif; ?>
-    <div class="realm-grid">
+    <div class="realm-grid" data-stagger>
         <?php foreach ($realms as $realm): ?>
             <div>
                 <?php render_partial('realm_card', ['realm' => $realm]); ?>

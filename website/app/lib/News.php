@@ -8,14 +8,16 @@ final class News
         'news' => 'Neuigkeiten', 'update' => 'Patch-Notes', 'event' => 'Event', 'maintenance' => 'Wartung',
     ];
 
-    public static function latest(int $limit = 5, int $offset = 0): array
+    public static function latest(int $limit = 5, int $offset = 0, ?string $category = null): array
     {
         try {
             $st = Database::web()->prepare(
                 'SELECT id, title, category, body, author, created_at, pinned FROM web_news
-                 WHERE published = 1 ORDER BY pinned DESC, created_at DESC LIMIT ? OFFSET ?');
-            $st->bindValue(1, $limit, PDO::PARAM_INT);
-            $st->bindValue(2, $offset, PDO::PARAM_INT);
+                 WHERE published = 1' . ($category ? ' AND category = ?' : '') . ' ORDER BY pinned DESC, created_at DESC LIMIT ? OFFSET ?');
+            $i = 1;
+            if ($category) $st->bindValue($i++, $category);
+            $st->bindValue($i++, $limit, PDO::PARAM_INT);
+            $st->bindValue($i, $offset, PDO::PARAM_INT);
             $st->execute();
             return $st->fetchAll();
         } catch (PDOException $ex) {
@@ -24,10 +26,13 @@ final class News
         }
     }
 
-    public static function count(bool $onlyPublished = true): int
+    public static function count(bool $onlyPublished = true, ?string $category = null): int
     {
         try {
-            return (int)Database::web()->query('SELECT COUNT(*) FROM web_news' . ($onlyPublished ? ' WHERE published = 1' : ''))->fetchColumn();
+            $where = [];
+            if ($onlyPublished) $where[] = 'published = 1';
+            if ($category) $where[] = 'category = ' . Database::web()->quote($category);
+            return (int)Database::web()->query('SELECT COUNT(*) FROM web_news' . ($where ? ' WHERE ' . implode(' AND ', $where) : ''))->fetchColumn();
         } catch (PDOException) {
             return 0;
         }

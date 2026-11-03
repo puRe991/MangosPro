@@ -11,6 +11,8 @@ $members = Database::run($db,
      LEFT JOIN guild_rank r ON r.guildid = gm.guildid AND r.rid = gm.rank
      WHERE gm.guildid = ? ORDER BY gm.rank, c.level DESC, c.name', [$id])->fetchAll();
 $online = count(array_filter($members, fn($m) => $m['online']));
+Progress::maybeSync($realmId);
+$gk = Progress::guildKills($realmId, $id);
 page_title('<' . $g['name'] . '>');
 ?>
 <section class="page-head">
@@ -22,7 +24,20 @@ page_title('<' . $g['name'] . '>');
 </section>
 <section class="wrap section">
     <?php if (trim((string)$g['info']) !== ''): ?>
-        <div class="card"><h2 class="card-title">Gildeninfo</h2><p><?= nl2br(e($g['info'])) ?></p></div>
+        <div class="card"><h2 class="card-title"><?= icon('scroll') ?> Gildeninfo</h2><p><?= nl2br(e($g['info'])) ?></p></div>
+    <?php endif; ?>
+    <?php if ($gk): ?>
+        <div class="card">
+            <h2 class="card-title"><?= icon('g-trophy') ?> Raid-Fortschritt <a class="more small" href="<?= e(url('progress', ['realm' => $realmId])) ?>">Progress Race <?= icon('arrow-right') ?></a></h2>
+            <div class="guild-progress">
+                <?php foreach (Progress::RAIDS as $map => $raid): $n = count($gk[$map] ?? []); $max = count($raid['bosses']); if (!$n) continue; ?>
+                    <div class="skillbar">
+                        <div class="skillbar-label"><span><?= e($raid['name']) ?></span><span><?= $n ?>/<?= $max ?></span></div>
+                        <progress max="<?= $max ?>" value="<?= $n ?>"></progress>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
     <?php endif; ?>
     <div class="card table-wrap">
         <table class="table" data-sortable>
