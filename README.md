@@ -49,6 +49,7 @@ Details, Kill-Reihenfolgen und bekannte Grenzen: **[doc/TBC_Raid_Taktiken.md](do
 Rotationen, Raid-Buffs (Befehle `lust` / `auras`), Edelsteine, Würfelregeln und Tank-Bedrohung:
 **[doc/Bot_Raidbuffs_und_Ausruestung.md](doc/Bot_Raidbuffs_und_Ausruestung.md)**.
 Zusätzliche SQL-Änderungen: **[sql/mangospro/README.md](sql/mangospro/README.md)**.
+Plan für Bekanntmachung und Verteilung: **[doc/Verbreitungsplan.md](doc/Verbreitungsplan.md)**.
 
 Relevanter Code:
 - `src/modules/PlayerBots/playerbot/strategy/generic/TbcRaidEncounters.cpp` – Boss-Tabelle der TBC-Raids
