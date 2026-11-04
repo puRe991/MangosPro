@@ -173,7 +173,7 @@ void instance_molten_core::SetData(uint32 uiType, uint32 uiData)
     }
 
     // Check if Majordomo can be summoned
-    if (uiData == SPECIAL)
+    if (uiData == SPECIAL || (uiData == DONE && uiType >= TYPE_MAGMADAR && uiType < TYPE_MAJORDOMO))
         DoSpawnMajordomoIfCan(false);
 
     if (uiData == DONE || uiData == SPECIAL)
@@ -212,10 +212,11 @@ void instance_molten_core::DoSpawnMajordomoIfCan(bool bByPlayerEnter)
     if (GetSingleCreatureFromStorage(NPC_MAJORDOMO, true))
         return;
 
-    // Check if all rune bosses are done
+    // Check if all rune bosses are done. Dousing the runes with Aqual Quintessence is not
+    // required: bots never douse them, which left Majordomo and Ragnaros unreachable.
     for (uint8 i = TYPE_MAGMADAR; i < TYPE_MAJORDOMO; ++i)
     {
-        if (m_auiEncounter[i] != SPECIAL)
+        if (m_auiEncounter[i] != SPECIAL && m_auiEncounter[i] != DONE)
             return;
     }
 

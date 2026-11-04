@@ -1650,7 +1650,8 @@ bool ChatHandler::HandleNpcAddCommand(char* args)
     uint32 db_guid = pCreature->GetGUIDLow();
 
     // To call _LoadGoods(); _LoadQuests(); CreateTrainerSpells();
-    pCreature->LoadFromDB(db_guid, map, db_guid, 0);
+    if (!pCreature->LoadFromDB(db_guid, map, db_guid, 0))
+        delete pCreature;                                   // e.g. boss rush trash in a raid: saved, but not spawned
     return true;
 }
 

@@ -50,6 +50,7 @@
 
 #ifdef ENABLE_PLAYERBOTS
 #include "playerbot/PlayerbotAI.h"
+#include "playerbot/BotPerformanceLog.h"
 #endif
 
 extern pEffect SpellEffects[MAX_SPELL_EFFECTS];
@@ -1202,6 +1203,10 @@ void Spell::DoAllEffectOnTarget(TargetInfo* target)
     // Or on missInfo!=SPELL_MISS_NONE unitTarget undefined (but need in trigger subsystem)
     unitTarget = unit;
     Unit* reflectTarget = nullptr;
+#ifdef ENABLE_PLAYERBOTS
+    if (!m_IsTriggeredSpell)
+        botperf::OnSpellResult(affectiveCaster, unit, m_spellInfo, missInfo);
+#endif
 
     // Reset damage/healing counter
     ResetEffectDamageAndHeal();
@@ -3581,6 +3586,11 @@ SpellCastResult Spell::cast(bool skipCheck)
     InitializeDamageMultipliers();
 
     OnCast();
+
+#ifdef ENABLE_PLAYERBOTS
+    if (!m_IsTriggeredSpell)
+        botperf::OnCast(m_caster, m_spellInfo);
+#endif
 
     if (!m_IsTriggeredSpell && !m_trueCaster->IsGameObject() && !m_spellInfo->HasAttribute(SPELL_ATTR_EX2_NOT_AN_ACTION))
         m_caster->RemoveAurasOnCast(AURA_INTERRUPT_FLAG_ACTION_LATE, m_spellInfo);

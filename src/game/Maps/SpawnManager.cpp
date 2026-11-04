@@ -21,6 +21,7 @@
 #include "Maps/Map.h"
 #include "Maps/SpawnGroupDefines.h"
 #include "Maps/MapPersistentStateMgr.h"
+#include "Entities/Creature.h"
 
 bool operator<(SpawnInfo const& lhs, SpawnInfo const& rhs)
 {
@@ -32,7 +33,12 @@ bool SpawnInfo::ConstructForMap(Map& map)
     m_inUse = true;
     bool result = false;
     if (GetHighGuid() == HIGHGUID_UNIT)
+    {
         result = WorldObject::SpawnCreature(GetDbGuid(), &map);
+        // boss rush trash never spawns - drop it instead of retrying on every update
+        if (!result && Creature::IsBossRushTrash(GetDbGuid(), &map))
+            result = true;
+    }
     else if (GetHighGuid() == HIGHGUID_GAMEOBJECT)
         result = WorldObject::SpawnGameObject(GetDbGuid(), &map);
     if (result)

@@ -262,6 +262,12 @@ struct boss_skeramAI : public CombatAI
             case SKERAM_ARCANE_EXPLOSION:
             {
                 // Arcane Explosion is done if more than a set number of people are in melee range
+                // No victim right after a split (StopAttacking) or blink: recheck later
+                if (!m_creature->GetVictim())
+                {
+                    ResetCombatAction(action, 1 * IN_MILLISECONDS);
+                    break;
+                }
                 PlayerList meleePlayerList;
                 float meleeRange = m_creature->GetCombinedCombatReach(m_creature->GetVictim(), true);
                 GetPlayerListWithEntryInWorld(meleePlayerList, m_creature, meleeRange);

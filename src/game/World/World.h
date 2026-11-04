@@ -393,6 +393,8 @@ enum eConfigBoolValues
     CONFIG_BOOL_LFG_ENABLED,
     CONFIG_BOOL_SPECIALS_ACTIVE,
     CONFIG_BOOL_REGEN_ZONE_AREA_ON_STARTUP,
+    CONFIG_BOOL_FLYING_MOUNTS_AZEROTH,
+    CONFIG_BOOL_BOSS_RUSH,
     CONFIG_BOOL_VALUE_COUNT
 };
 
@@ -563,6 +565,10 @@ class World
 
         /// Get configuration about force-loaded maps
         bool isForceLoadMap(uint32 id) const { return m_configForceLoadMapIds.find(id) != m_configForceLoadMapIds.end(); }
+
+        /// Boss rush overrides: entries always spawned / always removed in raids
+        bool IsBossRushKeepEntry(uint32 entry) const { return m_bossRushKeepEntries.find(entry) != m_bossRushKeepEntries.end(); }
+        bool IsBossRushTrashEntry(uint32 entry) const { return m_bossRushTrashEntries.find(entry) != m_bossRushTrashEntries.end(); }
 
         /// Are we on a "Player versus Player" server?
         bool IsPvPRealm() const { return (getConfig(CONFIG_UINT32_GAME_TYPE) == REALM_TYPE_PVP || getConfig(CONFIG_UINT32_GAME_TYPE) == REALM_TYPE_RPPVP || getConfig(CONFIG_UINT32_GAME_TYPE) == REALM_TYPE_FFA_PVP); }
@@ -744,6 +750,10 @@ class World
 
         // List of Maps that should be force-loaded on startup
         std::set<uint32> m_configForceLoadMapIds;
+
+        // Boss rush entry overrides (BossRush.KeepEntries / BossRush.TrashEntries)
+        std::set<uint32> m_bossRushKeepEntries;
+        std::set<uint32> m_bossRushTrashEntries;
 
         // Vector of quests that were chosen for given group
         std::vector<uint32> m_eventGroupChosen;

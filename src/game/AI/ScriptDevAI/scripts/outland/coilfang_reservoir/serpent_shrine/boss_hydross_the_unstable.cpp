@@ -219,9 +219,12 @@ struct boss_hydross_the_unstableAI : public CombatAI
         m_creature->SetSpellList(SPELL_LIST_CLEAN_REPEAT);
     }
 
-    void HandleSwitchToCorruption()
+    // Returns false while the transform cast fails (the boss is casting a Mark or Water Tomb)
+    bool HandleSwitchToCorruption()
     {
-        if (DoCastSpellIfCan(nullptr, SPELL_CORRUPTION_SD) == CAST_OK)
+        if (DoCastSpellIfCan(nullptr, SPELL_CORRUPTION_SD) != CAST_OK)
+            return false;
+
         {
             DoBroadcastText(SAY_SWITCH_TO_CORRUPT, m_creature);
             m_uiMarkCount = 0;
@@ -244,6 +247,7 @@ struct boss_hydross_the_unstableAI : public CombatAI
 
             m_creature->SetSpellList(SPELL_LIST_CORRUPT);
         }
+        return true;
     }
 
     void ExecuteAction(uint32 action) override
@@ -253,11 +257,24 @@ struct boss_hydross_the_unstableAI : public CombatAI
             if (!m_triggerSwitch)
                 return;
 
-            m_triggerSwitch = false;
             if (m_corruptedForm)
+            {
+                m_triggerSwitch = false;
                 HandleSwitchToClean();
-            else
-                HandleSwitchToCorruption();
+                return;
+            }
+
+            // Back inside the field before the transform went through: nothing to switch
+            if (m_creature->HasAura(SPELL_CLEANSING_FIELD))
+            {
+                m_triggerSwitch = false;
+                return;
+            }
+
+            // The transform cast fails while the boss casts a Mark or Water Tomb; the switch used to be
+            // dropped then and he stayed in water form outside the field. Keep trying on the next update.
+            if (HandleSwitchToCorruption())
+                m_triggerSwitch = false;
         }
     }
 };

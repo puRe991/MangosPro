@@ -5519,6 +5519,13 @@ void Spell::EffectScriptEffect(SpellEffectIndex eff_idx)
                     if (unitTarget->GetDummyAura(22683))
                         return;
 
+#ifdef ENABLE_PLAYERBOTS
+                    // Bots never run the Onyxia attunement for the cloak; treat them as wearing it
+                    if (unitTarget->IsPlayer() && static_cast<Player*>(unitTarget)->GetPlayerbotAI() &&
+                        !static_cast<Player*>(unitTarget)->isRealPlayer())
+                        return;
+#endif
+
                     // Shadow Flame
                     m_caster->CastSpell(unitTarget, 22682, TRIGGERED_OLD_TRIGGERED);
                     return;

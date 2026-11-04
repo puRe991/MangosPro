@@ -56,6 +56,10 @@
  #include "Metric/Metric.h"
 #endif
 
+#ifdef ENABLE_PLAYERBOTS
+#include "playerbot/BotPerformanceLog.h"
+#endif
+
 #include <math.h>
 #include <limits>
 #include <array>
@@ -1045,6 +1049,12 @@ uint32 Unit::DealDamage(Unit* dealer, Unit* victim, uint32 damage, CleanDamage c
 
         return 0;
     }
+
+#ifdef ENABLE_PLAYERBOTS
+    // Without spell and melee data it is a GM command or script kill, not combat damage
+    if (spellInfo || cleanDamage)
+        botperf::OnDamage(dealer, victim, damage, spellInfo, damagetype == DOT);
+#endif
 
     DEBUG_FILTER_LOG(LOG_FILTER_DAMAGE, "DealDamageStart");
 
@@ -2802,6 +2812,9 @@ void Unit::AttackerStateUpdate(Unit* pVictim, WeaponAttackType attType, bool ext
 
     CalcDamageInfo meleeDamageInfo;
     CalculateMeleeDamage(pVictim, &meleeDamageInfo, attType);
+#ifdef ENABLE_PLAYERBOTS
+    botperf::OnMelee(this, meleeDamageInfo.hitOutCome);
+#endif
 
     // Send log damage message to client
     for (uint8 i = 0; i < m_weaponDamageInfo.weapon[attType].lines; i++)
@@ -7330,6 +7343,10 @@ int32 Unit::DealHeal(Unit* pVictim, uint32 addhealth, SpellEntry const* spellPro
         unit = GetOwner();
 
     unit->SendHealSpellLog(pVictim, spellProto->Id, addhealth, critical);
+
+#ifdef ENABLE_PLAYERBOTS
+    botperf::OnHeal(unit, pVictim, addhealth, gain, spellProto);
+#endif
 
     if (unit->IsPlayer())
     {

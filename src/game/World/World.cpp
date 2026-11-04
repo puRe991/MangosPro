@@ -543,6 +543,24 @@ void World::LoadConfigSettings(bool reload)
 
     setConfig(CONFIG_BOOL_AUTOLOAD_ACTIVE, "Autoload.Active", true);
     setConfig(CONFIG_BOOL_SPECIALS_ACTIVE, "Specials.Active", false);
+    setConfig(CONFIG_BOOL_FLYING_MOUNTS_AZEROTH, "FlyingMounts.Azeroth", true);
+
+    setConfig(CONFIG_BOOL_BOSS_RUSH, "BossRush.Enable", true);
+    auto loadBossRushEntries = [](char const* name, char const* def, std::set<uint32>& entries)
+    {
+        entries.clear();
+        std::string list = sConfig.GetStringDefault(name, def);
+        VMAP::VMapFactory::chompAndTrim(list);
+        unsigned int pos = 0;
+        unsigned int id;
+        while (VMAP::VMapFactory::getNextId(list, pos, id))
+            if (id)
+                entries.insert(id);
+    };
+    // Leotheras spellbinders, Sartura's guards, Rajaxx's waves
+    loadBossRushEntries("BossRush.KeepEntries", "21806,15984,15385,15386,15387,15388,15389,15390,15391,15392,15344", m_bossRushKeepEntries);
+    // trash packs with their own C++ AI (Sunwell, Black Temple, ZG, MC, AQ20, AQ40, Naxxramas)
+    loadBossRushEntries("BossRush.TrashEntries", "25372,25507,23222,23239,11359,14750,11671,15355,15264,15277,16168,16056,16057", m_bossRushTrashEntries);
 
     setConfig(CONFIG_UINT32_INTERVAL_SAVE, "PlayerSave.Interval", 15 * MINUTE * IN_MILLISECONDS);
     setConfigMinMax(CONFIG_UINT32_MIN_LEVEL_STAT_SAVE, "PlayerSave.Stats.MinLevel", 0, 0, MAX_LEVEL);
@@ -1719,7 +1737,6 @@ void World::Update(uint32 diff)
         LoginDatabase.PExecute("UPDATE uptime SET uptime = %u, maxplayers = %u WHERE realmid = %u AND starttime = " UI64FMTD, tmpDiff, maxClientsNum, realmID, uint64(m_startTime));
     }
 
-    /// <li> Handle all other objects
     /// <li> Rotating server announcements (bots do not get them)
     if (!s_autoBroadcast.messages.empty())
     {
@@ -1746,6 +1763,7 @@ void World::Update(uint32 diff)
         }
     }
 
+    /// <li> Handle all other objects
     ///- Update objects (maps, transport, creatures,...)
 #ifdef BUILD_METRICS
     auto preMapTime = std::chrono::time_point_cast<std::chrono::milliseconds>(Clock::now());

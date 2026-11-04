@@ -1689,6 +1689,71 @@ bool Creature::CreateFromProto(uint32 dbGuid, uint32 guidlow, CreatureInfo const
     return UpdateEntry(newEntry, data, eventData, false);
 }
 
+// MangosPro boss rush: in raids only bosses and what their encounters need are loaded from `creature`.
+// Scripted summons (Hyjal waves, Opera, adds) are unaffected because they never come from the table.
+bool Creature::IsBossRushTrash(CreatureInfo const* cinfo, uint32 dbGuid, Map* map)
+{
+    if (!sWorld.getConfig(CONFIG_BOOL_BOSS_RUSH) || !map->IsRaid())
+        return false;
+
+    if (sWorld.IsBossRushKeepEntry(cinfo->Entry))
+        return false;
+    if (sWorld.IsBossRushTrashEntry(cinfo->Entry))
+        return true;
+
+    // bosses, encounter kill credits and creatures with their own C++ AI (event npcs, chess pieces, channelers ...)
+    if (cinfo->Rank == CREATURE_ELITE_WORLDBOSS || cinfo->ScriptID || sObjectMgr.IsEncounter(cinfo->Entry, map->GetId()))
+        return false;
+
+    // gossip/quest npcs, triggers and creatures waiting passively for an event
+    if (cinfo->NpcFlags || (cinfo->ExtraFlags & (CREATURE_EXTRA_FLAG_INVISIBLE | CREATURE_EXTRA_FLAG_INSTANCE_BIND)) ||
+            (cinfo->UnitFlags & (UNIT_FLAG_UNINTERACTIBLE | UNIT_FLAG_UNTARGETABLE | UNIT_FLAG_IMMUNE_TO_PLAYER)))
+        return false;
+
+    // only monsters hostile to both factions are trash - Hyjal defenders and other friendlies stay
+    FactionTemplateEntry const* faction = sFactionTemplateStore.LookupEntry(cinfo->Faction);
+    if (!faction)
+        return false;
+    if (!faction->IsHostileToPlayers())
+    {
+        FactionTemplateEntry const* alliance = sFactionTemplateStore.LookupEntry(1);   // Human
+        FactionTemplateEntry const* horde = sFactionTemplateStore.LookupEntry(2);      // Orc
+        if (!alliance || !horde || !faction->IsHostileTo(*alliance) || !faction->IsHostileTo(*horde))
+            return false;
+    }
+
+    // adds linked into a boss fight (Moroes guests, Razuvious understudies, Majordomo's adds ...) stay.
+    // A link that only carries FLAG_CANT_SPAWN_IF_BOSS_* just marks the trash of that boss' area.
+    if (CreatureLinkingInfo const* link = sCreatureLinkingMgr.GetLinkedTriggerInformation(cinfo->Entry, dbGuid, map->GetId()))
+    {
+        if (link->linkingFlag & ~(FLAG_CANT_SPAWN_IF_BOSS_DEAD | FLAG_CANT_SPAWN_IF_BOSS_ALIVE))
+        {
+            uint32 masterEntry = link->masterId;
+            if (link->masterDBGuid)
+                if (CreatureData const* masterData = sObjectMgr.GetCreatureData(link->masterDBGuid))
+                    masterEntry = masterData->id;
+            CreatureInfo const* master = ObjectMgr::GetCreatureTemplate(masterEntry);
+            if (master && (master->Rank == CREATURE_ELITE_WORLDBOSS || master->ScriptID || sObjectMgr.IsEncounter(master->Entry, map->GetId())))
+                return false;
+        }
+    }
+
+    return true;
+}
+
+bool Creature::IsBossRushTrash(uint32 dbGuid, Map* map)
+{
+    if (!sWorld.getConfig(CONFIG_BOOL_BOSS_RUSH) || !map->IsRaid())
+        return false;
+
+    CreatureData const* data = sObjectMgr.GetCreatureData(dbGuid);
+    if (!data || !data->id)
+        return false;
+
+    CreatureInfo const* cinfo = ObjectMgr::GetCreatureTemplate(data->id);
+    return cinfo && IsBossRushTrash(cinfo, dbGuid, map);
+}
+
 bool Creature::LoadFromDB(uint32 dbGuid, Map* map, uint32 newGuid, uint32 forcedEntry, GenericTransport* /*transport*/)
 {
     CreatureData const* data = sObjectMgr.GetCreatureData(dbGuid);
@@ -1737,6 +1802,9 @@ bool Creature::LoadFromDB(uint32 dbGuid, Map* map, uint32 newGuid, uint32 forced
         sLog.outErrorDb("Creature (Entry: %u) not found in table `creature_template`, can't load. ", entry);
         return false;
     }
+
+    if (IsBossRushTrash(cinfo, dbGuid, map))
+        return false;
 
     bool dynguid = false;
     if (map->IsDynguidForced())

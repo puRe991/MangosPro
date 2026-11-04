@@ -3321,7 +3321,9 @@ bool Player::addSpell(uint32 spell_id, bool active, bool learning, bool dependen
         }
 
         // dependent spell known as not dependent, overwrite state
-        if (playerSpell.state != PLAYERSPELL_REMOVED && !playerSpell.dependent && dependent)
+        // talent ranks must stay non-dependent: learning a higher trainer rank re-learns the
+        // talent rank as dependent, which dropped it from character_spell and freed the talent point
+        if (playerSpell.state != PLAYERSPELL_REMOVED && !playerSpell.dependent && dependent && !GetTalentSpellPos(spell_id))
         {
             playerSpell.dependent = dependent;
             if (playerSpell.state != PLAYERSPELL_NEW)

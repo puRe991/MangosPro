@@ -2307,7 +2307,7 @@ SpellCastResult SpellMgr::GetSpellAllowedInLocationError(SpellEntry const* spell
     {
         uint32 v_map = GetVirtualMapForMapAndZone(map_id, zone_id);
         MapEntry const* mapEntry = sMapStore.LookupEntry(v_map);
-        if (!mapEntry || mapEntry->addon < 1 || !mapEntry->IsContinent())
+        if (!mapEntry || !mapEntry->IsContinent() || (mapEntry->addon < 1 && !sWorld.getConfig(CONFIG_BOOL_FLYING_MOUNTS_AZEROTH)))
             return SPELL_FAILED_REQUIRES_AREA;
     }
 

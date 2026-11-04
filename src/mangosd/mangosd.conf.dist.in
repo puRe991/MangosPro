@@ -151,6 +151,11 @@ Spawns.ZoneArea = 0
 #        Only loads the one grid they are in, unlike active, which loads visibility grid around them. Default should be true, but due to performance is opt-in.
 #        Default: False
 #
+#    FlyingMounts.Azeroth
+#        Allow flying mounts and flight forms in Eastern Kingdoms and Kalimdor (incl. Eversong/Azuremyst), not only in Outland.
+#        Default: 1 (allow)
+#                 0 (Outland only, like Blizzard 2.4.3)
+#
 #    GridCleanUpDelay
 #        Grid clean up delay (in milliseconds)
 #        Default: 300000 (5 min)
@@ -265,6 +270,7 @@ GridUnload = 1
 LoadAllGridsOnMaps = ""
 Autoload.Active = 1
 Specials.Active = 0
+FlyingMounts.Azeroth = 1
 GridCleanUpDelay = 300000
 MapUpdateInterval = 100
 ChangeWeatherInterval = 600000
@@ -845,12 +851,6 @@ LogColors = ""
 #    Motd
 #        Message of the Day. Displayed at worldlogin for every user ('@' for a newline).
 #
-#    PlayerCommands
-#        Should player chat be parsed for GM commands.
-#        Default: 1 (parse commands)
-#                 0 (ignore commands)
-#
-###################################################################################################################
 #    AutoBroadcast.Enable
 #        Periodically announce the MangosPro repack in the system chat of all real players (not bots).
 #        Default: 1 (enable)
@@ -868,6 +868,12 @@ LogColors = ""
 #        The announcements. Message1-3 have built-in repack texts, set one to "" to drop it.
 #        Missing or empty entries are skipped.
 #
+#    PlayerCommands
+#        Should player chat be parsed for GM commands.
+#        Default: 1 (parse commands)
+#                 0 (ignore commands)
+#
+###################################################################################################################
 
 GameType = 1
 RealmZone = 1
@@ -939,18 +945,18 @@ BeepAtStart = 1
 ShowProgressBars = 0
 WaitAtStartupError = 0
 Motd = "Welcome to the Continued Massive Network Game Object Server."
-PlayerCommands = 1
-
-###################################################################################################################
-# PLAYER INTERACTION
-#
-#    AllowTwoSide.Accounts
 AutoBroadcast.Enable = 1
 AutoBroadcast.Interval = 20
 AutoBroadcast.Prefix = "|cff00ccff[MangosPro]|r "
 AutoBroadcast.Message1 = "Du spielst auf MangosPro - TBC 2.4.3 mit Playerbots, die Raids wirklich spielen. Das Repack gibt es kostenlos auf github.com/puRe991/MangosPro"
 AutoBroadcast.Message2 = "Von Karazhan bis Sunwell mit Bot-Raids: neue Versionen und Updates des MangosPro-Repacks findest du auf github.com/puRe991/MangosPro"
 AutoBroadcast.Message3 = "Bug gefunden oder eine Idee? Melde sie als Issue auf github.com/puRe991/MangosPro - und lass gern einen Stern da!"
+PlayerCommands = 1
+
+###################################################################################################################
+# PLAYER INTERACTION
+#
+#    AllowTwoSide.Accounts
 #        Allow accounts to create characters in both teams in any game type.
 #        Default: 0 (Not allowed)
 #                 1 (Allowed)
@@ -1642,6 +1648,33 @@ Death.Bones.World = 1
 Death.Bones.BattlegroundOrArena = 1
 Death.Ghost.RunSpeed.World = 1.0
 Death.Ghost.RunSpeed.Battleground = 1.0
+
+###################################################################################################################
+# BOSS RUSH CONFIG
+#
+#    BossRush.Enable
+#        Boss rush mode: raids (Karazhan ... Sunwell, Molten Core ... Naxxramas) are loaded without trash.
+#        Bosses, their adds, event and gossip npcs and triggers stay; scripted summons are not affected.
+#        Applies to raid instances created after the change (reset running instances to see it).
+#        Default: 1 (enable)
+#                 0 (disable - all trash spawns as usual)
+#
+#    BossRush.KeepEntries
+#        creature_template entries that always spawn in raids although they look like trash.
+#        Default: "21806,15984,15385,15386,15387,15388,15389,15390,15391,15392,15344"
+#                 (Leotheras spellbinders, Sartura's royal guards, Rajaxx's waves)
+#
+#    BossRush.TrashEntries
+#        creature_template entries that are removed although they have their own script.
+#        Default: "25372,25507,23222,23239,11359,14750,11671,15355,15264,15277,16168,16056,16057"
+#                 (Sunblade scouts/protectors, Bonechewer brawlers, Soulflayers, Bat riders, Core hounds,
+#                  Anubisath guardians/sentinels/defenders, Stoneskin gargoyles, Naxxramas maggots)
+#
+###################################################################################################################
+
+BossRush.Enable = 1
+BossRush.KeepEntries = "21806,15984,15385,15386,15387,15388,15389,15390,15391,15392,15344"
+BossRush.TrashEntries = "25372,25507,23222,23239,11359,14750,11671,15355,15264,15277,16168,16056,16057"
 
 ###################################################################################################################
 # LFG CONFIG

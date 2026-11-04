@@ -759,6 +759,9 @@ class Creature : public Unit
         void SetDeathState(DeathState s) override;          // overwrite virtual Unit::SetDeathState
 
         bool LoadFromDB(uint32 dbGuid, Map* map, uint32 newGuid, uint32 forcedEntry, GenericTransport* transport = nullptr);
+        // MangosPro boss rush: static raid trash spawn that must not be loaded (BossRush.* in mangosd.conf)
+        static bool IsBossRushTrash(CreatureInfo const* cinfo, uint32 dbGuid, Map* map);
+        static bool IsBossRushTrash(uint32 dbGuid, Map* map);
         virtual void SaveToDB();
         // overwrited in Pet
         virtual void SaveToDB(uint32 mapid, uint8 spawnMask);
