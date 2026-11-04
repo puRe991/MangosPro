@@ -9,10 +9,12 @@ re-installing the databases (`InstallFullDB.sh` overwrites them), then restart `
 | `world/02_tbc_bot_stat_weights.sql` | `tbcmangos` | TBC stat weights for the playerbot item rating (gear, loot rolls, gems) |
 | `world/03_gear_service_npcs.sql` | `tbcmangos` | Service NPCs 900100 (enchants) and 900101 (gems), spawn with `.npc add` |
 | `characters/01_reset_bot_item_caches.sql` | `tbccharacters` | Empties the bot item caches so they are rebuilt with the new weights |
+| `characters/03_restore_talent_rank1_spells.sql` | `tbccharacters` | Re-adds rank-1 talent spells lost by the dependent-spell save bug (run with mangosd stopped) |
 
 ```bash
 mysql -u root tbcmangos < world/01_raidwide_bloodlust_heroism.sql
 mysql -u root tbcmangos < world/02_tbc_bot_stat_weights.sql
 mysql -u root tbcmangos < world/03_gear_service_npcs.sql
 mysql -u root tbccharacters < characters/01_reset_bot_item_caches.sql
+mysql -u root tbccharacters < characters/03_restore_talent_rank1_spells.sql
 ```
