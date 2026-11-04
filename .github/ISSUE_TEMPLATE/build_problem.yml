@@ -1,0 +1,69 @@
+name: Build or setup problem
+description: The server does not compile, does not start, or the databases do not load
+title: "[Build] <short description>"
+labels: ["build"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        English or German is fine (Deutsch ist auch okay).
+        Please note: client files and extracted data (maps, vmaps, mmaps, DBC) are not part of MangosPro. We can't help with getting a game client.
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows
+        - Linux
+        - macOS
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: os-details
+    attributes:
+      label: OS version, compiler, CMake and Boost version
+      placeholder: e.g. Ubuntu 24.04, GCC 13.2, CMake 3.28, Boost 1.83
+    validations:
+      required: true
+  - type: dropdown
+    id: stage
+    attributes:
+      label: Where does it fail?
+      options:
+        - CMake configure
+        - Compiling
+        - Database import
+        - Server start (mangosd / realmd)
+        - Logging in with the client
+        - Website
+    validations:
+      required: true
+  - type: input
+    id: cmake-options
+    attributes:
+      label: CMake options
+      placeholder: -DBUILD_PLAYERBOTS=ON -DPCH=ON
+  - type: textarea
+    id: error
+    attributes:
+      label: Error message
+      description: The first error is the most important one. Please paste the full output around it.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps you took
+      placeholder: |
+        1. git clone ...
+        2. cmake ..
+        3. ...
+  - type: input
+    id: version
+    attributes:
+      label: MangosPro version / commit
+      placeholder: e.g. v1.0.0 or d017eee
+    validations:
+      required: true

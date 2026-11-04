@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: CMaNGOS installation guide
+    url: https://github.com/cmangos/issues/wiki/Installation-Instructions
+    about: General build and setup steps for CMaNGOS, which MangosPro is based on.
+  - name: Status per boss
+    url: https://github.com/puRe991/MangosPro/blob/main/doc/Bot_Boss_Status.md
+    about: Check here whether a boss problem is already known.

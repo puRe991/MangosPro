@@ -1,0 +1,84 @@
+name: Boss bug
+description: Bots fail a boss mechanic, wipe or get stuck in a raid or dungeon
+title: "[Boss] <boss name>: <short description>"
+labels: ["boss-bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for testing! English or German is fine (Deutsch ist auch okay).
+        Please check the [status per boss](https://github.com/puRe991/MangosPro/blob/main/doc/Bot_Boss_Status.md) first. If the problem is already listed there as **open**, a log or video is still very welcome.
+  - type: dropdown
+    id: raid
+    attributes:
+      label: Raid / instance
+      options:
+        - Karazhan
+        - Gruul's Lair
+        - Magtheridon's Lair
+        - Serpentshrine Cavern
+        - Tempest Keep (The Eye)
+        - Mount Hyjal
+        - Black Temple
+        - Zul'Aman
+        - Sunwell Plateau
+        - Dungeon / other
+    validations:
+      required: true
+  - type: input
+    id: boss
+    attributes:
+      label: Boss
+      placeholder: e.g. Netherspite, Leotheras the Blind
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Which mechanic went wrong, at what boss health or phase, and how the fight ended.
+      placeholder: e.g. In phase 2 the ranged bots stand in the void zones, raid wipes at about 40 %.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What should the bots do instead?
+    validations:
+      required: true
+  - type: textarea
+    id: raid-setup
+    attributes:
+      label: Raid setup
+      description: Number of players and bots, classes and specs, especially tanks and healers. Average item level or gear tier if you know it.
+      placeholder: |
+        1 player (prot paladin) + 24 bots
+        Tanks: 2 (prot paladin, feral druid)
+        Healers: 6 (3 holy paladin, 2 resto shaman, 1 holy priest)
+        Gear: mostly T5
+    validations:
+      required: true
+  - type: textarea
+    id: commands
+    attributes:
+      label: Bot commands and strategies used
+      description: Any commands you gave (e.g. `lust hold`, `auras auto`) or strategy changes (`nc +...`, `co +...`).
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Relevant lines from the server log or the bot debug output (see `doc/Bot_Raid_Debug.md`). Long logs please as an attached file.
+      render: text
+  - type: input
+    id: video
+    attributes:
+      label: Video link (optional)
+      description: A recording of the pull helps a lot.
+  - type: input
+    id: version
+    attributes:
+      label: MangosPro version / commit
+      description: Release tag or commit hash (`git rev-parse --short HEAD`).
+      placeholder: e.g. v1.0.0 or d017eee
+    validations:
+      required: true
