@@ -25,7 +25,8 @@ namespace ai
 
     // Supremus
     BT_TRIGGER(SupremusPullingBossOrChangingPhaseTrigger, "supremus pulling boss or changing phase")
-    BT_TRIGGER(SupremusBossEngagedByRangedTrigger, "supremus boss engaged by ranged")
+    BT_TRIGGER(SupremusMustAvoidHatefulStrikeTrigger, "supremus must avoid hateful strike")
+    BT_TRIGGER(SupremusBotInHatefulStrikeReachTrigger, "supremus bot in hateful strike reach")
     BT_TRIGGER(SupremusBossIsFixatedOnBotTrigger, "supremus boss is fixated on bot")
     BT_TRIGGER(SupremusVolcanoIsNearbyTrigger, "supremus volcano is nearby")
     BT_TRIGGER(SupremusNeedToManagePhaseTimerTrigger, "supremus need to manage phase timer")
@@ -70,10 +71,11 @@ namespace ai
     BT_TRIGGER(IllidariCouncilGathiosCastingJudgementOfCommandTrigger, "illidari council gathios casting judgement of command")
     BT_TRIGGER(IllidariCouncilMalandeEngagedByFirstAssistTankTrigger, "illidari council malande engaged by first assist tank")
     BT_TRIGGER(IllidariCouncilDarkshadowEngagedBySecondAssistTankTrigger, "illidari council darkshadow engaged by second assist tank")
-    BT_TRIGGER(IllidariCouncilMalandeCastingCircleOfHealingTrigger, "illidari council malande casting circle of healing")
+    BT_TRIGGER(IllidariCouncilMalandeCastingInterruptibleSpellTrigger, "illidari council malande casting interruptible spell")
     BT_TRIGGER(IllidariCouncilZerevorEngagedByMageTankTrigger, "illidari council zerevor engaged by mage tank")
     BT_TRIGGER(IllidariCouncilMageTankNeedsDedicatedHealerTrigger, "illidari council mage tank needs dedicated healer")
     BT_TRIGGER(IllidariCouncilZerevorCastsDangerousAoesTrigger, "illidari council zerevor casts dangerous aoes")
+    BT_TRIGGER(IllidariCouncilTooCloseToZerevorTrigger, "illidari council too close to zerevor")
     BT_TRIGGER(IllidariCouncilPetsScrewUpThePullTrigger, "illidari council pets screw up the pull")
     BT_TRIGGER(IllidariCouncilDeterminingDpsAssignmentsTrigger, "illidari council determining dps assignments")
     BT_TRIGGER(IllidariCouncilNeedToManageDpsTimerTrigger, "illidari council need to manage dps timer")

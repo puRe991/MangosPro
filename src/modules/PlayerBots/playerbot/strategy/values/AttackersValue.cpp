@@ -323,6 +323,22 @@ bool AttackersValue::InCombat(Unit* target, Player* player, bool checkPullTarget
         }
     }
 
+    // Bosses that reset threat (Leotheras whirlwind and demon form) left everyone at zero threat,
+    // and bots then found no target for over a minute; any group member on the list counts
+    if (!inCombat && target->IsInCombat() && target->GetTypeId() == TYPEID_UNIT && static_cast<Creature*>(target)->IsWorldBoss())
+    {
+        Group* group = player->GetGroup();
+        for (HostileReference* ref : target->getThreatManager().getThreatList())
+        {
+            Unit* enemy = ref->getTarget();
+            if (enemy == player || (group && enemy && enemy->GetTypeId() == TYPEID_PLAYER && static_cast<Player*>(enemy)->GetGroup() == group))
+            {
+                inCombat = true;
+                break;
+            }
+        }
+    }
+
     if(!inCombat && checkPullTargets && player->GetPlayerbotAI())
     {
         inCombat = (PAI_VALUE(ObjectGuid, "attack target") == target->GetObjectGuid()) ||
@@ -349,6 +365,12 @@ bool AttackersValue::IsValid(Unit* target, Player* player, Player* owner, bool c
     Player* enemyPlayer = dynamic_cast<Player*>(target);
     if (enemyPlayer)
     {
+        // Mind controlled raid members fight us but must not be killed
+        if (playerToCheckAgainst->GetGroup() && playerToCheckAgainst->GetGroup() == enemyPlayer->GetGroup())
+        {
+            return false;
+        }
+
         // Don't consider enemy players if pvp strategy is not set
         if (playerToCheckAgainst->GetPlayerbotAI() && !playerToCheckAgainst->GetPlayerbotAI()->HasStrategy("pvp", BotState::BOT_STATE_COMBAT))
         {

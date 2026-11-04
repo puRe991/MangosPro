@@ -116,6 +116,7 @@ namespace ai
     SSC_ACTION(SscKarathressSecondAssistTankPositionSharkkisAction, SscAttackAction, "fathom-lord karathress second assist tank position sharkkis")
     SSC_ACTION(SscKarathressThirdAssistTankPositionTidalvessAction, SscAttackAction, "fathom-lord karathress third assist tank position tidalvess")
     SSC_ACTION(SscKarathressPositionCaribdisTankHealerAction, SscMovementAction, "fathom-lord karathress position caribdis tank healer")
+    SSC_ACTION(SscKarathressInterruptCaribdisHealAction, Action, "fathom-lord karathress interrupt caribdis heal")
     SSC_ACTION(SscKarathressMisdirectBossesToTanksAction, Action, "fathom-lord karathress misdirect bosses to tanks")
     SSC_ACTION(SscKarathressAssignDpsPriorityAction, SscAttackAction, "fathom-lord karathress assign dps priority")
     SSC_ACTION(SscKarathressManageDpsTimerAction, Action, "fathom-lord karathress manage dps timer")

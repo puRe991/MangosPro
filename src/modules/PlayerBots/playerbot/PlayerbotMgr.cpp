@@ -37,6 +37,7 @@ PlayerbotHolder::PlayerbotHolder() : PlayerbotAIBase()
     m_holderHandlers["rl"] = &PlayerbotHolder::HandleRaidLeader;
     m_holderHandlers["create"] = &PlayerbotHolder::HandleCreate;
     m_holderHandlers["group"] = &PlayerbotHolder::HandleGroup;
+    m_holderHandlers["raid"] = &PlayerbotHolder::HandleRaidCreate;
 #ifdef GenerateBotTests
     m_holderHandlers["runtest"] = &PlayerbotHolder::HandleRunTest;
 #endif
@@ -1874,6 +1875,7 @@ void PlayerbotHolder::CreateBot(Player* master, const std::string param, std::li
     BotRoles role = BotRoles::BOT_ROLE_NONE;
     std::string groupWith = master ? master->GetName() : "";
     std::string gear = "default";
+    std::string spec;
 
     std::vector<std::string> args = Qualified::getMultiQualifiers(param, " ");
     for (const auto& arg : args)
@@ -1905,6 +1907,8 @@ void PlayerbotHolder::CreateBot(Player* master, const std::string param, std::li
             groupWith = value;
         else if (key == "gear")
             gear = value;
+        else if (key == "spec") // premade spec name, '_' instead of spaces: spec=pve_prot
+            spec = std::regex_replace(value, std::regex("_"), " ");
         else if (key == "test")
         {
             testName = value;
@@ -2015,6 +2019,21 @@ void PlayerbotHolder::CreateBot(Player* master, const std::string param, std::li
             newBot->InitTalentForLevel();
             newBot->InitPrimaryProfessions();
             newBot->learnDefaultSpells();
+
+            // A named premade spec is stored as specNo so AutoSelectTalents (and every later
+            // "auto talents" on level-up/randomize) continues exactly that path.
+            if (!spec.empty())
+            {
+                for (auto& path : sPlayerbotAIConfig.classSpecs[cls].talentPath)
+                {
+                    if (path.name.find(spec) == std::string::npos)
+                        continue;
+
+                    sRandomPlayerbotMgr.SetValue(botGuid, "specNo", path.id + 1);
+                    sRandomPlayerbotMgr.SetValue(botGuid, "specLink", 0);
+                    break;
+                }
+            }
 
             std::ostringstream out;
             ChangeTalentsAction::AutoSelectTalents(newBot, &out, role);
@@ -2205,6 +2224,170 @@ std::list<std::string> PlayerbotHolder::HandleGroup(Player* master, const std::s
     for (auto& kv : classesCreated)
         debugInfo << ChatHelper::formatClass(kv.first) << "=" << kv.second << ",";
     sLog.outString("%s", debugInfo.str().c_str());
+
+    return messages;
+}
+
+struct RaidSlot
+{
+    uint8 cls;
+    BotRoles role;
+    const char* spec; // premade spec name for CreateBot spec=, '_' instead of spaces
+};
+
+static std::vector<RaidSlot> GetRaidComposition(uint32 size)
+{
+    const RaidSlot protWarrior = { CLASS_WARRIOR, BOT_ROLE_TANK, "pve_prot" };
+    const RaidSlot protPaladin = { CLASS_PALADIN, BOT_ROLE_TANK, "pve_prot" };
+    const RaidSlot holyPaladin = { CLASS_PALADIN, BOT_ROLE_HEALER, "pve_holy" };
+    const RaidSlot holyPriest = { CLASS_PRIEST, BOT_ROLE_HEALER, "pve_heal_holy" };
+    const RaidSlot restoShaman = { CLASS_SHAMAN, BOT_ROLE_HEALER, "pve_resto" };
+    const RaidSlot restoDruid = { CLASS_DRUID, BOT_ROLE_HEALER, "pve_resto" };
+    const RaidSlot furyWarrior = { CLASS_WARRIOR, BOT_ROLE_DPS, "pve_fury" };
+    const RaidSlot armsWarrior = { CLASS_WARRIOR, BOT_ROLE_DPS, "pve_arms" };
+    const RaidSlot combatRogue = { CLASS_ROGUE, BOT_ROLE_DPS, "pve_dps_combat" };
+    const RaidSlot bmHunter = { CLASS_HUNTER, BOT_ROLE_DPS, "pve_dps_bm" };
+    const RaidSlot mmHunter = { CLASS_HUNTER, BOT_ROLE_DPS, "pve_dps_mm" };
+    const RaidSlot enhShaman = { CLASS_SHAMAN, BOT_ROLE_DPS, "pve_dps_enh" };
+    const RaidSlot retPaladin = { CLASS_PALADIN, BOT_ROLE_DPS, "pve_dps_ret" };
+    const RaidSlot fireMage = { CLASS_MAGE, BOT_ROLE_DPS, "pve_dps_fire" };
+    const RaidSlot arcaneMage = { CLASS_MAGE, BOT_ROLE_DPS, "pve_dps_arcane" };
+    const RaidSlot destroLock = { CLASS_WARLOCK, BOT_ROLE_DPS, "pve_dps_destro" };
+    const RaidSlot affliLock = { CLASS_WARLOCK, BOT_ROLE_DPS, "pve_dps_affli" };
+    const RaidSlot shadowPriest = { CLASS_PRIEST, BOT_ROLE_DPS, "pve_dps_shadow" };
+    const RaidSlot eleShaman = { CLASS_SHAMAN, BOT_ROLE_DPS, "pve_dps_elem" };
+    const RaidSlot balanceDruid = { CLASS_DRUID, BOT_ROLE_DPS, "pve_dps_balance" };
+
+    if (size == 40) // 4 tanks, 12 healers, 24 dps
+        return {
+            protWarrior, protWarrior, protWarrior, protPaladin,
+            holyPaladin, holyPaladin, holyPaladin, holyPriest, holyPriest, holyPriest,
+            restoShaman, restoShaman, restoShaman, restoDruid, restoDruid, restoDruid,
+            furyWarrior, furyWarrior, furyWarrior, armsWarrior, combatRogue, combatRogue, combatRogue,
+            bmHunter, bmHunter, mmHunter, enhShaman, enhShaman, retPaladin,
+            fireMage, fireMage, fireMage, arcaneMage, destroLock, destroLock, affliLock,
+            shadowPriest, eleShaman, balanceDruid, balanceDruid };
+
+    if (size == 25) // 3 tanks, 6 healers, 16 dps
+        return {
+            protWarrior, protWarrior, protPaladin,
+            holyPaladin, holyPaladin, holyPriest, restoShaman, restoShaman, restoDruid,
+            furyWarrior, furyWarrior, combatRogue, combatRogue, bmHunter, bmHunter, enhShaman, retPaladin,
+            fireMage, fireMage, arcaneMage, destroLock, destroLock, shadowPriest, eleShaman, balanceDruid };
+
+    // 10: 2 tanks, 3 healers, 5 dps
+    return {
+        protWarrior, protPaladin,
+        holyPriest, restoShaman, restoDruid,
+        combatRogue, bmHunter, fireMage, destroLock, shadowPriest };
+}
+
+std::list<std::string> PlayerbotHolder::HandleRaidCreate(Player* master, const std::string param, AccountTypes security)
+{
+    std::list<std::string> messages;
+
+    if (!master)
+    {
+        messages.push_back("raid command requires a master (in-game)");
+        return messages;
+    }
+
+    uint32 raidSize = 10;
+    std::string passThroughParam;
+
+    std::vector<std::string> args = Qualified::getMultiQualifiers(param, " ");
+    for (const auto& arg : args)
+    {
+        if (Qualified::isValidNumberString(arg))
+        {
+            raidSize = stoi(arg);
+            continue;
+        }
+
+        size_t eqPos = arg.find('=');
+        if (eqPos == std::string::npos)
+            continue;
+
+        std::string key = arg.substr(0, eqPos);
+        std::string value = arg.substr(eqPos + 1);
+
+        if (key == "size" && Qualified::isValidNumberString(value))
+            raidSize = stoi(value);
+        else
+            passThroughParam += key + "=" + value + " ";
+    }
+
+    if (raidSize != 10 && raidSize != 25 && raidSize != 40)
+    {
+        messages.push_back("Usage: .bot raid [10|25|40]");
+        return messages;
+    }
+
+    std::vector<RaidSlot> slots = GetRaidComposition(raidSize);
+
+    // Everyone already in the raid (master included) takes the slot that fits them best.
+    std::vector<Player*> present = { master };
+    if (Group* group = master->GetGroup())
+    {
+        for (auto const& member : group->GetMemberSlots())
+        {
+            Player* player = sObjectMgr.GetPlayer(member.guid);
+            if (player && player != master)
+                present.push_back(player);
+        }
+    }
+
+    uint32 offline = 0;
+    if (Group* group = master->GetGroup())
+        offline = group->GetMembersCount() - present.size();
+
+    for (Player* player : present)
+    {
+        if (slots.empty())
+            break;
+
+        uint8 cls = player->getClass();
+        BotRoles role = AiFactory::GetPlayerRoles(player);
+
+        auto it = std::find_if(slots.begin(), slots.end(), [&](const RaidSlot& s) { return s.cls == cls && s.role == role; });
+        if (it == slots.end())
+            it = std::find_if(slots.begin(), slots.end(), [&](const RaidSlot& s) { return s.role == role; });
+        if (it == slots.end())
+            it = slots.end() - 1;
+
+        slots.erase(it);
+    }
+
+    while (offline-- > 0 && !slots.empty())
+        slots.pop_back();
+
+    if (slots.empty())
+    {
+        messages.push_back("Raid is already full");
+        return messages;
+    }
+
+    // Bots go to the random bot accounts: the master's own account only holds 9 characters.
+    uint32 created = 0;
+    for (const RaidSlot& slot : slots)
+    {
+        std::ostringstream paramStr;
+        paramStr << "level=" << master->GetLevel() << " class=" << ChatHelper::formatClass(slot.cls)
+                 << " role=" << ChatHelper::formatRole(slot.role) << " spec=" << slot.spec
+                 << " group=" << master->GetName() << " " << passThroughParam; // Passthrough will override.
+
+        std::list<std::string> result;
+        ObjectGuid guid;
+        sRandomPlayerbotMgr.CreateBot(master, paramStr.str(), result, guid);
+        if (!result.empty() && result.front().find("Bot created:") == 0)
+            created++;
+        else
+            messages.splice(messages.end(), result);
+    }
+
+    std::ostringstream out;
+    out << "Raid " << raidSize << ": created " << created << "/" << slots.size() << " bots, they join you shortly";
+    messages.push_back(out.str());
 
     return messages;
 }
@@ -2760,6 +2943,7 @@ std::unordered_map<std::string, std::string> PlayerbotHolder::GetCommandTexts()
         {"tweak", "Adjust the tweak value for testing (GM only).\nUsage: .(rnd)bot tweak"},
         {"self", "Enable self-bot mode for a player.\nUsage: .(rnd)bot self <playername>"},
         {"group", "Create 4 bots with complementary classes at master's level.\nUsage: .(rnd)bot group"},
+        {"raid", "Fill a raid with bots in a fixed composition and pve specs at master's level.\nUsage: .bot raid [10|25|40] [gear=<epic|blue|...>]"},
         {"create", "Create a new bot character.\nUsage: .(rnd)bot create level=<n> class=<class> race=<race>"},
         {"spoof", "Spoof as another bot for command routing.\nUsage: .(rnd)bot spoof <botname>"},
         {"runtest", "Run bot tests.\nUsage: .rndbot runtest <testnamepart> [count]"},

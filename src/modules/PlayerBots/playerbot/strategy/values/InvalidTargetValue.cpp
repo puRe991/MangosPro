@@ -18,7 +18,7 @@ namespace
     void LogInvalidRaidTarget(PlayerbotAI* ai, Unit* target, const char* reason)
     {
         Player* bot = ai->GetBot();
-        if (bot->GetMapId() != 532 && bot->GetMapId() != 544 && bot->GetMapId() != 548) return;
+        if (bot->GetMapId() != 532 && bot->GetMapId() != 544 && bot->GetMapId() != 548 && bot->GetMapId() != 564) return;
         auto* debug = dynamic_cast<RaidBossDebugValue*>(ai->GetAiObjectContext()->GetUntypedValue("raid boss debug"));
         if (!debug || !debug->Get()) return;
         time_t& last = debug->lastLog[std::string("target ") + reason];
@@ -55,6 +55,17 @@ bool InvalidTargetValue::Calculate()
         return false;
 
     if (bot->GetMapId() == 548 && ssc::GetMyInnerDemon(bot) == target &&
+        PossibleTargetsValue::IsValid(target, bot)) return false;
+
+    // Vashj phase 2/3 adds are assigned by the encounter. Enchanted Elementals walking to Vashj
+    // fight nobody, so the threat check rejected them and bots switched targets every tick
+    // instead of killing them, while the elementals stacked Surge on Vashj.
+    if (bot->GetMapId() == 548 && bot->IsInCombat() && ssc::IsValidLadyVashjCombatNpc(target, ai) &&
+        PossibleTargetsValue::IsValid(target, bot)) return false;
+
+    // Karathress' Spitfire Totem has no threat list either: rejected 414 times in one fight while the
+    // encounter strategy set it as kill target again, cancelling casts each time.
+    if (bot->GetMapId() == 548 && bot->IsInCombat() && target->GetEntry() == ssc::NPC_SPITFIRE_TOTEM &&
         PossibleTargetsValue::IsValid(target, bot)) return false;
 
     if (qualifier == "current target")

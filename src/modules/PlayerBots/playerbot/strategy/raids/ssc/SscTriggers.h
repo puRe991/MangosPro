@@ -27,6 +27,7 @@ namespace ai
     SSC_TRIGGER(SscHydrossTankNeedsAggroUponPhaseChangeTrigger, "hydross the unstable tank needs aggro upon phase change")
     SSC_TRIGGER(SscHydrossAggroResetsUponPhaseChangeTrigger, "hydross the unstable aggro resets upon phase change")
     SSC_TRIGGER(SscHydrossNeedToManageTimersTrigger, "hydross the unstable need to manage timers")
+    SSC_TRIGGER(SscHydrossNatureFormNeedsResistanceTotemTrigger, "hydross the unstable nature form needs resistance totem")
 
     // The Lurker Below
     SSC_TRIGGER(SscLurkerSpoutIsActiveTrigger, "the lurker below spout is active")
@@ -55,6 +56,7 @@ namespace ai
     SSC_TRIGGER(SscKarathressSharkkisEngagedBySecondAssistTankTrigger, "fathom-lord karathress sharkkis engaged by second assist tank")
     SSC_TRIGGER(SscKarathressTidalvessEngagedByThirdAssistTankTrigger, "fathom-lord karathress tidalvess engaged by third assist tank")
     SSC_TRIGGER(SscKarathressCaribdisTankNeedsDedicatedHealerTrigger, "fathom-lord karathress caribdis tank needs dedicated healer")
+    SSC_TRIGGER(SscKarathressCaribdisCastsHealingWaveTrigger, "fathom-lord karathress caribdis casts healing wave")
     SSC_TRIGGER(SscKarathressPullingBossesTrigger, "fathom-lord karathress pulling bosses")
     SSC_TRIGGER(SscKarathressDeterminingKillOrderTrigger, "fathom-lord karathress determining kill order")
     SSC_TRIGGER(SscKarathressTanksNeedToEstablishAggroTrigger, "fathom-lord karathress tanks need to establish aggro")

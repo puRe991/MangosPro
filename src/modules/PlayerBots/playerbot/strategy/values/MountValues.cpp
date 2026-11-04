@@ -109,15 +109,15 @@ bool MountValue::IsValidLocation(Player* bot)
 {
     if (GetSpeed(true)) //Flying mount
     {
-        if (bot->GetMapId() != 530 && bot->GetMapId() != 571)
-            return false;
-
 #ifdef MANGOSBOT_ONE
         uint32 zone, area;
         bot->GetZoneAndAreaId(zone, area);
         uint32 v_map = GetVirtualMapForMapAndZone(bot->GetMapId(), zone);
         MapEntry const* mapEntry = sMapStore.LookupEntry(v_map);
-        if (!mapEntry || mapEntry->addon < 1 || !mapEntry->IsContinent())
+        if (!mapEntry || !mapEntry->IsContinent() || (mapEntry->addon < 1 && !sWorld.getConfig(CONFIG_BOOL_FLYING_MOUNTS_AZEROTH)))
+            return false;
+#else
+        if (bot->GetMapId() != 530 && bot->GetMapId() != 571)
             return false;
 #endif
 #ifdef MANGOSBOT_TWO

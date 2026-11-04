@@ -2,6 +2,7 @@
 #include "playerbot/playerbot.h"
 #include "AutoLearnSpellAction.h"
 #include "playerbot/ServerFacade.h"
+#include "playerbot/PlayerbotFactory.h"
 #include "Entities/Item.h"
 #include <Mails/Mail.h>
 
@@ -35,6 +36,8 @@ bool AutoLearnSpellAction::Execute(Event& event)
 void AutoLearnSpellAction::LearnSpells(std::ostringstream* out)
 {
     BroadcastHelper::BroadcastLevelup(ai, bot);
+
+    PlayerbotFactory::InitLevelSkillsAndBookSpells(bot);
 
     if (sPlayerbotAIConfig.autoLearnQuestSpells)
         LearnQuestSpells(out);

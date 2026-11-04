@@ -733,6 +733,13 @@ void DemonologyWarlockPetRaidStrategy::InitCombatTriggers(std::list<TriggerNode*
 {
     DemonologyWarlockPetStrategy::InitCombatTriggers(triggers);
     WarlockPetRaidStrategy::InitCombatTriggers(triggers);
+
+    // The Felguard is a large part of Felguard build damage; a failed pre-pull summon
+    // (low mana after the previous boss) used to leave it missing for the whole fight
+    triggers.push_back(new TriggerNode(
+        "no demon",
+        NextAction::array(0, new NextAction("fel domination", ACTION_HIGH + 3),
+                             new NextAction("summon felguard", ACTION_HIGH + 2), NULL)));
 }
 
 void DemonologyWarlockPetRaidStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)

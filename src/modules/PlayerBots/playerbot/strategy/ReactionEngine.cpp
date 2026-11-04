@@ -3,6 +3,8 @@
 
 #include "ReactionEngine.h"
 #include "raids/RaidBossStrategies.h"
+#include "actions/MovementActions.h"
+#include "playerbot/ServerFacade.h"
 #include <iomanip>
 
 using namespace ai;
@@ -149,10 +151,30 @@ bool ReactionEngine::StartReaction()
     bool reactionExecuted = false;
     if (incomingReaction.IsValid())
     {
+        // Movement reactions often find the bot already in place and do nothing; their cast is
+        // only stopped once they really move. Other reactions (spells, items) need it stopped first.
+        const bool movement = dynamic_cast<MovementAction*>(incomingReaction.GetAction()) != nullptr;
+        const bool interruptCast = incomingReaction.ShouldInterruptCast();
+
+        // Mana and damage consumables are no emergency: they wait for the running cast instead of
+        // throwing it away. The reaction stays pending, which also keeps the bot from starting a new cast.
+        const std::string& name = incomingReaction.GetAction()->getName();
+        if (!movement && interruptCast && ai->GetBot()->GetCurrentSpell(CURRENT_GENERIC_SPELL) &&
+            (name == "mana potion" || name == "dark rune" || name == "boss potion" || name == "drink"))
+            return false;
+        // Auto shot and queued melee abilities are kept: stopping them cost hunters most of their uptime
+        if (!movement && interruptCast)
+            ai->InterruptSpell(false);
+        if (incomingReaction.ShouldInterruptMovement())
+            ai->StopMoving();
+
         // Execute the incoming reaction
         reactionExecuted = ListenAndExecute(incomingReaction.GetAction(), incomingReaction.GetEvent());
         if (reactionExecuted)
         {
+            if (movement && interruptCast && sServerFacade.isMoving(ai->GetBot()))
+                ai->InterruptSpell(false);
+
             // Move the incoming reaction to the ongoing reaction
             ongoingReaction = incomingReaction;
         }

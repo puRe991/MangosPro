@@ -14,6 +14,16 @@
 using namespace ai;
 using namespace ai::ssc;
 
+namespace ai
+{
+namespace ssc
+{
+    bool IsHydrossLeaderless(Unit* hydross);   // SscHelpers.cpp
+    Player* GetHydrossFrostTank(Player* bot);     // SscHelpers.cpp
+    Player* GetHydrossNatureTank(Player* bot);    // SscHelpers.cpp
+}
+}
+
 namespace
 {
     Unit* Engaged(PlayerbotAI* ai, uint32 entry)
@@ -75,14 +85,59 @@ float SscUnderbogColossusEscapeToxicPoolMultiplier::GetValue(Action* action)
 
 float SscHydrossDisableTankActionsMultiplier::GetValue(Action* action)
 {
-    const bool frostTank = raidboss::IsMainTank(bot);
-    const bool natureTank = raidboss::IsAssistTank(bot, 0);
-    if (!frostTank && !natureTank)
+    if (!PlayerbotAI::IsTank(bot))
         return 1.0f;
 
     Unit* hydross = Engaged(ai, NPC_HYDROSS);
     if (!hydross)
+    {
+        // Pull: only the frost tank opens on the boss. The nearest tank answering "attack my target" kept
+        // him in the 2.4.3 raid log and the frost tank (39 yards away) never got him back.
+        Unit* idleHydross = FindSscUnit(ai, NPC_HYDROSS, 80.0f);
+        if (!idleHydross || !idleHydross->IsAlive() || GetHydrossFrostTank(bot) == bot)
+            return 1.0f;
+
+        Player* master = GetMaster();
+        const bool masterOnBoss = master && master->GetSelectionGuid() == idleHydross->GetObjectGuid();
+        if (masterOnBoss && IsActionNamed(action, { "attack my target", "tank assist", "pull my target" }))
+            return 0.0f;
+
+        if (AI_VALUE(ObjectGuid, "current target") == idleHydross->GetObjectGuid() &&
+            (IsReachSpell(action) || IsReachMelee(action) || IsDamageAction(action)))
+            return 0.0f;
+
         return 1.0f;
+    }
+
+    const bool frostTank = GetHydrossFrostTank(bot) == bot;
+    const bool natureTank = GetHydrossNatureTank(bot) == bot;
+    if (!frostTank && !natureTank)
+    {
+        // Nobody tanks the boss (dead or resurrected tank): the additional tank picks him up
+        if (IsHydrossLeaderless(hydross))
+            return 1.0f;
+
+        // Additional tanks are for the elementals only: their threat on the boss kept stealing
+        // him from the frost tank, which paused the whole dps
+        if (dynamic_cast<SscHydrossPrioritizeElementalAddsAction*>(action))
+            return 1.0f;
+
+        // The assist actions would pick the boss again, the elemental action chooses their targets
+        if (IsActionNamed(action, { "tank assist", "dps assist", "tbc raid taunt" }))
+            return 0.0f;
+
+        if (AI_VALUE(ObjectGuid, "current target") == hydross->GetObjectGuid() &&
+            (IsReachSpell(action) || IsReachMelee(action) || IsDamageAction(action)))
+            return 0.0f;
+
+        // The elementals spawn at the boss right after his threat reset: area attacks on them would hand
+        // the boss to the additional tank before the tank of the new form has taunted
+        if (bot->GetDistance(hydross) < 12.0f &&
+            IsActionNamed(action, { "thunder clap", "demoralizing shout", "cleave", "whirlwind", "consecration", "holy wrath" }))
+            return 0.0f;
+
+        return 1.0f;
+    }
 
     if (dynamic_cast<SscHydrossPositionFrostTankAction*>(action) || dynamic_cast<SscHydrossPositionNatureTankAction*>(action))
         return 1.0f;
@@ -93,7 +148,18 @@ float SscHydrossDisableTankActionsMultiplier::GetValue(Action* action)
 
     const bool corrupted = hydross->HasAura(SPELL_CORRUPTION);
     if ((frostTank && !corrupted) || (natureTank && corrupted))
+    {
+        // Dragging the boss across the line: the tank keeps walking to the other spot until the form changed.
+        // "reach melee" turned him back to the boss 2-4 yards short of the line in the raid logs, which kept
+        // the boss inside (or outside) the field.
+        const SscInstanceState state = GetState(bot);
+        const time_t transition = corrupted ? state.hydrossChangeToFrostPhase : state.hydrossChangeToNaturePhase;
+        if (transition && hydross->GetVictim() == bot &&
+            (IsReachSpell(action) || IsReachMelee(action) || IsActionNamed(action, { "tank face", "set behind" })))
+            return 0.0f;
+
         return 1.0f;
+    }
 
     // The wrong tank for the current form waits at its spot
     if (IsReachSpell(action) || IsReachMelee(action) || IsDamageAction(action))
@@ -109,17 +175,25 @@ float SscHydrossWaitForDpsMultiplier::GetValue(Action* action)
         return 1.0f;
 
     // Additional tanks pick up the elementals
-    if (PlayerbotAI::IsTank(bot) && !raidboss::IsMainTank(bot) && !raidboss::IsAssistTank(bot, 0) &&
+    if (PlayerbotAI::IsTank(bot) && GetHydrossFrostTank(bot) != bot && GetHydrossNatureTank(bot) != bot &&
         (FindSscUnit(ai, NPC_PURE_SPAWN_OF_HYDROSS) || FindSscUnit(ai, NPC_TAINTED_SPAWN_OF_HYDROSS)))
         return 1.0f;
 
     if (dynamic_cast<SscHydrossMisdirectBossToTankAction*>(action) ||
         dynamic_cast<SscHydrossPositionFrostTankAction*>(action) || dynamic_cast<SscHydrossPositionNatureTankAction*>(action) ||
-        !IsDamageAction(action))
+        dynamic_cast<SscHydrossPrioritizeElementalAddsAction*>(action) || !IsDamageAction(action))
+        return 1.0f;
+
+    // Only the boss is paused, the elementals spawn right at the form change and must die
+    if (AI_VALUE(ObjectGuid, "current target") != hydross->GetObjectGuid())
         return 1.0f;
 
     const bool nature = hydross->HasAura(SPELL_CORRUPTION);
-    if ((!nature && raidboss::IsMainTank(bot)) || (nature && raidboss::IsAssistTank(bot, 0)))
+    if ((!nature && GetHydrossFrostTank(bot) == bot) || (nature && GetHydrossNatureTank(bot) == bot))
+        return 1.0f;
+
+    // A tank taking over a leaderless boss builds threat while the damage dealers wait
+    if (PlayerbotAI::IsTank(bot) && IsHydrossLeaderless(hydross))
         return 1.0f;
 
     return ShouldPauseHydrossDps(ai) ? 0.0f : 1.0f;
@@ -302,6 +376,11 @@ float SscLeotherasSaveCooldownsForFinalPhaseMultiplier::GetValue(Action* action)
     if (!leotheras || !leotheras->IsAlive())
         return 1.0f;
 
+    // Only Bloodlust / Heroism waits for the final phase. Holding every dps cooldown through the
+    // whole fight (like Vashj before) wasted two or three uses of the 2-3 minute cooldowns.
+    if (!lust)
+        return 1.0f;
+
     return GetPhase3LeotherasDemon(ai) ? 1.0f : 0.0f;
 }
 
@@ -318,12 +397,37 @@ float SscKarathressDisableTankActionsMultiplier::GetValue(Action* action)
     if (IsFormationMove(action) || IsActionNamed(action, { "avoid aoe", "tbc raid taunt", "tbc raid attack priority target" }))
         return 0.0f;
 
-    // A main tank holding unassigned council members (fewer than four tanks) needs taunts and AoE threat
-    if (raidboss::IsMainTank(bot) && GetKarathressMainTankUnits(ai).size() > 1)
-        return 1.0f;
+    const std::vector<Unit*> units = GetKarathressTankUnits(ai);
+    Unit* current = ai->GetUnit(AI_VALUE(ObjectGuid, "current target"));
+    const bool currentIsMine = current && std::find(units.begin(), units.end(), current) != units.end();
 
-    if (raidboss::IsTauntAction(bot, action) || raidboss::IsAoeThreatAction(bot, action))
+    // A mob on its way behind the dragging tank follows by itself: walking back to it undid the drag
+    if (currentIsMine && current->GetVictim() == bot && bot->GetDistance(current) < 10.0f && IsActionNamed(action, { "reach melee" }))
         return 0.0f;
+
+    // Single target taunts only take back a mob of the bot's own that someone else has, also from
+    // another tank (stand-in, revive). A mob of another tank is never taunted, so there is no ping-pong.
+    if (raidboss::IsTauntAction(bot, action) && !raidboss::IsAoeThreatAction(bot, action))
+        return currentIsMine && current->GetVictim() && current->GetVictim() != bot ? 1.0f : 0.0f;
+
+    // AoE taunts only for a tank holding several council members
+    if (raidboss::IsTauntAction(bot, action))
+        return units.size() > 1 ? 1.0f : 0.0f;
+
+    // AoE threat (Consecration is most of a paladin's threat) unless it would reach another tank's mob
+    if (raidboss::IsAoeThreatAction(bot, action))
+    {
+        if (units.size() > 1)
+            return 1.0f;
+
+        for (uint32 entry : { NPC_KARATHRESS, NPC_CARIBDIS, NPC_TIDALVESS, NPC_SHARKKIS })
+        {
+            Unit* other = FindSscUnit(ai, entry);
+            if (other && other->IsAlive() && std::find(units.begin(), units.end(), other) == units.end() &&
+                bot->IsWithinDistInMap(other, 12.0f))
+                return 0.0f;
+        }
+    }
 
     return 1.0f;
 }
@@ -374,15 +478,24 @@ float SscKarathressWaitForDpsMultiplier::GetValue(Action* action)
     if (!IsDamageAction(action) || !Engaged(ai, NPC_KARATHRESS))
         return 1.0f;
 
-    return IsWaitExpired(GetState(bot).karathressDpsWait, 12) ? 1.0f : 0.0f;
+    if (!IsWaitExpired(GetState(bot).karathressDpsWait, 12))
+        return 0.0f;
+
+    // A council member on a non-tank: a few seconds for its tank's taunt instead of nuking it further
+    // (Tidalvess passed through more than 25 casters in the raid log of 2026-10-30)
+    Unit* current = ai->GetUnit(AI_VALUE(ObjectGuid, "current target"));
+    return ShouldHoldKarathressDps(ai, current) ? 0.0f : 1.0f;
 }
 
+// The dedicated healer holds the corner spot only while Caribdis is there (same check as the trigger)
 float SscKarathressCaribdisTankHealerMaintainPositionMultiplier::GetValue(Action* action)
 {
     if (!PlayerbotAI::IsHeal(bot) || !(IsFleeAction(action) || dynamic_cast<FollowAction*>(action) || IsFormationMove(action)))
         return 1.0f;
 
-    return GetHealerOfIndex(bot, 0) == bot && Engaged(ai, NPC_CARIBDIS) ? 0.0f : 1.0f;
+    Unit* caribdis = Engaged(ai, NPC_CARIBDIS);
+    return caribdis && GetHealerOfIndex(bot, 0) == bot &&
+        raidboss::ExactDist2d(caribdis, CARIBDIS_TANK_POSITION.getX(), CARIBDIS_TANK_POSITION.getY()) < 15.0f ? 0.0f : 1.0f;
 }
 
 // Morogrim Tidewalker

@@ -6,6 +6,8 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <map>
+#include <mutex>
 #include "MotionGenerators/PathFinder.h"
 
 using namespace ai;
@@ -173,8 +175,25 @@ bool IsBlindeyeTank(Player* bot)
 
 namespace
 {
-    // An assistant of the class (player or bot) is returned immediately, otherwise the bot of the
-    // class with the highest health.
+    // Chosen caster tank per group and class. Every bot calculates the value on its own, and the
+    // highest health changes with every buff, death and resurrection: in the 2.4.3 raid log Krosh's
+    // mage tank switched five times and every new tank started without threat.
+    std::mutex casterTankMutex;
+    std::map<std::pair<uint32, uint8>, ObjectGuid> casterTanks;
+
+    bool IsCasterTankCandidate(Player* member, uint8 classId, bool balanceOnly)
+    {
+        if (!member || !member->IsAlive() || !member->IsInWorld() || member->GetMapId() != GRUUL_MAP_ID ||
+            member->getClass() != classId)
+        {
+            return false;
+        }
+
+        return !balanceOnly || (AiFactory::GetPlayerSpecTab(member) == int(DRUID_TAB_BALANCE) && !PlayerbotAI::IsHeal(member));
+    }
+
+    // An assistant of the class (player or bot) is returned immediately, otherwise the bot chosen
+    // before as long as it lives, otherwise the bot of the class with the highest health.
     ObjectGuid FindCasterTank(Player* bot, uint8 classId, bool balanceOnly)
     {
         Group* group = bot->GetGroup();
@@ -186,13 +205,7 @@ namespace
         for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
         {
             Player* member = ref->getSource();
-            if (!member || !member->IsAlive() || !member->IsInWorld() || member->GetMapId() != GRUUL_MAP_ID ||
-                member->getClass() != classId)
-            {
-                continue;
-            }
-
-            if (balanceOnly && (AiFactory::GetPlayerSpecTab(member) != int(DRUID_TAB_BALANCE) || PlayerbotAI::IsHeal(member)))
+            if (!IsCasterTankCandidate(member, classId, balanceOnly))
                 continue;
 
             if (group->IsAssistant(member->GetObjectGuid()))
@@ -209,7 +222,22 @@ namespace
             }
         }
 
-        return highestHpBot ? highestHpBot->GetObjectGuid() : ObjectGuid();
+        const std::pair<uint32, uint8> key(group->GetId(), classId);
+        std::lock_guard<std::mutex> lock(casterTankMutex);
+        auto chosen = casterTanks.find(key);
+        if (chosen != casterTanks.end())
+        {
+            Player* current = sObjectMgr.GetPlayer(chosen->second);
+            if (current && current->GetPlayerbotAI() && current->GetGroup() == group &&
+                IsCasterTankCandidate(current, classId, balanceOnly))
+            {
+                return current->GetObjectGuid();
+            }
+        }
+
+        const ObjectGuid result = highestHpBot ? highestHpBot->GetObjectGuid() : ObjectGuid();
+        casterTanks[key] = result;
+        return result;
     }
 
     Player* GetPlayerFromValue(PlayerbotAI* ai, const char* valueName)
@@ -253,6 +281,24 @@ bool IsKigglerMoonkinTank(PlayerbotAI* ai)
 {
     Player* bot = ai->GetBot();
     return bot->getClass() == CLASS_DRUID && GetKigglerMoonkinTank(ai) == bot;
+}
+
+bool IsOgreCasterTank(Player* player)
+{
+    if (!player || !player->IsInWorld() || player->GetMapId() != GRUUL_MAP_ID || !player->IsInCombat())
+        return false;
+
+    const uint8 classId = player->getClass();
+    if (classId != CLASS_MAGE && classId != CLASS_DRUID)
+        return false;
+
+    Group* group = player->GetGroup();
+    if (!group)
+        return false;
+
+    std::lock_guard<std::mutex> lock(casterTankMutex);
+    auto chosen = casterTanks.find(std::make_pair(group->GetId(), classId));
+    return chosen != casterTanks.end() && chosen->second == player->GetObjectGuid();
 }
 
 std::list<ObjectGuid> FindNearbyWildFelStalkerGuids(Player* bot)

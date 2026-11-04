@@ -1,7 +1,29 @@
 #include "playerbot/playerbot.h"
 #include "BlackwingLairDungeonStrategies.h"
+#include "playerbot/strategy/triggers/BlackwingLairDungeonTriggers.h"
+#include "playerbot/strategy/raids/RaidBossHelpers.h"
 
 using namespace ai;
+
+std::list<GuidPosition> ai::FilterSuppressionDevices(Player* bot, const std::list<GuidPosition>& devices)
+{
+    const uint32 NPC_BROODLORD = 12017;
+    const float SUPPRESSION_REACH = 30.0f; // 20 yd aura radius plus the fight's drift
+
+    Unit* broodlord = nullptr;
+    for (Unit* unit : raidboss::FindUnits(bot, NPC_BROODLORD, 150.0f))
+        if (unit->IsInCombat())
+            broodlord = unit;
+
+    if (!broodlord)
+        return devices;
+
+    std::list<GuidPosition> relevant;
+    for (const GuidPosition& device : devices)
+        if (WorldPosition(broodlord).distance(device) <= SUPPRESSION_REACH)
+            relevant.push_back(device);
+    return relevant;
+}
 
 void BlackwingLairDungeonStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
 {

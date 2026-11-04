@@ -491,6 +491,14 @@ namespace ai
         CastAmplifyCurseAction(PlayerbotAI* ai) : CastBuffSpellAction(ai, "amplify curse") {}
     };
 
+    // Makes the next demon summon instant, so a lost Felguard can be replaced mid fight
+    class CastFelDominationAction : public CastBuffSpellAction
+    {
+    public:
+        CastFelDominationAction(PlayerbotAI* ai) : CastBuffSpellAction(ai, "fel domination") {}
+        bool isUseful() override { return !ai->GetUnit(AI_VALUE(ObjectGuid, "pet target")) && CastBuffSpellAction::isUseful(); }
+    };
+
     class CastSiphonLifeAction : public CastRangedDebuffSpellAction
     {
     public:

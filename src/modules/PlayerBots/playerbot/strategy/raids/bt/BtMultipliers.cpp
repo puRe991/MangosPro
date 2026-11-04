@@ -4,6 +4,7 @@
 #include "BtActions.h"
 #include "BtHelpers.h"
 #include "BtSupremusRules.h"
+#include "BtCouncilRules.h"
 #include "playerbot/strategy/raids/RaidBossHelpers.h"
 #include "playerbot/strategy/actions/ChooseTargetActions.h"
 #include "playerbot/strategy/actions/GenericSpellActions.h"
@@ -104,6 +105,30 @@ float SupremusWaitForTanksAfterThreatResetMultiplier::GetValue(Action* action)
 
     const int64 elapsed = GetTimerElapsed(BtState::SupremusPhaseTimer, supremus->GetInstanceId());
     return bt::supremus::IsDpsWaitAfterThreatReset(elapsed) ? 0.0f : 1.0f;
+}
+
+// Players waiting outside the Hateful Strike reach: no formation move, follow or "set behind" pulls them back in,
+// the melee dps don't walk back to the boss either
+float SupremusKeepOutOfHatefulStrikeMultiplier::GetValue(Action* action)
+{
+    if (!action || PlayerbotAI::IsTank(bot) || dynamic_cast<SupremusKeepOutOfHatefulStrikeAction*>(action) ||
+        dynamic_cast<SupremusLeadMoltenFlameAwayAction*>(action) || dynamic_cast<SupremusMoveAwayFromVolcanosAction*>(action))
+    {
+        return 1.0f;
+    }
+
+    if (!IsMovement(action) && !IsReachAction(action))
+        return 1.0f;
+
+    Unit* supremus = FindBoss(ai, NPC_SUPREMUS);
+    if (!supremus || !MustAvoidSupremusHatefulStrike(bot, supremus))
+        return 1.0f;
+
+    if (IsUncontrolledMove(action) || action->getName() == "set behind")
+        return 0.0f;
+
+    const bool waitingMelee = !PlayerbotAI::IsHeal(bot) && raidboss::IsMeleePlayer(bot);
+    return waitingMelee && IsReachAction(action) ? 0.0f : 1.0f;
 }
 
 float SupremusHitboxIsBuggedMultiplier::GetValue(Action* action)
@@ -226,7 +251,48 @@ float IllidariCouncilDisableTankActionsMultiplier::GetValue(Action* action)
     if (!dynamic_cast<TankAssistAction*>(action) && !raidboss::IsTauntAction(bot, action) && !raidboss::IsAoeThreatAction(bot, action))
         return 1.0f;
 
-    return FindBoss(ai, NPC_GATHIOS) ? 0.0f : 1.0f;
+    if (!FindBoss(ai, NPC_GATHIOS))
+        return 1.0f;
+
+    uint32 entry = 0;
+    if (raidboss::IsMainTank(bot))
+        entry = NPC_GATHIOS;
+    else if (raidboss::IsAssistTank(bot, 0))
+        entry = NPC_MALANDE;
+    else if (raidboss::IsAssistTank(bot, 1))
+        entry = NPC_VERAS;
+
+    Unit* member = entry ? FindBoss(ai, entry) : nullptr;
+    if (!member)
+        return 0.0f;
+
+    // The whole council links onto the puller: without a taunt the assist tanks never got their member
+    // off him (main tank dead 2 s into the pull). Single target taunts on the own member stay allowed,
+    // Righteous Defense takes the own member back from the attacked player.
+    const std::string& name = action->getName();
+    const bool memberOnOther = member->GetVictim() != bot;
+    if (name == "taunt" || name == "growl" || name == "mocking blow")
+        return memberOnOther && AI_VALUE(ObjectGuid, "current target") == member->GetObjectGuid() ? 1.0f : 0.0f;
+
+    if (name == "righteous defense")
+        return memberOnOther && member->GetVictim() && member->GetVictim()->GetTypeId() == TYPEID_PLAYER ? 1.0f : 0.0f;
+
+    // Consecration / Thunder Clap / Demoralizing Shout are most of the tank threat; they stay off only while
+    // another council member stands close enough to be pulled
+    if (raidboss::IsAoeThreatAction(bot, action))
+    {
+        bool otherMemberInRange = false;
+        for (uint32 other : { NPC_GATHIOS, NPC_MALANDE, NPC_VERAS, NPC_ZEREVOR })
+        {
+            Unit* unit = other == entry ? nullptr : FindBoss(ai, other);
+            if (unit && unit->IsAlive() && raidboss::ExactDist2d(bot, unit) < council::AOE_THREAT_RANGE)
+                otherMemberInRange = true;
+        }
+
+        return council::AoeThreatAllowed(otherMemberInRange) ? 1.0f : 0.0f;
+    }
+
+    return 0.0f;
 }
 
 float IllidariCouncilControlMovementMultiplier::GetValue(Action* action)
@@ -240,9 +306,19 @@ float IllidariCouncilControlMovementMultiplier::GetValue(Action* action)
     if (IsUncontrolledMove(action))
         return 0.0f;
 
-    // The healer of the mage tank only moves between its two positions
+    // Arcane Explosion range is left by everybody
+    if (dynamic_cast<IllidariCouncilMoveAwayFromZerevorAction*>(action))
+        return 1.0f;
+
+    // The healer of the mage tank only moves between its two positions while the mage tank has Zerevor.
+    // Otherwise it stood ~50 y from the tanks and could not walk into heal range.
     if (GetZerevorHealer(bot) == bot && PlayerbotAI::IsHeal(bot) && !dynamic_cast<IllidariCouncilPositionMageTankHealerAction*>(action))
-        return 0.0f;
+    {
+        Unit* zerevor = FindBoss(ai, NPC_ZEREVOR);
+        Player* mageTank = GetZerevorMageTank(bot);
+        if (zerevor && mageTank && zerevor->GetVictim() == mageTank)
+            return 0.0f;
+    }
 
     // The tanks keep their council member in place
     if (IsCouncilTank(bot) && action->getName() == "tbc raid leave hazard")
@@ -285,15 +361,35 @@ float IllidariCouncilWaitForDpsMultiplier::GetValue(Action* action)
     if (IsCouncilTank(bot) || dynamic_cast<IllidariCouncilMisdirectBossesToTanksAction*>(action))
         return 1.0f;
 
+    // The council links onto whoever hits first: a dps Mana Tap pulled all four onto a warlock and then
+    // the healers. Until the pull, and 8 s after it, only the tanks attack.
+    if (!IsAttackOrSpellAction(action))
+        return 1.0f;
+
+    // Before the pull the council is not on the threat list (a raid "attack" on Veras let an Immolate
+    // open the fight), so it is searched nearby as well. The search is 2D and the council floor lies right
+    // above Gurtogg's room (about 50 yards across, 214 up): it blocked every dps spell at Gurtogg on 2026-10-31.
     Unit* gathios = FindBoss(ai, NPC_GATHIOS);
     if (!gathios)
-        return 1.0f;
+    {
+        if (bot->GetPositionZ() < COUNCIL_FLOOR_Z_THRESHOLD)
+            return 1.0f;
+
+        std::vector<Unit*> council = raidboss::FindUnits(bot, NPC_GATHIOS, 100.0f);
+        if (council.empty())
+            return 1.0f;
+        gathios = council.front();
+    }
+
+    // Hostile actions wait until the pull, buffs stay allowed
+    if (!gathios->IsInCombat())
+    {
+        Unit* target = action->GetTarget();
+        return dynamic_cast<AttackAction*>(action) || (target && bot->CanAttack(target)) ? 0.0f : 1.0f;
+    }
 
     const int64 elapsed = GetTimerElapsed(BtState::CouncilDpsTimer, gathios->GetInstanceId());
-    if (elapsed < 0 || elapsed >= 5)
-        return 1.0f;
-
-    return IsAttackOrSpellAction(action) ? 0.0f : 1.0f;
+    return elapsed >= 8 ? 1.0f : 0.0f;
 }
 
 // Illidan Stormrage <The Betrayer>

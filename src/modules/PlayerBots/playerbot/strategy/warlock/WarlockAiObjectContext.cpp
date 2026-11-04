@@ -311,6 +311,7 @@ namespace ai
                 creators["incinerate"] = [](PlayerbotAI* ai) { return new CastIncinerateAction(ai); };
                 creators["conflagrate"] = [](PlayerbotAI* ai) { return new CastConflagrateAction(ai); };
                 creators["amplify curse"] = [](PlayerbotAI* ai) { return new CastAmplifyCurseAction(ai); };
+                creators["fel domination"] = [](PlayerbotAI* ai) { return new CastFelDominationAction(ai); };
                 creators["shadowburn"] = [](PlayerbotAI* ai) { return new CastShadowburnAction(ai); };
                 creators["death coil"] = [](PlayerbotAI* ai) { return new CastDeathCoilAction(ai); };
                 creators["death coil on enemy healer"] = [](PlayerbotAI* ai) { return new CastDeathCoilOnHealerAction(ai); };

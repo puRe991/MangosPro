@@ -588,10 +588,30 @@ namespace ai
 		CastHandOfReckoningAction(PlayerbotAI* ai) : CastSpellAction(ai, "hand of reckoning") {}
 	};
 
+	// Righteous Defense is cast on the friendly member under attack and taunts his attackers; cast at the
+	// enemy it failed with SPELL_FAILED_BAD_TARGETS (Karathress raid log 2026-10-30)
 	class CastRighteousDefenseAction : public CastSpellAction
 	{
 	public:
 		CastRighteousDefenseAction(PlayerbotAI* ai) : CastSpellAction(ai, "righteous defense") {}
+
+		Unit* GetTarget() override
+		{
+			Unit* enemy = ai->GetUnit(AI_VALUE(ObjectGuid, "current target"));
+			Unit* victim = enemy ? enemy->GetVictim() : nullptr;
+			if (!victim || victim == bot || victim->GetTypeId() != TYPEID_PLAYER || !bot->IsInGroup(victim))
+				return nullptr;
+
+			// It taunts up to 3 attackers of the victim: only when the current target is the only one, so a
+			// paladin never pulls mobs another tank is meant to hold
+			for (Unit* attacker : victim->getAttackers())
+			{
+				if (attacker != enemy && attacker->GetVictim() == victim)
+					return nullptr;
+			}
+
+			return victim;
+		}
 	};
 
 	class CastCleansePoisonAction : public CastCureSpellAction

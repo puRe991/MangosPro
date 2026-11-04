@@ -28,8 +28,8 @@ namespace ai
 
         bool Execute(Event& event) override
         {
-            std::list<GuidPosition> gos = AI_VALUE(std::list<GuidPosition>, "go usable filter::go trapped filter::entry filter::{gos in sight,suppression devices}");
-            
+            std::list<GuidPosition> gos = FilterSuppressionDevices(bot, AI_VALUE(std::list<GuidPosition>, "go usable filter::go trapped filter::entry filter::{gos in sight,suppression devices}"));
+
             if (gos.empty())
                 return false;
 
@@ -65,7 +65,7 @@ namespace ai
 
         bool isUseful() override
         {
-            std::list<GuidPosition> gos = AI_VALUE(std::list<GuidPosition>, "go usable filter::go trapped filter::entry filter::{gos in sight,suppression devices}");
+            std::list<GuidPosition> gos = FilterSuppressionDevices(bot, AI_VALUE(std::list<GuidPosition>, "go usable filter::go trapped filter::entry filter::{gos in sight,suppression devices}"));
             return !gos.empty();
         }
     };
@@ -167,7 +167,7 @@ namespace ai
             if (!bot->HasSpell(SPELL_DISARM_TRAP))
                 return false;
 
-            std::list<GuidPosition> gos = AI_VALUE(std::list<GuidPosition>, "go usable filter::go trapped filter::entry filter::{gos close,suppression devices}");
+            std::list<GuidPosition> gos = FilterSuppressionDevices(bot, AI_VALUE(std::list<GuidPosition>, "go usable filter::go trapped filter::entry filter::{gos close,suppression devices}"));
             
             if (gos.empty())
                 return false;
@@ -213,7 +213,11 @@ namespace ai
 
         bool isUseful() override
         {
-            std::list<GuidPosition> gos = AI_VALUE(std::list<GuidPosition>, "go usable filter::go trapped filter::entry filter::{gos close,suppression devices}");
+            // Recasting while Disarm Trap is still being cast restarts it, so it never finished
+            if (bot->IsNonMeleeSpellCasted(false))
+                return false;
+
+            std::list<GuidPosition> gos = FilterSuppressionDevices(bot, AI_VALUE(std::list<GuidPosition>, "go usable filter::go trapped filter::entry filter::{gos close,suppression devices}"));
             return !gos.empty();
         }
     };

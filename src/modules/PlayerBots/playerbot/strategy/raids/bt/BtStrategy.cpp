@@ -38,8 +38,12 @@ void BtStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
         NextAction::array(0, new NextAction("supremus misdirect boss to main tank", raidboss::ACTION_RAID + 2), NULL)));
 
     triggers.push_back(new TriggerNode(
-        "supremus boss engaged by ranged",
-        NextAction::array(0, new NextAction("supremus disperse ranged", raidboss::ACTION_RAID + 1), NULL)));
+        "supremus must avoid hateful strike",
+        NextAction::array(0, new NextAction("supremus keep out of hateful strike", raidboss::ACTION_RAID + 1), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "supremus bot in hateful strike reach",
+        NextAction::array(0, new NextAction("supremus keep out of hateful strike", bt::BT_EMERGENCY_6), NULL)));
 
     triggers.push_back(new TriggerNode(
         "supremus boss is fixated on bot",
@@ -166,8 +170,8 @@ void BtStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
         NextAction::array(0, new NextAction("illidari council first assist tank focus malande", raidboss::ACTION_RAID + 1), NULL)));
 
     triggers.push_back(new TriggerNode(
-        "illidari council malande casting circle of healing",
-        NextAction::array(0, new NextAction("illidari council interrupt circle of healing", bt::BT_EMERGENCY_2), NULL)));
+        "illidari council malande casting interruptible spell",
+        NextAction::array(0, new NextAction("illidari council interrupt malande", bt::BT_EMERGENCY_2), NULL)));
 
     triggers.push_back(new TriggerNode(
         "illidari council darkshadow engaged by second assist tank",
@@ -186,12 +190,18 @@ void BtStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
         NextAction::array(0, new NextAction("illidari council disperse ranged", raidboss::ACTION_RAID + 2), NULL)));
 
     triggers.push_back(new TriggerNode(
+        "illidari council too close to zerevor",
+        NextAction::array(0, new NextAction("illidari council move away from zerevor", bt::BT_EMERGENCY_7), NULL)));
+
+    triggers.push_back(new TriggerNode(
         "illidari council pets screw up the pull",
         NextAction::array(0, new NextAction("illidari council command pets to attack gathios", raidboss::ACTION_RAID + 3), NULL)));
 
+    // Above "select new target" (90): while Veras vanished it re-picked the circle target every tick
+    // and the dps never cast (714 retargets in one pull)
     triggers.push_back(new TriggerNode(
         "illidari council determining dps assignments",
-        NextAction::array(0, new NextAction("illidari council assign dps targets", raidboss::ACTION_RAID + 1), NULL)));
+        NextAction::array(0, new NextAction("illidari council assign dps targets", bt::BT_EMERGENCY_1), NULL)));
 
     triggers.push_back(new TriggerNode(
         "illidari council need to manage dps timer",
@@ -267,8 +277,8 @@ void BtStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
 void BtStrategy::InitReactionTriggers(std::list<TriggerNode*>& triggers)
 {
     triggers.push_back(new TriggerNode(
-        "illidari council malande casting circle of healing",
-        NextAction::array(0, new NextAction("illidari council interrupt circle of healing", bt::BT_EMERGENCY_2), NULL)));
+        "illidari council malande casting interruptible spell",
+        NextAction::array(0, new NextAction("illidari council interrupt malande", bt::BT_EMERGENCY_2), NULL)));
 
     triggers.push_back(new TriggerNode(
         "high warlord naj'entus player is impaled",
@@ -297,6 +307,7 @@ void BtStrategy::InitCombatMultipliers(std::list<Multiplier*>& multipliers)
     multipliers.push_back(new HighWarlordNajentusDisableCombatFormationMoveMultiplier(ai));
     multipliers.push_back(new SupremusFocusOnAvoidanceInPhase2Multiplier(ai));
     multipliers.push_back(new SupremusHitboxIsBuggedMultiplier(ai));
+    multipliers.push_back(new SupremusKeepOutOfHatefulStrikeMultiplier(ai));
     multipliers.push_back(new SupremusWaitForTanksAfterThreatResetMultiplier(ai));
     multipliers.push_back(new ShadeOfAkamaMeleeFocusChannelersMultiplier(ai));
     multipliers.push_back(new TeronGorefiendControlMovementMultiplier(ai));

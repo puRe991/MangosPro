@@ -84,6 +84,8 @@ namespace ai
         ObjectGuid FindKigglerMoonkinTankGuid(Player* bot);
         Player* GetKigglerMoonkinTank(PlayerbotAI* ai);
         bool IsKigglerMoonkinTank(PlayerbotAI* ai);
+        // Krosh's mage tank or Kiggler's moonkin tank in the fight: healers treat them like tanks
+        bool IsOgreCasterTank(Player* player);
         std::list<ObjectGuid> FindNearbyWildFelStalkerGuids(Player* bot);
         std::vector<Unit*> GetNearbyWildFelStalkers(PlayerbotAI* ai);
         // Living bots of a class in the map, in group order (each bot gets its own job)

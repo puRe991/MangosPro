@@ -148,7 +148,8 @@ float ZaDisableTankActionsMultiplier::GetValueInEncounter(Action* action)
         if (!raidboss::IsMainTank(bot))
             return 1.0f;
 
-        Unit* target = action->GetTarget();
+        // The enemy, not action->GetTarget(): Righteous Defense targets the friendly victim
+        Unit* target = ai->GetUnit(AI_VALUE(ObjectGuid, "current target"));
         return target && target->GetEntry() == NPC_SPIRIT_OF_THE_LYNX ? 0.0f : 1.0f;
     }
 

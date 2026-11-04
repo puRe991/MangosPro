@@ -57,6 +57,7 @@ public:
 #endif
 
     std::list<std::string> HandleGroup(Player* master, const std::string param, AccountTypes security);
+    std::list<std::string> HandleRaidCreate(Player* master, const std::string param, AccountTypes security);
 protected:
     virtual void OnBotLoginInternal(Player * const bot) = 0;
     virtual void OnBotDeleted(uint32 botGuid, uint32 accountId);

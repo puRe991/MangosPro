@@ -15,9 +15,16 @@ public:
         creators["demon armor"] = &demon_armor;
         creators["demonic sacrifice fire"] = &demonic_sacrifice_fire;
         creators["demonic sacrifice shadow"] = &demonic_sacrifice_shadow;
+        creators["incinerate"] = &incinerate;
+        creators["immolate"] = &immolate;
     }
 
 private:
+    // Fire immune targets (Al'ar): fire builds fall back to shadow instead of standing idle
+    ACTION_NODE_A(incinerate, "incinerate", "shadow bolt");
+
+    ACTION_NODE_A(immolate, "immolate", "corruption");
+
     // Destruction sacrifices the demon that buffs its damage school
     ACTION_NODE_P(demonic_sacrifice_fire, "demonic sacrifice", "summon imp");
 

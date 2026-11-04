@@ -1,10 +1,12 @@
 // Ported from mod-playerbots (src/Ai/Raid/SSC/SSCHelpers.cpp, GPL v2+) and adapted for this core.
 #include "playerbot/playerbot.h"
 #include "SscHelpers.h"
+#include "SscHydrossRules.h"
 #include "playerbot/strategy/raids/RaidBossHelpers.h"
 #include "playerbot/strategy/Action.h"
 #include <algorithm>
 #include <cmath>
+#include <map>
 #include <mutex>
 #include <unordered_map>
 
@@ -16,8 +18,10 @@ namespace ssc
 {
 
 // Hydross the Unstable <Duke of Currents>
-// Frost spot is inside the Cleansing Field circle around his spawn, nature spot outside
-const WorldPosition HYDROSS_FROST_TANK_POSITION(SSC_MAP_ID, -236.669f, -358.352f, -0.828f);
+// Frost spot is inside the Cleansing Field circle around the helper at -239.7, -366.4, nature spot outside.
+// The boss leaves the field at 28 yards and trails a tank by about 8 yards (SscHydrossRules.h): the nature spot
+// lies 41 yards out. Spots at 30 and 36 yards left the boss in water form behind the tank in the raid logs.
+const WorldPosition HYDROSS_FROST_TANK_POSITION(SSC_MAP_ID, -235.2f, -354.2f, -1.2f);
 const WorldPosition HYDROSS_NATURE_TANK_POSITION(SSC_MAP_ID, -225.471f, -327.790f, -3.682f);
 
 // The Lurker Below (spawn of this core: 38.46, -417.32)
@@ -88,24 +92,284 @@ SscInstanceState GetState(Player* bot)
     return states[bot->GetInstanceId()];
 }
 
-std::vector<Unit*> GetKarathressMainTankUnits(PlayerbotAI* ai)
+namespace
+{
+    // Latched Karathress roles per instance: mob entry -> tank. The raid log of 2026-10-30 had nine tank
+    // deaths; recomputing the roles from the living tanks swapped every role on each death and revive.
+    std::mutex karathressRolesMutex;
+    std::map<uint32, std::map<uint32, ObjectGuid>> karathressRoles;
+    // Council member guid -> first moment it was seen on a non-tank (dps hold)
+    std::map<uint32, std::map<ObjectGuid, time_t>> karathressLooseSince;
+    // Resolved roles per instance for a short time: every tank and dps action asks for them
+    struct KarathressRolesCache
+    {
+        uint32 time = 0;
+        std::map<uint32, ObjectGuid> tanks;
+    };
+    std::map<uint32, KarathressRolesCache> karathressRolesCache;
+
+    // Assist tank order: Caribdis is separated (Cyclones, heals), Tidalvess is the first dps target and
+    // needs its own threat, Sharkkis dies last of the three and stays with Karathress when tanks are short.
+    const uint32 KARATHRESS_ASSIST_ORDER[] = { NPC_CARIBDIS, NPC_TIDALVESS, NPC_SHARKKIS };
+
+    Player* FindTank(const std::vector<Player*>& tanks, const ObjectGuid& guid)
+    {
+        for (Player* tank : tanks)
+        {
+            if (tank->GetObjectGuid() == guid)
+                return tank;
+        }
+
+        return nullptr;
+    }
+
+    // Resolves the tank of every living mob. Callers hold karathressRolesMutex.
+    std::map<uint32, Player*> ResolveKarathressTanks(PlayerbotAI* ai)
+    {
+        Player* bot = ai->GetBot();
+        const std::vector<Player*> tanks = raidboss::GetGroupTanks(bot);   // living tanks only
+        std::map<uint32, ObjectGuid>& latched = karathressRoles[bot->GetInstanceId()];
+        std::map<uint32, Player*> result;
+
+        std::vector<uint32> mobs;
+        std::map<uint32, Unit*> units;
+        for (uint32 entry : { uint32(NPC_KARATHRESS), uint32(NPC_CARIBDIS), uint32(NPC_TIDALVESS), uint32(NPC_SHARKKIS) })
+        {
+            Unit* unit = FindSscUnit(ai, entry);
+            if (unit && unit->IsAlive())
+            {
+                mobs.push_back(entry);
+                units[entry] = unit;
+            }
+        }
+
+        auto isUsed = [&](Player* tank)
+        {
+            for (const auto& entry : result)
+            {
+                if (entry.second == tank)
+                    return true;
+            }
+
+            return false;
+        };
+
+        // A tank latched to a living mob keeps it while he lives and is close: a tank revived at the
+        // entrance takes his mob back from the stand-in only once he got there
+        for (uint32 entry : mobs)
+        {
+            auto it = latched.find(entry);
+            if (it != latched.end())
+                if (Player* tank = FindTank(tanks, it->second))
+                    if (!isUsed(tank) && tank->IsWithinDistInMap(units[entry], 45.0f))
+                        result[entry] = tank;
+        }
+
+        // Unused living tank in group order; Caribdis prefers a warrior or druid (Shield Bash for Healing Wave)
+        auto takeFreeTank = [&](bool preferInterrupt) -> Player*
+        {
+            Player* found = nullptr;
+            for (Player* tank : tanks)
+            {
+                if (isUsed(tank))
+                    continue;
+
+                if (!found || (preferInterrupt && found->getClass() == CLASS_PALADIN && tank->getClass() != CLASS_PALADIN))
+                    found = tank;
+            }
+
+            return found;
+        };
+
+        // Karathress first, then the council members in assist order. A mob whose latched tank is dead gets
+        // a stand-in that is not latched: the tank gets his mob back on revive.
+        std::vector<uint32> order = { NPC_KARATHRESS };
+        order.insert(order.end(), std::begin(KARATHRESS_ASSIST_ORDER), std::end(KARATHRESS_ASSIST_ORDER));
+        for (uint32 entry : order)
+        {
+            if (std::find(mobs.begin(), mobs.end(), entry) == mobs.end() || result.count(entry))
+                continue;
+
+            Player* tank = takeFreeTank(entry == NPC_CARIBDIS);
+            if (!tank)
+                break;
+
+            result[entry] = tank;
+            ObjectGuid& role = latched[entry];
+            if (role.IsEmpty())
+                role = tank->GetObjectGuid();
+        }
+
+        // Members without a tank stay with the Karathress tank. Without one, a tank other than Caribdis' holds
+        // them (Caribdis must stay in her corner), Sharkkis' or Tidalvess' tank first.
+        Player* holder = result.count(NPC_KARATHRESS) ? result[NPC_KARATHRESS] : nullptr;
+        for (uint32 entry : { uint32(NPC_SHARKKIS), uint32(NPC_TIDALVESS) })
+        {
+            if (!holder && result.count(entry))
+                holder = result[entry];
+        }
+        for (Player* tank : tanks)
+        {
+            if (!holder && (!result.count(NPC_CARIBDIS) || result[NPC_CARIBDIS] != tank))
+                holder = tank;
+        }
+        if (!holder && !tanks.empty())
+            holder = tanks.front();
+
+        for (uint32 entry : mobs)
+        {
+            if (!result.count(entry) && holder)
+                result[entry] = holder;
+        }
+
+        return result;
+    }
+
+    // Resolved roles, reused for 250 ms. Callers hold karathressRolesMutex.
+    std::map<uint32, Player*> GetKarathressTanks(PlayerbotAI* ai)
+    {
+        Player* bot = ai->GetBot();
+        const uint32 now = WorldTimer::getMSTime();
+        KarathressRolesCache& cache = karathressRolesCache[bot->GetInstanceId()];
+        std::map<uint32, Player*> result;
+        if (cache.time && now >= cache.time && now - cache.time < 250)
+        {
+            bool valid = true;
+            for (const auto& entry : cache.tanks)
+            {
+                Player* tank = bot->GetMap()->GetPlayer(entry.second);
+                if (!tank || !tank->IsAlive())
+                {
+                    valid = false;
+                    break;
+                }
+
+                result[entry.first] = tank;
+            }
+
+            if (valid)
+                return result;
+        }
+
+        result = ResolveKarathressTanks(ai);
+        cache.time = now;
+        cache.tanks.clear();
+        for (const auto& entry : result)
+            cache.tanks[entry.first] = entry.second->GetObjectGuid();
+
+        return result;
+    }
+}
+
+Player* GetKarathressTank(Player* bot, uint32 entry)
+{
+    PlayerbotAI* ai = bot->GetPlayerbotAI();
+    if (!ai)
+        return nullptr;
+
+    std::lock_guard<std::mutex> lock(karathressRolesMutex);
+    const std::map<uint32, Player*> tanks = GetKarathressTanks(ai);
+    auto it = tanks.find(entry);
+    return it != tanks.end() ? it->second : nullptr;
+}
+
+std::vector<Unit*> GetKarathressTankUnits(PlayerbotAI* ai)
 {
     Player* bot = ai->GetBot();
-    std::vector<Unit*> units;
-    auto addUnassigned = [&](uint32 entry, uint8 assistIndex)
+    std::map<uint32, Player*> tanks;
     {
-        Unit* unit = FindSscUnit(ai, entry);
-        if (unit && unit->IsAlive() && !raidboss::GetGroupAssistTank(bot, assistIndex))
-            units.push_back(unit);
-    };
+        std::lock_guard<std::mutex> lock(karathressRolesMutex);
+        tanks = GetKarathressTanks(ai);
+    }
 
-    addUnassigned(NPC_TIDALVESS, 2);
-    addUnassigned(NPC_SHARKKIS, 1);
-    if (Unit* karathress = FindSscUnit(ai, NPC_KARATHRESS))
-        if (karathress->IsAlive())
-            units.push_back(karathress);
-    addUnassigned(NPC_CARIBDIS, 0);
+    std::vector<Unit*> units;
+    for (uint32 entry : { uint32(NPC_KARATHRESS), uint32(NPC_TIDALVESS), uint32(NPC_CARIBDIS), uint32(NPC_SHARKKIS) })
+    {
+        auto it = tanks.find(entry);
+        if (it == tanks.end() || it->second != bot)
+            continue;
+
+        if (Unit* unit = FindSscUnit(ai, entry))
+            units.push_back(unit);
+    }
+
     return units;
+}
+
+void ResetKarathressRoles(Player* bot)
+{
+    std::lock_guard<std::mutex> lock(karathressRolesMutex);
+    karathressRoles.erase(bot->GetInstanceId());
+    karathressLooseSince.erase(bot->GetInstanceId());
+    karathressRolesCache.erase(bot->GetInstanceId());
+}
+
+bool ShouldHoldKarathressDps(PlayerbotAI* ai, Unit* target)
+{
+    if (!target || !target->IsAlive())
+        return false;
+
+    const uint32 entry = target->GetEntry();
+    if (entry != NPC_KARATHRESS && entry != NPC_CARIBDIS && entry != NPC_TIDALVESS && entry != NPC_SHARKKIS)
+        return false;
+
+    Player* bot = ai->GetBot();
+    Unit* victim = target->GetVictim();
+    const bool loose = victim && victim->GetTypeId() == TYPEID_PLAYER && !PlayerbotAI::IsTank(static_cast<Player*>(victim));
+
+    std::lock_guard<std::mutex> lock(karathressRolesMutex);
+    std::map<ObjectGuid, time_t>& looseSince = karathressLooseSince[bot->GetInstanceId()];
+    if (!loose)
+    {
+        looseSince.erase(target->GetObjectGuid());
+        return false;
+    }
+
+    // Only while the mob's tank is alive and close enough to take it back
+    const std::map<uint32, Player*> tanks = GetKarathressTanks(ai);
+    auto it = tanks.find(entry);
+    if (it == tanks.end() || !it->second || !it->second->IsWithinDistInMap(target, 40.0f))
+        return false;
+
+    const time_t now = time(nullptr);
+    time_t& since = looseSince[target->GetObjectGuid()];
+    if (!since || now - since > 60)
+        since = now;
+
+    // A taunt that misses must not stop the dps for good
+    return now - since < 5;
+}
+
+Unit* GetCaribdisInterruptTarget(PlayerbotAI* ai, std::string& spell)
+{
+    Player* bot = ai->GetBot();
+    if (bot->GetMapId() != SSC_MAP_ID || !bot->IsInCombat())
+        return nullptr;
+
+    std::vector<std::string> interrupts;
+    switch (bot->getClass())
+    {
+    case CLASS_ROGUE:   interrupts = { "kick" }; break;
+    case CLASS_WARRIOR: interrupts = { "shield bash", "pummel" }; break;
+    case CLASS_MAGE:    interrupts = { "counterspell" }; break;
+    case CLASS_SHAMAN:  interrupts = { "earth shock" }; break;
+    default: return nullptr;
+    }
+
+    Unit* caribdis = FindSscUnit(ai, NPC_CARIBDIS);
+    if (!caribdis || !caribdis->IsInCombat() || !caribdis->FindCurrentSpellBySpellId(SPELL_CARIBDIS_HEALING_WAVE))
+        return nullptr;
+
+    for (const std::string& interrupt : interrupts)
+    {
+        if (ai->IsInterruptableSpellCasting(caribdis, interrupt) && ai->CanCastSpell(interrupt, caribdis, 0))
+        {
+            spell = interrupt;
+            return caribdis;
+        }
+    }
+
+    return nullptr;
 }
 
 bool NeedsStateReset(PlayerbotAI* ai)
@@ -354,6 +618,146 @@ bool HasNoMarkOfCorruption(Player* bot)
                               SPELL_MARK_OF_CORRUPTION_100, SPELL_MARK_OF_CORRUPTION_250, SPELL_MARK_OF_CORRUPTION_500 });
 }
 
+namespace
+{
+    // The boss counts as leaderless when no tank held him for this long (dead or resurrected tank)
+    constexpr time_t HYDROSS_LEADERLESS_SECONDS = 4;
+
+    std::mutex hydrossTankedMutex;
+    std::map<uint32, time_t> hydrossLastTanked;   // by instance id
+
+    bool IsHydrossOnTank(Unit* hydross)
+    {
+        Unit* victim = hydross->GetVictim();
+        return victim && victim->GetTypeId() == TYPEID_PLAYER && PlayerbotAI::IsTank(static_cast<Player*>(victim));
+    }
+}
+
+namespace
+{
+    // Frost and nature tank of the current pull per instance. A role only moves on when its tank dies:
+    // re-ranking every tick gave a resurrected tank his role back and took the boss off his replacement.
+    std::mutex hydrossRolesMutex;
+    std::map<uint32, std::pair<ObjectGuid, ObjectGuid>> hydrossRoles;   // instance id -> frost, nature
+
+    Player* GetLivingTank(const std::vector<Player*>& tanks, const ObjectGuid& guid)
+    {
+        for (Player* tank : tanks)
+        {
+            if (tank->GetObjectGuid() == guid)
+                return tank;
+        }
+
+        return nullptr;
+    }
+
+    // The frost tank pulls inside the Cleansing Field, a warrior gets frost whenever there is one: with a
+    // paladin frost tank the boss stayed on the extra tank and the warlocks for 40 seconds in the raid log.
+    // Callers hold hydrossRolesMutex.
+    void UpdateHydrossRoles(Player* bot, Player*& frost, Player*& nature)
+    {
+        const std::vector<Player*> tanks = raidboss::GetGroupTanks(bot);
+        std::pair<ObjectGuid, ObjectGuid>& roles = hydrossRoles[bot->GetInstanceId()];
+        frost = roles.first.IsEmpty() ? nullptr : GetLivingTank(tanks, roles.first);
+        nature = roles.second.IsEmpty() ? nullptr : GetLivingTank(tanks, roles.second);
+
+        if (!frost)
+        {
+            for (Player* tank : tanks)
+            {
+                if (tank != nature && tank->getClass() == CLASS_WARRIOR)
+                {
+                    frost = tank;
+                    break;
+                }
+            }
+
+            for (Player* tank : tanks)
+            {
+                if (!frost && tank != nature)
+                    frost = tank;
+            }
+        }
+
+        if (!nature)
+        {
+            for (Player* tank : tanks)
+            {
+                if (!nature && tank != frost)
+                    nature = tank;
+            }
+        }
+
+        roles.first = frost ? frost->GetObjectGuid() : ObjectGuid();
+        roles.second = nature ? nature->GetObjectGuid() : ObjectGuid();
+
+        // The last living tank takes both forms
+        if (!frost)
+            frost = nature;
+        if (!nature)
+            nature = frost;
+    }
+}
+
+Player* GetHydrossFrostTank(Player* bot)
+{
+    std::lock_guard<std::mutex> lock(hydrossRolesMutex);
+    Player* frost = nullptr;
+    Player* nature = nullptr;
+    UpdateHydrossRoles(bot, frost, nature);
+    return frost;
+}
+
+Player* GetHydrossNatureTank(Player* bot)
+{
+    std::lock_guard<std::mutex> lock(hydrossRolesMutex);
+    Player* frost = nullptr;
+    Player* nature = nullptr;
+    UpdateHydrossRoles(bot, frost, nature);
+    return nature;
+}
+
+// No tank held Hydross for a few seconds: the additional tank may take him
+bool IsHydrossLeaderless(Unit* hydross)
+{
+    if (!hydross)
+        return false;
+
+    // Out of combat (wipe, reset): the next pull starts with a fresh grace period
+    if (!hydross->IsInCombat())
+    {
+        std::lock_guard<std::mutex> lock(hydrossTankedMutex);
+        hydrossLastTanked.erase(hydross->GetInstanceId());
+        return false;
+    }
+
+    const time_t now = time(nullptr);
+    std::lock_guard<std::mutex> lock(hydrossTankedMutex);
+    time_t& lastTanked = hydrossLastTanked[hydross->GetInstanceId()];
+    if (IsHydrossOnTank(hydross) || !lastTanked || now - lastTanked > 600)
+    {
+        lastTanked = now;
+        return false;
+    }
+
+    return now - lastTanked >= HYDROSS_LEADERLESS_SECONDS;
+}
+
+namespace
+{
+    // Seconds since a tank held Hydross, 0 while a tank has him
+    time_t HydrossSecondsWithoutTank(Unit* hydross)
+    {
+        IsHydrossLeaderless(hydross);
+        std::lock_guard<std::mutex> lock(hydrossTankedMutex);
+        auto lastTanked = hydrossLastTanked.find(hydross->GetInstanceId());
+        if (lastTanked == hydrossLastTanked.end() || IsHydrossOnTank(hydross))
+            return 0;
+
+        return time(nullptr) - lastTanked->second;
+    }
+}
+
 bool UpdateHydrossState(PlayerbotAI* ai)
 {
     Player* bot = ai->GetBot();
@@ -362,12 +766,14 @@ bool UpdateHydrossState(PlayerbotAI* ai)
         return false;
 
     const bool nature = hydross->HasAura(SPELL_CORRUPTION);
-    Player* tank = nature ? raidboss::GetGroupAssistTank(bot, 0) : raidboss::GetGroupMainTank(bot);
+    Player* tank = nature ? GetHydrossNatureTank(bot) : GetHydrossFrostTank(bot);
     const bool marked = tank && (nature ? HasMarkOfCorruptionAt100Percent(tank) : HasMarkOfHydrossAt100Percent(tank));
     const time_t now = time(nullptr);
+    bool firstUpdate = false;
     bool changed = false;
     WithState(bot, [&](SscInstanceState& state)
     {
+        firstUpdate = !state.hydrossFrostDpsWait && !state.hydrossNatureDpsWait;
         time_t& started = nature ? state.hydrossNatureDpsWait : state.hydrossFrostDpsWait;
         time_t& previous = nature ? state.hydrossFrostDpsWait : state.hydrossNatureDpsWait;
         time_t& transition = nature ? state.hydrossChangeToFrostPhase : state.hydrossChangeToNaturePhase;
@@ -378,14 +784,27 @@ bool UpdateHydrossState(PlayerbotAI* ai)
             previous = previousTransition = transition = 0;
             changed = true;
         }
-        // Read the active tank's marks, not the tracker bot's (which may be out of aura range).
+        // Hand off by time; the active tank's 100% mark only matters if the timer was missed.
         // Ignore marks left over from the previous visit to this form.
-        if (marked && now - started >= 30 && !transition)
+        if ((hydross::IsHandoffTime(now - started) || (marked && now - started >= 30)) && !transition)
         {
             transition = now;
             changed = true;
         }
     });
+
+    // New pull: roles and the "without tank" timer start fresh, nothing carries over from a wipe
+    if (firstUpdate)
+    {
+        {
+            std::lock_guard<std::mutex> lock(hydrossRolesMutex);
+            hydrossRoles.erase(hydross->GetInstanceId());
+        }
+        std::lock_guard<std::mutex> lock(hydrossTankedMutex);
+        hydrossLastTanked[hydross->GetInstanceId()] = now;
+    }
+
+    IsHydrossLeaderless(hydross);
     return changed;
 }
 
@@ -396,13 +815,33 @@ bool ShouldPauseHydrossDps(PlayerbotAI* ai)
         return false;
 
     UpdateHydrossState(ai);
-    Player* bot = ai->GetBot();
     const bool nature = hydross->HasAura(SPELL_CORRUPTION);
-    Player* tank = nature ? raidboss::GetGroupAssistTank(bot, 0) : raidboss::GetGroupMainTank(bot);
-    const SscInstanceState state = GetState(bot);
+    const SscInstanceState state = GetState(ai->GetBot());
     const time_t started = nature ? state.hydrossNatureDpsWait : state.hydrossFrostDpsWait;
     const time_t transition = nature ? state.hydrossChangeToFrostPhase : state.hydrossChangeToNaturePhase;
-    return transition || !started || time(nullptr) - started < 5 || !tank || hydross->GetVictim() != tank;
+    const time_t now = time(nullptr);
+
+    // The tank needs a few seconds to drag the boss over the boundary
+    if (transition)
+        return now - transition < 10;
+
+    // The boss chases a damage dealer (dead or resurrected tank): stop feeding his threat so the tank's
+    // taunt sticks. In the 2.4.3 raid log a taunted boss went straight back to the warlocks for 35 seconds.
+    const time_t withoutTank = HydrossSecondsWithoutTank(hydross);
+    if (withoutTank >= 1 && withoutTank <= 8)
+        return true;
+
+    if (!started || now - started < 5)
+        return true;
+
+    // Threat was wiped by the form change: wait until the tank of the new form holds the boss (the tank who
+    // dragged him has no threat left), but never stall the raid for longer than 15 seconds (a dead or out of
+    // range tank used to pause the dps for good)
+    Unit* victim = hydross->GetVictim();
+    Player* formTank = nature ? GetHydrossNatureTank(ai->GetBot()) : GetHydrossFrostTank(ai->GetBot());
+    const bool tankHasBoss = victim && (victim == formTank || (!formTank && victim->GetTypeId() == TYPEID_PLAYER &&
+                                                                  PlayerbotAI::IsTank(static_cast<Player*>(victim))));
+    return !tankHasBoss && now - started < 15;
 }
 
 // The Lurker Below

@@ -1,9 +1,14 @@
 #pragma once
 #include "DungeonTriggers.h"
 #include "GenericTriggers.h"
+#include "playerbot/strategy/values/GuidPositionValues.h"
 
 namespace ai
 {
+    // While Broodlord fights, only devices whose suppression reaches his fight matter; the rest
+    // rearm within 2 minutes anyway and pull the rogues away from the boss.
+    std::list<GuidPosition> FilterSuppressionDevices(Player* bot, const std::list<GuidPosition>& devices);
+
     class BlackwingLairEnterDungeonTrigger : public EnterDungeonTrigger
     {
     public:
@@ -29,7 +34,7 @@ namespace ai
             if (ai->HasAura("stealth", bot))
                 return false;
 
-            std::list<GuidPosition> gos = AI_VALUE(std::list<GuidPosition>, "go usable filter::go trapped filter::entry filter::{gos in sight,suppression devices}");
+            std::list<GuidPosition> gos = FilterSuppressionDevices(bot, AI_VALUE(std::list<GuidPosition>, "go usable filter::go trapped filter::entry filter::{gos in sight,suppression devices}"));
             return !gos.empty();
         }
     };
@@ -44,8 +49,8 @@ namespace ai
             if (bot->getClass() != CLASS_ROGUE)
                 return false;
 
-            std::list<GuidPosition> gosInSight = AI_VALUE(std::list<GuidPosition>, "go usable filter::go trapped filter::entry filter::{gos in sight,suppression devices}");
-            std::list<GuidPosition> gosClose = AI_VALUE(std::list<GuidPosition>, "entry filter::{gos close,suppression devices}");
+            std::list<GuidPosition> gosInSight = FilterSuppressionDevices(bot, AI_VALUE(std::list<GuidPosition>, "go usable filter::go trapped filter::entry filter::{gos in sight,suppression devices}"));
+            std::list<GuidPosition> gosClose = FilterSuppressionDevices(bot, AI_VALUE(std::list<GuidPosition>, "entry filter::{gos close,suppression devices}"));
             
             return !gosInSight.empty() && gosClose.empty();
         }
@@ -61,7 +66,7 @@ namespace ai
             if (bot->getClass() != CLASS_ROGUE)
                 return false;
 
-            std::list<GuidPosition> gos = AI_VALUE(std::list<GuidPosition>, "go usable filter::go trapped filter::entry filter::{gos close,suppression devices}");
+            std::list<GuidPosition> gos = FilterSuppressionDevices(bot, AI_VALUE(std::list<GuidPosition>, "go usable filter::go trapped filter::entry filter::{gos close,suppression devices}"));
             return !gos.empty();
         }
     };

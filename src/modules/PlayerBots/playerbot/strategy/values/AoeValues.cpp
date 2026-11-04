@@ -119,6 +119,11 @@ bool HasAreaDebuffValue::Calculate()
         if (IsPositiveEffect(spellProto, go->GetEffIndex()))
             continue;
 
+        // Area-wide markers (Kalecgos' Spectral Blast visual 46648 has 50000 yd) cannot be left: running from
+        // them pulled the whole raid off the boss and sent the flee point off the map (crash 2026-10-31)
+        if (go->GetRadius() > 40.0f)
+            continue;
+
         // Ground effects of friendly casters (Blizzard, Consecration, Rain of Fire, ...) do not hurt us
         Unit* caster = go->GetCaster();
         if (caster && !caster->CanAttack(checkTarget))

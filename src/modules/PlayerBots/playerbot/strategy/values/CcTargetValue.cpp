@@ -40,6 +40,13 @@ public:
         if (health < sPlayerbotAIConfig.mediumHealth)
             return;
 
+        // Bosses are immune, and in raids unmarked adds are meant to die: auto CC there cost
+        // casts (Fear on the Lurker) and sent feared adds running into the healers
+        if (creature->GetTypeId() == TYPEID_UNIT && static_cast<Creature*>(creature)->IsWorldBoss())
+            return;
+        if (bot->GetMap()->IsRaid() && RtiTargetValue::GetRtiIndex(AI_VALUE(std::string, "rti cc")) == -1)
+            return;
+
         float minDistance = ai->GetRange("spell");
         Group* group = bot->GetGroup();
         if (!group)

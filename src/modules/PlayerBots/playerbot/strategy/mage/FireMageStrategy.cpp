@@ -11,9 +11,16 @@ public:
     FireMageStrategyActionNodeFactory()
     {
         creators["fire blast"] = &fire_blast;
+        creators["fireball"] = &fireball;
+        creators["scorch"] = &scorch;
     }
 private:
     ACTION_NODE_A(fire_blast, "fire blast", "scorch");
+
+    // Fire immune targets (Al'ar): fall back to frost instead of standing idle
+    ACTION_NODE_A(fireball, "fireball", "frostbolt");
+
+    ACTION_NODE_A(scorch, "scorch", "frostbolt");
 };
 
 FireMageStrategy::FireMageStrategy(PlayerbotAI* ai) : MageStrategy(ai)

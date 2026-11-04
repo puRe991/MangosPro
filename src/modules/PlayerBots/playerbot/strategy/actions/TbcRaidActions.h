@@ -190,7 +190,27 @@ namespace ai
     class TbcRaidUseBlueOrbAction : public TbcRaidMovementAction
     {
     public:
-        TbcRaidUseBlueOrbAction(PlayerbotAI* ai) : TbcRaidMovementAction(ai, "tbc raid use blue orb") {}
+        TbcRaidUseBlueOrbAction(PlayerbotAI* ai, std::string name = "tbc raid use blue orb") : TbcRaidMovementAction(ai, name) {}
+        bool Execute(Event& event) override;
+
+    protected:
+        // Walk to the object and click it
+        bool UseObject(GameObject* object);
+    };
+
+    // Kalecgos: stop hitting the boss that is ahead (dragon on the platform, Sathrovarr in the realm)
+    class TbcRaidHoldKalecgosDamageAction : public Action
+    {
+    public:
+        TbcRaidHoldKalecgosDamageAction(PlayerbotAI* ai) : Action(ai, "tbc raid hold kalecgos damage") {}
+        bool Execute(Event& event) override;
+    };
+
+    // Kalecgos: enter the Spectral Realm through the Spectral Rift
+    class TbcRaidUseSpectralRiftAction : public TbcRaidUseBlueOrbAction
+    {
+    public:
+        TbcRaidUseSpectralRiftAction(PlayerbotAI* ai) : TbcRaidUseBlueOrbAction(ai, "tbc raid use spectral rift") {}
         bool Execute(Event& event) override;
     };
 

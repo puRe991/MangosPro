@@ -55,7 +55,9 @@ bool EnemyPlayersValue::IsValid(Unit* target, Player* player)
             // Check that the target is not a mind controlled ally
             if (target->HasAuraType(SPELL_AURA_MOD_CHARM) || target->HasAuraType(SPELL_AURA_MOD_POSSESS))
             {
-                if (player && player->IsInGroup(target))
+                // IsInGroup() follows the controlling unit: a player charmed by a boss (Kael'thas Mind
+                // Control) counted as an enemy and the bots killed 27 raid members in one fight
+                if (player && (player->IsInGroup(target) || (player->GetGroup() && player->GetGroup() == enemyPlayer->GetGroup())))
                 {
                     return false;
                 }

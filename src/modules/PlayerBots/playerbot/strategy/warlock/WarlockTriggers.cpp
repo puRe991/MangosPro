@@ -221,6 +221,14 @@ bool NoCurseTrigger::IsActive()
 	Unit* target = GetTarget();
 	if (target)
 	{
+		// Raid curse assignments own the curse slot: this fallback Agony overwrote a fresh
+		// Curse of Doom one second later, so Doom never ticked
+		const bool raidCurses = ai->HasStrategy("curse destruction raid", BotState::BOT_STATE_COMBAT) ||
+			ai->HasStrategy("curse demonology raid", BotState::BOT_STATE_COMBAT) ||
+			ai->HasStrategy("curse affliction raid", BotState::BOT_STATE_COMBAT);
+		if (raidCurses && !warlockcurse::GetAssignedCurse(ai, target).empty())
+			return false;
+
 		return !ai->HasAura("curse of agony", target, false, true) &&
 			   !ai->HasAura("curse of doom", target, false, true) &&
 			   !ai->HasAura("curse of recklessness", target, false, true) &&

@@ -15,6 +15,9 @@ namespace ai
     public:
         CombatEndTrigger(PlayerbotAI* ai) : Trigger(ai, "combat end") {}
         virtual bool IsActive() override;
+
+    private:
+        uint32 noAttackersSinceMs = 0;
     };
 
     class DeathTrigger : public Trigger

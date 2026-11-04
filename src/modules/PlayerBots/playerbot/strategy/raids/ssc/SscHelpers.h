@@ -59,6 +59,9 @@ namespace ai
             SPELL_INSIDIOUS_WHISPER      = 37676,
             SPELL_CONSUMING_MADNESS      = 37749,   // mind control when an Inner Demon survives
 
+            // Fathom-Lord Karathress
+            SPELL_CARIBDIS_HEALING_WAVE  = 38330,
+
             // Lady Vashj
             SPELL_MAGIC_BARRIER          = 38112,
             SPELL_STATIC_CHARGE          = 38280,
@@ -163,9 +166,18 @@ namespace ai
         extern const WorldPosition CARIBDIS_TANK_POSITION;
         extern const WorldPosition CARIBDIS_HEALER_POSITION;
         extern const WorldPosition CARIBDIS_RANGED_DPS_POSITION;
-        // Living council members without an own tank, in dps kill order, followed by Karathress.
-        // With fewer than four tanks the main tank holds these together at the Karathress spot.
-        std::vector<Unit*> GetKarathressMainTankUnits(PlayerbotAI* ai);
+        // Tank of a council member (or Karathress) for the current pull. Roles are latched per pull: a dead
+        // tank's mob goes to a free tank until he is back, the others keep theirs. Assist tanks take Caribdis,
+        // Tidalvess, Sharkkis in that order, a member without one is held by the Karathress tank.
+        Player* GetKarathressTank(Player* bot, uint32 entry);
+        // Living mobs the bot tanks, Karathress first, then the extra council members in kill order
+        std::vector<Unit*> GetKarathressTankUnits(PlayerbotAI* ai);
+        // Clears the latched roles (pull start)
+        void ResetKarathressRoles(Player* bot);
+        // A council member on a non-tank: dps holds for a few seconds so its tank can take it back
+        bool ShouldHoldKarathressDps(PlayerbotAI* ai, Unit* target);
+        // Caribdis casting Healing Wave and an interrupt of the bot that can stop it now (spell is set)
+        Unit* GetCaribdisInterruptTarget(PlayerbotAI* ai, std::string& spell);
 
         // Morogrim Tidewalker
         extern const WorldPosition TIDEWALKER_PHASE_1_TANK_POSITION;

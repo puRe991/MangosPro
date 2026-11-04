@@ -542,7 +542,8 @@ bool raidboss::IsDpsCooldownAction(Player* bot, Action* action)
 
     return NameIn(name, {
         "use trinket", "arcane power", "combustion", "icy veins", "presence of mind", "cold snap",
-        "summon water elemental", "rapid fire", "readiness", "bestial wrath", "kill command",
+        // Kill Command is part of the rotation (5 s cooldown), holding it with the cooldowns cost BM hunters a lot
+        "summon water elemental", "rapid fire", "readiness", "bestial wrath",
         "death wish", "recklessness", "adrenaline rush", "blade flurry", "cold blood",
         "avenging wrath", "elemental mastery", "fire elemental totem", "power infusion",
         "force of nature", "blood fury", "berserking", "arcane torrent" });

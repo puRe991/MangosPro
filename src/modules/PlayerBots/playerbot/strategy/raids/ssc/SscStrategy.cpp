@@ -57,6 +57,12 @@ void SscStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
         "hydross the unstable need to manage timers",
         NextAction::array(0, new NextAction("hydross the unstable manage timers", ACTION_EMERGENCY + 9), NULL)));
 
+    // Bots have no resistance gear: the shamans drop Nature Resistance Totem for the nature tank (the paladin
+    // Frost Resistance Aura of the encounter covers the frost form)
+    triggers.push_back(new TriggerNode(
+        "hydross the unstable nature form needs resistance totem",
+        NextAction::array(0, new NextAction("nature resistance totem", raidboss::ACTION_RAID + 2), NULL)));
+
     triggers.push_back(new TriggerNode(
         "the lurker below spout is active",
         NextAction::array(0, new NextAction("the lurker below run around behind boss", ACTION_EMERGENCY + 6), NULL)));
@@ -144,6 +150,10 @@ void SscStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
     triggers.push_back(new TriggerNode(
         "fathom-lord karathress caribdis tank needs dedicated healer",
         NextAction::array(0, new NextAction("fathom-lord karathress position caribdis tank healer", raidboss::ACTION_RAID + 1), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "fathom-lord karathress caribdis casts healing wave",
+        NextAction::array(0, new NextAction("fathom-lord karathress interrupt caribdis heal", ACTION_EMERGENCY + 7), NULL)));
 
     triggers.push_back(new TriggerNode(
         "fathom-lord karathress pulling bosses",

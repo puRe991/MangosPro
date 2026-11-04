@@ -11,6 +11,7 @@
 #include "RandomItemMgr.h"
 #include "BotGearHelper.h"
 #include "RandomPlayerbotFactory.h"
+#include "RandomBotTitles.h"
 #include "playerbot/ServerFacade.h"
 #include "playerbot/AiFactory.h"
 #include "Guilds/GuildMgr.h"
@@ -243,6 +244,7 @@ void PlayerbotFactory::Randomize(bool incremental, bool syncWithMaster)
     sLog.outDetail("Initializing spells (step 2)...");
     InitAvailableSpells();
     InitSpecialSpells();
+    InitLevelSkillsAndBookSpells(bot);
     pmo.reset();
 
     if (isRealRandomBot)
@@ -315,6 +317,21 @@ void PlayerbotFactory::Randomize(bool incremental, bool syncWithMaster)
             InitArenaTeam();
 #endif
     }
+
+#ifdef MANGOSBOT_ONE
+    if (isRandomBot)
+    {
+        // a full reset may drop the bot below the level its old titles need
+        if (!incremental)
+        {
+            bot->SetUInt64Value(PLAYER__FIELD_KNOWN_TITLES, 0);
+            bot->SetUInt32Value(PLAYER_CHOSEN_TITLE, 0);
+        }
+
+        sLog.outDetail("Initializing titles...");
+        InitTitles();
+    }
+#endif
 
     if (bot->GetLevel() >= 10 && bot->getClass() == CLASS_HUNTER)
     {
@@ -4330,20 +4347,13 @@ void PlayerbotFactory::SetRandomSkill(uint16 id)
 
     SkillRangeType skillType = GetSkillRangeType(pSkill, false);
 
-    // if this is not a profession type of skill or skill that is 1/1
-    if (skillType != SKILL_RANGE_LEVEL && skillType != SKILL_RANGE_MONO)
+    // weapon/defense style skills scale with level: always set them to the exact level cap
+    // (random values left bots up to 45 points short or 25 points above the cap)
+    if (skillType == SKILL_RANGE_LEVEL || skillType == SKILL_RANGE_MONO)
     {
-        // do not let skill go beyond limit even if maxlevel > blizzlike
-#ifndef MANGOSBOT_ZERO
-            if (level > 60)
-            {
-#ifdef MANGOSBOT_ONE
-                maxValue = (level + 5) * 5;   // tbc (70 + 5)*5 = 375
-#else
-                maxValue = (level + 10) * 5;  // wotlk (80 + 10)*5 = 450
-#endif
-            }
-#endif
+        maxValue = std::min<uint32>(bot->GetSkillMaxForLevel(), sWorld.GetConfigMaxSkillValue());
+        bot->SetSkill(id, maxValue, maxValue);
+        return;
     }
     else
     {
@@ -4492,6 +4502,39 @@ void PlayerbotFactory::InitAvailableSpells()
 #endif
 }
 
+
+void PlayerbotFactory::InitLevelSkillsAndBookSpells(Player* bot)
+{
+    // also clamps values above the cap left by older randomizations
+    bot->UpdateSkillsForLevel(true);
+
+#ifdef MANGOSBOT_ONE
+    // raid buff ranks only taught by dropped books, never by trainers
+    if (bot->GetLevel() >= 70)
+    {
+        std::vector<uint32> bookSpells;
+        switch (bot->getClass())
+        {
+        case CLASS_PRIEST:
+            bookSpells.push_back(25392); // Prayer of Fortitude rank 3
+            bookSpells.push_back(39374); // Prayer of Shadow Protection rank 2
+            break;
+        case CLASS_MAGE:
+            bookSpells.push_back(27127); // Arcane Brilliance rank 2
+            break;
+        case CLASS_DRUID:
+            bookSpells.push_back(26991); // Gift of the Wild rank 3
+            break;
+        }
+
+        for (auto spellId : bookSpells)
+        {
+            if (!bot->HasSpell(spellId) && sSpellTemplate.LookupEntry<SpellEntry>(spellId))
+                bot->learnSpell(spellId, false);
+        }
+    }
+#endif
+}
 
 void PlayerbotFactory::InitSpecialSpells()
 {
@@ -5349,6 +5392,36 @@ void PlayerbotFactory::InitArenaTeam()
         RandomPlayerbotFactory::CreateRandomArenaTeams();
 }
 #endif
+
+void PlayerbotFactory::InitTitles()
+{
+#ifdef MANGOSBOT_ONE
+    if (!sPlayerbotAIConfig.randomBotTitles)
+        return;
+
+    const uint32 guid = bot->GetGUIDLow();
+    for (uint32 titleId : titles::RollTitles(guid, bot->GetLevel(), bot->GetTeam() == ALLIANCE))
+    {
+        if (CharTitlesEntry const* title = sCharTitlesStore.LookupEntry(titleId))
+            bot->SetTitle(title, false, false);
+    }
+
+    const uint32 chosen = bot->GetUInt32Value(PLAYER_CHOSEN_TITLE);
+    if ((chosen && bot->HasTitle(chosen)) || !titles::ShowsTitle(guid))
+        return;
+
+    std::vector<uint32> known;
+    for (uint32 id = 1; id < sCharTitlesStore.GetNumRows(); ++id)
+    {
+        CharTitlesEntry const* title = sCharTitlesStore.LookupEntry(id);
+        if (title && bot->HasTitle(title))
+            known.push_back(title->bit_index);
+    }
+
+    if (!known.empty())
+        bot->SetUInt32Value(PLAYER_CHOSEN_TITLE, known[titles::ShownIndex(guid, known.size())]);
+#endif
+}
 
 void PlayerbotFactory::EnchantEquipment()
 {

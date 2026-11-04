@@ -1,7 +1,9 @@
 // Ported from mod-playerbots (AzerothCore, GPL v2+, src/Ai/Raid/BT/BTHelpers) and adapted for this core.
 #include "playerbot/playerbot.h"
 #include "BtHelpers.h"
+#include "BtCouncilRules.h"
 #include "BtGurtoggRules.h"
+#include "BtSupremusRules.h"
 #include "playerbot/strategy/raids/RaidBossHelpers.h"
 #include "playerbot/strategy/Action.h"
 #include "playerbot/strategy/actions/MovementActions.h"
@@ -284,6 +286,135 @@ Unit* GetSupremusMoltenFlameChasingBot(Player* bot)
     return nullptr;
 }
 
+bool IsSupremusTankPhase(Unit* supremus)
+{
+    return supremus && supremus->IsInCombat() && !supremus->HasAura(SPELL_SNARE_SELF);
+}
+
+namespace
+{
+    // Tanks besides the boss' victim in his melee reach take the Hateful Strikes instead of the melee dps
+    int CountSupremusHatefulSoakers(Player* bot, Unit* supremus)
+    {
+        int soakers = 0;
+        for (Player* tank : raidboss::GetGroupTanks(bot))
+        {
+            if (tank != supremus->GetVictim() && supremus->CanReachWithMeleeAttack(tank))
+                ++soakers;
+        }
+
+        return soakers;
+    }
+
+    float NormalizeSlotAngle(float angle)
+    {
+        while (angle > M_PI_F)
+            angle -= 2.0f * M_PI_F;
+        while (angle < -M_PI_F)
+            angle += 2.0f * M_PI_F;
+        return angle;
+    }
+}
+
+bool MustAvoidSupremusHatefulStrike(Player* bot, Unit* supremus)
+{
+    if (!IsSupremusTankPhase(supremus) || !bot->IsAlive() || PlayerbotAI::IsTank(bot) || supremus->GetVictim() == bot)
+        return false;
+
+    if (PlayerbotAI::IsHeal(bot) || raidboss::IsRangedPlayer(bot))
+        return true;
+
+    return !supremus::MeleeMayEngage(CountSupremusHatefulSoakers(bot, supremus));
+}
+
+bool GetSupremusSafeSlot(Player* bot, Unit* supremus, float& x, float& y, float& z, float& angle)
+{
+    // Healers and the other players waiting outside get separate lists, both in group order
+    std::vector<Player*> healers;
+    std::vector<Player*> others;
+    for (Player* member : raidboss::GetGroupMembers(bot, 200.0f, true))
+    {
+        if (!member->GetPlayerbotAI() || !MustAvoidSupremusHatefulStrike(member, supremus))
+            continue;
+
+        if (PlayerbotAI::IsHeal(member))
+            healers.push_back(member);
+        else
+            others.push_back(member);
+    }
+
+    const bool healer = PlayerbotAI::IsHeal(bot);
+    const std::vector<Player*>& list = healer ? healers : others;
+    const int index = raidboss::GetIndexOf(bot, list);
+    if (index < 0)
+        return false;
+
+    // The healer arc points at the tank of this tank phase; kept for the whole phase so a moving tank
+    // doesn't rotate every slot
+    const uint32 instanceId = supremus->GetInstanceId();
+    int64 anchorMilli = 0;
+    if (!GetState(BtState::SupremusSlotAnchor, instanceId, anchorMilli))
+    {
+        Unit* tank = supremus->GetVictim();
+        if (!tank || !tank->IsPlayer() || !PlayerbotAI::IsTank(static_cast<Player*>(tank)))
+            tank = raidboss::GetGroupMainTank(bot);
+
+        const float anchor = tank ? std::atan2(tank->GetPositionY() - supremus->GetPositionY(), tank->GetPositionX() - supremus->GetPositionX())
+                                  : supremus->GetOrientation();
+        SetStateIfAbsent(BtState::SupremusSlotAnchor, instanceId, int64(anchor * 1000.0f));
+        GetState(BtState::SupremusSlotAnchor, instanceId, anchorMilli);
+    }
+
+    const float anchor = float(anchorMilli) / 1000.0f;
+    const float slotAngle = healer ? supremus::HealerSlotAngle(index, int(list.size()), anchor)
+                                   : supremus::DpsSlotAngle(index, int(list.size()), anchor);
+    const float radius = supremus::SafeRadius(GetSupremusMeleeReach(bot, supremus));
+
+    const float bossX = supremus->GetPositionX();
+    const float bossY = supremus->GetPositionY();
+    const float bossZ = supremus->GetPositionZ();
+    const std::vector<Unit*> volcanos = GetSupremusVolcanos(bot, 100.0f);
+
+    // Walls and volcanos: shift the slot along the ring, then a bit further out
+    const float offsets[] = { 0.0f, 0.15f, -0.15f, 0.3f, -0.3f, 0.45f, -0.45f, 0.6f, -0.6f };
+    for (float extra : { 0.0f, 5.0f })
+    {
+        for (float offset : offsets)
+        {
+            const float candidateAngle = slotAngle + offset;
+            const float candidateX = bossX + (radius + extra) * std::cos(candidateAngle);
+            const float candidateY = bossY + (radius + extra) * std::sin(candidateAngle);
+            const float candidateZ = bot->GetMap()->GetHeight(candidateX, candidateY, bossZ + 5.0f);
+            if (candidateZ <= INVALID_HEIGHT || std::fabs(candidateZ - bossZ) > 8.0f)
+                continue;
+
+            if (!bot->GetMap()->IsInLineOfSight(bossX, bossY, bossZ + 2.0f, candidateX, candidateY, candidateZ + 2.0f, true))
+                continue;
+
+            bool inVolcano = false;
+            for (Unit* volcano : volcanos)
+            {
+                if (raidboss::ExactDist2d(volcano, candidateX, candidateY) < 16.0f)
+                {
+                    inVolcano = true;
+                    break;
+                }
+            }
+
+            if (inVolcano)
+                continue;
+
+            x = candidateX;
+            y = candidateY;
+            z = candidateZ;
+            angle = NormalizeSlotAngle(candidateAngle);
+            return true;
+        }
+    }
+
+    return false;
+}
+
 // ---------------------------------------------------------------------------
 // Shade of Akama
 // ---------------------------------------------------------------------------
@@ -474,6 +605,14 @@ Player* GetZerevorHealer(Player* bot)
     return nullptr;
 }
 
+Player* GetVerasTank(Player* bot)
+{
+    if (Player* tank = raidboss::GetGroupAssistTank(bot, 1))
+        return tank;
+
+    return raidboss::GetGroupMainTank(bot);
+}
+
 // Hunters and the melee classes deal physical damage (Retribution and Enhancement mostly through their weapon)
 bool IsPhysicalDamageDealer(Player* bot)
 {
@@ -505,21 +644,27 @@ bool CanDamageCouncilMember(Player* bot, Unit* member)
     return !member->HasAura(IsPhysicalDamageDealer(bot) ? SPELL_BLESSING_OF_PROTECTION : SPELL_BLESSING_OF_SPELL_WARDING);
 }
 
-Unit* GetCircleOfHealingInterrupt(PlayerbotAI* ai, std::string& spell)
+Unit* GetMalandeInterrupt(PlayerbotAI* ai, std::string& spell)
 {
     std::vector<std::string> interrupts;
+    bool physical = false;
     switch (ai->GetBot()->getClass())
     {
-    case CLASS_ROGUE:   interrupts = { "kick" }; break;
-    case CLASS_WARRIOR: interrupts = { "shield bash", "pummel" }; break;
+    case CLASS_ROGUE:   interrupts = { "kick" }; physical = true; break;
+    case CLASS_WARRIOR: interrupts = { "shield bash", "pummel" }; physical = true; break;
     case CLASS_MAGE:    interrupts = { "counterspell" }; break;
     case CLASS_SHAMAN:  interrupts = { "earth shock" }; break;
     case CLASS_PRIEST:  interrupts = { "silence" }; break;
     default: return nullptr;
     }
 
+    // Circle of Healing heals the whole council, Divine Wrath hits a random player for 5000 + 10000.
+    // Empowered Smite on her tank is left alone so the interrupts are ready for those two.
     Unit* malande = FindBoss(ai, NPC_MALANDE);
-    if (!malande || !malande->FindCurrentSpellBySpellId(SPELL_CIRCLE_OF_HEALING))
+    if (!malande || (!malande->FindCurrentSpellBySpellId(SPELL_CIRCLE_OF_HEALING) && !malande->FindCurrentSpellBySpellId(SPELL_DIVINE_WRATH)))
+        return nullptr;
+
+    if (!council::InterruptLands(physical, malande->HasAura(SPELL_BLESSING_OF_PROTECTION), malande->HasAura(SPELL_BLESSING_OF_SPELL_WARDING)))
         return nullptr;
 
     for (const std::string& interrupt : interrupts)

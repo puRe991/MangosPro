@@ -5,6 +5,7 @@
 #include "playerbot/ServerFacade.h"
 #include "playerbot/LootObjectStack.h"
 #include "playerbot/strategy/generic/KarazhanDungeonStrategies.h"
+#include "playerbot/strategy/raids/gruul/GruulHelpers.h"
 
 using namespace ai;
 
@@ -91,7 +92,8 @@ ObjectGuid PartyMemberToHeal::Calculate()
                 continue;
             }
 
-            bool isTank = ai->IsTank(player);
+            // Krosh's mage tank and Kiggler's moonkin tank take the boss hits of a tank
+            bool isTank = ai->IsTank(player) || gruul::IsOgreCasterTank(player);
 
             // do not heal dueling members
             if (player->duel && player->duel->opponent)

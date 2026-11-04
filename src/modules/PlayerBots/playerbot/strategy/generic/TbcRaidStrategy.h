@@ -132,6 +132,14 @@ namespace ai
         static Unit* GetKiljaedenCastingDarkness(PlayerbotAI* ai);
         static Unit* GetRaidBlueDragon(PlayerbotAI* ai);
 
+        // Kalecgos: Spectral Rift the bot has to enter (realm team of 1 tank, 2 healers, 4 damage dealers)
+        static GameObject* GetSpectralRiftToUse(PlayerbotAI* ai);
+        // Kalecgos: boss the bot must stop hitting so dragon and Sathrovarr fall together
+        // (the dragon on the platform, Sathrovarr at 12% in the realm)
+        static Unit* GetKalecgosToHoldDamage(PlayerbotAI* ai);
+        // Kalecgos: Sathrovarr hitting someone else than a tank (Kalec), to be taunted by the realm tank
+        static Unit* GetSathrovarrToTaunt(PlayerbotAI* ai);
+
         // Cast a spell of a possessed creature, selected by (part of) its name
         static uint32 FindCharmSpell(Creature* charm, const std::string& namePart);
 

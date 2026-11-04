@@ -228,6 +228,7 @@ public:
     bool enableGreet;
     bool randomBotShowHelmet;
     bool randomBotShowCloak;
+    bool randomBotTitles;
     bool disableRandomLevels;
     bool instantRandomize;
     bool gearscorecheck;

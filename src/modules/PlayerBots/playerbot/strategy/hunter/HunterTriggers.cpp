@@ -25,7 +25,10 @@ bool SteadyShotCanCastTrigger::IsActive()
     if (!spellInfo)
         return true;
 
-    return bot->getAttackTimer(RANGED_ATTACK) >= GetSpellCastTime(spellInfo, bot);
+    // A small clip is accepted: with a hasted ~2 s bow the exact window was only 0.5 s wide and
+    // the AI tick mostly missed it (5 Steady Shots in a 4 minute fight)
+    const int32 castTime = GetSpellCastTime(spellInfo, bot);
+    return int32(bot->getAttackTimer(RANGED_ATTACK)) >= castTime - 500;
 #else
     return true;
 #endif

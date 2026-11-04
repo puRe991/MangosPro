@@ -157,6 +157,7 @@ namespace ai
                 creators["thunder clap"] = [](PlayerbotAI* ai) { return new ThunderClapTrigger(ai); };
                 creators["bloodthirst"] = [](PlayerbotAI* ai) { return new BloodthirstTrigger(ai); };
                 creators["whirlwind"] = [](PlayerbotAI* ai) { return new WhirlwindTrigger(ai); };
+                creators["mortal strike available"] = [](PlayerbotAI* ai) { return new MortalStrikeAvailableTrigger(ai); };
                 creators["slam"] = [](PlayerbotAI* ai) { return new SlamTrigger(ai); };
                 creators["heroic strike"] = [](PlayerbotAI* ai) { return new HeroicStrikeTrigger(ai); };
                 creators["berserker rage"] = [](PlayerbotAI* ai) { return new BerserkerRageBuffTrigger(ai); };

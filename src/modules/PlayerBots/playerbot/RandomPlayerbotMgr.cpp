@@ -3651,6 +3651,10 @@ void RandomPlayerbotMgr::OnBotLoginInternal(Player * const bot)
     sLog.outDetail("%u/%d Bot %s logged in", GetPlayerbotsAmount(), sRandomPlayerbotMgr.GetMaxAllowedBotCount(), bot->GetName());
 
     ApplyActionHistorySize(bot);
+
+    // titles roll the same for a bot every time, so bots created before titles existed get theirs on the next login
+    if (IsRandomBot(bot))
+        PlayerbotFactory(bot, bot->GetLevel()).InitTitles();
 	//if (loginProgressBar && playerBots.size() < sRandomPlayerbotMgr.GetMaxAllowedBotCount()) { loginProgressBar->step(); }
 	//if (loginProgressBar && playerBots.size() >= sRandomPlayerbotMgr.GetMaxAllowedBotCount() - 1) {
     //if (loginProgressBar && playerBots.size() + 1 >= sRandomPlayerbotMgr.GetMaxAllowedBotCount()) {

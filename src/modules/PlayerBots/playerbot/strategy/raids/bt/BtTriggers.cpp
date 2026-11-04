@@ -2,6 +2,7 @@
 #include "playerbot/playerbot.h"
 #include "BtTriggers.h"
 #include "BtHelpers.h"
+#include "BtCouncilRules.h"
 #include "BtNajentusRules.h"
 #include "BtSupremusRules.h"
 #include "playerbot/AiFactory.h"
@@ -120,6 +121,7 @@ bool HighWarlordNajentusBossHasTidalShieldTrigger::IsActive()
     Player* thrower = nullptr;
     float healthSum = 0.0f;
     uint32 alive = 0;
+    int atRisk = 0;
     for (Player* member : raidboss::GetGroupMembers(bot, 100.0f, true))
     {
         if (!member->IsAlive())
@@ -127,6 +129,8 @@ bool HighWarlordNajentusBossHasTidalShieldTrigger::IsActive()
 
         healthSum += member->GetHealthPercent();
         alive++;
+        if (member->GetHealth() < najentus::TIDAL_BURST_SAFE_HEALTH)
+            atRisk++;
 
         if (!member->GetPlayerbotAI() || member->GetPlayerbotAI()->IsRealPlayer() ||
             !member->HasItemCount(ITEM_NAJENTUS_SPINE, 1) || member->HasAura(SPELL_IMPALING_SPINE))
@@ -140,7 +144,7 @@ bool HighWarlordNajentusBossHasTidalShieldTrigger::IsActive()
         return false;
 
     const float raidHealth = alive ? healthSum / float(alive) : 100.0f;
-    return najentus::ThrowSpineNow(raidHealth, GetTimerElapsed(BtState::NajentusShieldTimer, instanceId));
+    return najentus::ThrowSpineNow(raidHealth, atRisk, GetTimerElapsed(BtState::NajentusShieldTimer, instanceId));
 }
 
 // Supremus
@@ -159,13 +163,25 @@ bool SupremusPullingBossOrChangingPhaseTrigger::IsActive()
     return bt::supremus::IsMisdirectWindow(elapsed);
 }
 
-bool SupremusBossEngagedByRangedTrigger::IsActive()
+// Tank phase: ranged, healers and (without enough Hateful Strike soakers) the melee dps wait outside his reach
+bool SupremusMustAvoidHatefulStrikeTrigger::IsActive()
 {
-    if (!raidboss::IsRangedPlayer(bot))
+    if (PlayerbotAI::IsTank(bot))
         return false;
 
     Unit* supremus = FindBoss(ai, NPC_SUPREMUS);
-    return supremus && !supremus->HasAura(SPELL_SNARE_SELF);
+    return supremus && MustAvoidSupremusHatefulStrike(bot, supremus);
+}
+
+// Standing in the reach is deadly within a second, getting out beats every cast
+bool SupremusBotInHatefulStrikeReachTrigger::IsActive()
+{
+    if (PlayerbotAI::IsTank(bot))
+        return false;
+
+    Unit* supremus = FindBoss(ai, NPC_SUPREMUS);
+    return supremus && MustAvoidSupremusHatefulStrike(bot, supremus) &&
+           bt::supremus::IsInHatefulDanger(raidboss::ExactDist2d(bot, supremus), GetSupremusMeleeReach(bot, supremus));
 }
 
 bool SupremusBossIsFixatedOnBotTrigger::IsActive()
@@ -430,10 +446,10 @@ bool IllidariCouncilDarkshadowEngagedBySecondAssistTankTrigger::IsActive()
 }
 
 // Circle of Healing heals the whole council through the shared health pool
-bool IllidariCouncilMalandeCastingCircleOfHealingTrigger::IsActive()
+bool IllidariCouncilMalandeCastingInterruptibleSpellTrigger::IsActive()
 {
     std::string spell;
-    return GetCircleOfHealingInterrupt(ai, spell) != nullptr;
+    return GetMalandeInterrupt(ai, spell) != nullptr;
 }
 
 bool IllidariCouncilZerevorEngagedByMageTankTrigger::IsActive()
@@ -448,7 +464,26 @@ bool IllidariCouncilMageTankNeedsDedicatedHealerTrigger::IsActive()
 
 bool IllidariCouncilZerevorCastsDangerousAoesTrigger::IsActive()
 {
+    // The mage tank has its own position; dispersing kept it moving (wand only), so Zerevor never stuck
+    // to it and went to the melee tanks. Healers lost their casts the same way (most frequent healer
+    // action in a wipe) and leave Blizzard / Flamestrike / Consecration through the hazard actions.
+    if (GetZerevorMageTank(bot) == bot || PlayerbotAI::IsHeal(bot))
+        return false;
+
     return raidboss::IsRangedPlayer(bot) && FindBoss(ai, NPC_ZEREVOR) && !HasDangerousCouncilAura(bot);
+}
+
+// Everybody, the melee tanks after the pull window: on the pull all four stood on the main tank and
+// Zerevor's Arcane Explosion hit the melee there
+bool IllidariCouncilTooCloseToZerevorTrigger::IsActive()
+{
+    Unit* zerevor = FindBoss(ai, NPC_ZEREVOR);
+    if (!zerevor || !zerevor->IsAlive())
+        return false;
+
+    const bool meleeTank = raidboss::IsMainTank(bot) || raidboss::IsAssistTank(bot, 0) || raidboss::IsAssistTank(bot, 1);
+    return council::MustLeaveZerevor(raidboss::ExactDist2d(bot, zerevor), zerevor->IsInCombat(), meleeTank,
+                                     GetTimerElapsed(BtState::CouncilDpsTimer, zerevor->GetInstanceId()));
 }
 
 bool IllidariCouncilPetsScrewUpThePullTrigger::IsActive()
@@ -477,7 +512,9 @@ bool IllidariCouncilDeterminingDpsAssignmentsTrigger::IsActive()
 
 bool IllidariCouncilNeedToManageDpsTimerTrigger::IsActive()
 {
-    return raidboss::IsMechanicTrackerBot(bot, BLACK_TEMPLE_MAP_ID) && FindBoss(ai, NPC_GATHIOS);
+    // Any bot may start it (set once per instance): the dps wait no longer ends without the timer
+    Unit* gathios = FindBoss(ai, NPC_GATHIOS);
+    return gathios && gathios->IsInCombat();
 }
 
 // Illidan Stormrage <The Betrayer>

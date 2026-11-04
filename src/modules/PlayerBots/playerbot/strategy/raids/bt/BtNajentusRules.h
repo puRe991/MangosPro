@@ -55,14 +55,17 @@ namespace ai
                 return radius < 3.5f ? 3.5f : radius;
             }
 
-            // Tidal Burst hits the whole raid for 8500 frost: break the shield once the raid is topped up, but do
-            // not leave it up much longer since the boss heals 1% per second under it
+            // Tidal Burst hits the whole raid for 8500 frost: break the shield once the raid is topped up and nobody
+            // would die from it. The 2.4.3 raid log had three casters killed at 74% health (about 7.5k) by a
+            // throw on the average health alone. The boss heals 1% per second under the shield, so after a while
+            // the spine goes in regardless.
             constexpr float TOPPED_UP_PCT = 85.0f;
-            constexpr int64_t MAX_SHIELD_SECONDS = 10;
+            constexpr uint32_t TIDAL_BURST_SAFE_HEALTH = 9500;
+            constexpr int64_t MAX_SHIELD_SECONDS = 20;
 
-            inline bool ThrowSpineNow(float raidHealthPct, int64_t shieldSeconds)
+            inline bool ThrowSpineNow(float raidHealthPct, int membersAtRisk, int64_t shieldSeconds)
             {
-                return raidHealthPct >= TOPPED_UP_PCT || shieldSeconds >= MAX_SHIELD_SECONDS;
+                return (raidHealthPct >= TOPPED_UP_PCT && membersAtRisk == 0) || shieldSeconds >= MAX_SHIELD_SECONDS;
             }
         }
     }

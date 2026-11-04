@@ -82,6 +82,23 @@ namespace ai
                 return TbcRaidHelper::GetBlueOrbToUse(ai) != nullptr;
             }); };
 
+            creators["tbc raid use spectral rift"] = [](PlayerbotAI* ai) { return new TbcRaidMechanicTrigger(ai, "tbc raid use spectral rift", [](PlayerbotAI* ai)
+            {
+                return TbcRaidHelper::GetSpectralRiftToUse(ai) != nullptr;
+            }); };
+
+            creators["tbc raid hold kalecgos damage"] = [](PlayerbotAI* ai) { return new TbcRaidMechanicTrigger(ai, "tbc raid hold kalecgos damage", [](PlayerbotAI* ai)
+            {
+                Unit* dragon = TbcRaidHelper::GetKalecgosToHoldDamage(ai);
+                if (!dragon)
+                    return false;
+
+                Player* bot = ai->GetBot();
+                Pet* pet = bot->GetPet();
+                return bot->GetVictim() == dragon || (pet && pet->GetVictim() == dragon) ||
+                       ai->GetAiObjectContext()->GetValue<ObjectGuid>("current target")->Get() == dragon->GetObjectGuid();
+            }); };
+
             creators["tbc raid darkness"] = [](PlayerbotAI* ai) { return new TbcRaidMechanicTrigger(ai, "tbc raid darkness", [](PlayerbotAI* ai)
             {
                 Player* bot = ai->GetBot();
@@ -124,6 +141,8 @@ namespace ai
             creators["tbc raid jump into water"] = [](PlayerbotAI* ai) { return new TbcRaidJumpIntoWaterAction(ai); };
             creators["tbc raid control possessed"] = [](PlayerbotAI* ai) { return new TbcRaidControlPossessedAction(ai); };
             creators["tbc raid use blue orb"] = [](PlayerbotAI* ai) { return new TbcRaidUseBlueOrbAction(ai); };
+            creators["tbc raid use spectral rift"] = [](PlayerbotAI* ai) { return new TbcRaidUseSpectralRiftAction(ai); };
+            creators["tbc raid hold kalecgos damage"] = [](PlayerbotAI* ai) { return new TbcRaidHoldKalecgosDamageAction(ai); };
             creators["tbc raid gather under dragon"] = [](PlayerbotAI* ai) { return new TbcRaidGatherUnderDragonAction(ai); };
         }
     };

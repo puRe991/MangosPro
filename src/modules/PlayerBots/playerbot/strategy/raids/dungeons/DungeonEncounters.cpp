@@ -191,15 +191,20 @@ void EncounterRegistry::RegisterDungeons()
 
     Add("razorgore", 469, { 12435, 12557, 14456, 12420, 12416, 12422 })
         .Kill(12557).Kill(12420).Kill(12416).Kill(12422).AvoidFront(12435, 15.0f);
-    Add("vaelastrasz", 469, { 13020 }).RunWithDebuff(23620, 25.0f).AvoidFront(13020, 25.0f);
-    Add("broodlord lashlayer", 469, { 12017 }).AvoidFront(12017, 15.0f);
-    Add("firemaw", 469, { 11983 }).AvoidFront(11983, 25.0f).TankSwap(11983, 23341, 5);
-    Add("ebonroc", 469, { 14601 }).AvoidFront(14601, 25.0f).TankSwap(14601, 23340, 1);
-    Add("flamegor", 469, { 11981 }).AvoidFront(11981, 25.0f);
+    // Flame Breath (23461) is a 45 yd cone; Burning Adrenaline on the tank (18173) kills it after 20 s,
+    // so the next tank has to taunt as soon as it lands.
+    Add("vaelastrasz", 469, { 13020 }).RunWithDebuff(23620, 25.0f).AvoidFront(13020, 48.0f)
+        .TankSwap(13020, 18173, 1).ResistanceAura("fire resistance aura");
+    // Blast Wave (23331) hits everything within 20 yd of Broodlord
+    Add("broodlord lashlayer", 469, { 12017 }).AvoidFront(12017, 15.0f).Avoid(12017, 22.0f, ROLE_CASTERS);
+    // Shadow Flame (22539) is a 45 yd frontal cone
+    Add("firemaw", 469, { 11983 }).AvoidFront(11983, 48.0f).TankSwap(11983, 23341, 5);
+    Add("ebonroc", 469, { 14601 }).AvoidFront(14601, 48.0f).TankSwap(14601, 23340, 1);
+    Add("flamegor", 469, { 11981 }).AvoidFront(11981, 48.0f);
     Add("chromaggus", 469, { 14020 }).AvoidFront(14020, 30.0f);
     Add("nefarian", 469, { 11583, 10162, 14261, 14262, 14263, 14264, 14265, 14302, 14605 })
         .Kill(14302).Kill(14261).Kill(14262).Kill(14263).Kill(14264).Kill(14265).Kill(14605)
-        .AvoidFront(11583, 30.0f);
+        .AvoidFront(11583, 48.0f);
 
     Add("onyxia", 249, { 10184, 11262 }).Kill(11262).AvoidFront(10184, 30.0f).Spread(10.0f, ROLE_CASTERS);
 

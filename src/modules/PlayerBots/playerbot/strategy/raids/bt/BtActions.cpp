@@ -1,6 +1,7 @@
 // Ported from mod-playerbots (AzerothCore, GPL v2+, src/Ai/Raid/BT/BTActions) and adapted for this core.
 #include "playerbot/playerbot.h"
 #include "BtActions.h"
+#include "BtCouncilRules.h"
 #include "BtNajentusRules.h"
 #include "BtSupremusRules.h"
 #include "playerbot/strategy/generic/TbcRaidStrategy.h"
@@ -98,7 +99,10 @@ bool BlackTempleEraseTimersAndTrackersAction::Execute(Event& event)
     // Instance timers are reset once nobody fights the boss anymore
     const uint32 instanceId = bot->GetInstanceId();
     if (!IsBossInCombat(bot, NPC_SUPREMUS))
+    {
         erased |= EraseState(BtState::SupremusPhaseTimer, instanceId);
+        erased |= EraseState(BtState::SupremusSlotAnchor, instanceId);
+    }
     if (!IsBossInCombat(bot, NPC_NAJENTUS))
         erased |= EraseState(BtState::NajentusShieldTimer, instanceId);
     if (!IsBossInCombat(bot, NPC_GURTOGG_BLOODBOIL))
@@ -291,12 +295,45 @@ bool SupremusMisdirectBossToMainTankAction::Execute(Event& event)
     return MisdirectTo(tank, supremus);
 }
 
-bool SupremusDisperseRangedAction::Execute(Event& event)
+// Everybody but the tanks waits on an own slot of a ring outside the Hateful Strike reach. Fleeing from the
+// nearest player within 8 yards kept the ranged shuffling at 20-30 yards from his centre, inside the reach.
+bool SupremusKeepOutOfHatefulStrikeAction::Execute(Event& event)
 {
-    if (Player* nearest = raidboss::GetNearestPlayerInRadius(bot, 8.0f))
-        return FleeFrom(nearest->GetPositionX(), nearest->GetPositionY(), 8.0f, 1000);
+    Unit* supremus = FindBoss(ai, NPC_SUPREMUS);
+    if (!supremus || !MustAvoidSupremusHatefulStrike(bot, supremus))
+        return false;
 
-    return false;
+    const float bossX = supremus->GetPositionX();
+    const float bossY = supremus->GetPositionY();
+    const float radius = bt::supremus::SafeRadius(GetSupremusMeleeReach(bot, supremus));
+
+    // Inside the ring: leave the reach on the shortest way first
+    if (raidboss::ExactDist2d(bot, supremus) < radius - bt::supremus::SLOT_TOLERANCE)
+        return FleeFrom(bossX, bossY, radius);
+
+    float x, y, z, slotAngle;
+    if (!GetSupremusSafeSlot(bot, supremus, x, y, z, slotAngle))
+        return false;
+
+    if (bt::Dist2d(bot->GetPositionX(), bot->GetPositionY(), x, y) <= bt::supremus::SLOT_TOLERANCE)
+        return false;
+
+    // A slot on the far side is reached along the ring, a straight line would cross the reach
+    const float botAngle = std::atan2(bot->GetPositionY() - bossY, bot->GetPositionX() - bossX);
+    float diff = slotAngle - botAngle;
+    while (diff > M_PI_F)
+        diff -= 2.0f * M_PI_F;
+    while (diff < -M_PI_F)
+        diff += 2.0f * M_PI_F;
+
+    const float maxRingStep = 40.0f * M_PI_F / 180.0f;
+    if (std::fabs(diff) > maxRingStep)
+    {
+        const float stepAngle = botAngle + (diff > 0.0f ? maxRingStep : -maxRingStep);
+        return MoveToPoint(bossX + radius * std::cos(stepAngle), bossY + radius * std::sin(stepAngle), bot->GetPositionZ());
+    }
+
+    return MoveToPoint(x, y, z);
 }
 
 bool SupremusKiteBossAction::Execute(Event& event)
@@ -409,6 +446,15 @@ bool SupremusLeadMoltenFlameAwayAction::Execute(Event& event)
     if (!flame)
         return false;
 
+    // Tank phase: run outwards, away from the ring of waiting players and never towards the Hateful Strike reach
+    Unit* supremus = FindBoss(ai, NPC_SUPREMUS);
+    if (supremus && MustAvoidSupremusHatefulStrike(bot, supremus))
+    {
+        const float outside = bt::supremus::SafeRadius(GetSupremusMeleeReach(bot, supremus)) + 15.0f;
+        if (FleeFrom(supremus->GetPositionX(), supremus->GetPositionY(), outside, 1000))
+            return true;
+    }
+
     if (Player* nearest = raidboss::GetNearestPlayerInRadius(bot, 12.0f))
         return FleeFrom(nearest->GetPositionX(), nearest->GetPositionY(), 12.0f, 1000);
 
@@ -419,7 +465,13 @@ bool SupremusLeadMoltenFlameAwayAction::Execute(Event& event)
 bool SupremusManagePhaseTimerAction::Execute(Event& event)
 {
     if (Unit* supremus = FindBoss(ai, NPC_SUPREMUS))
+    {
         SetStateIfAbsent(BtState::SupremusPhaseTimer, supremus->GetInstanceId(), int64(time(nullptr)));
+
+        // The next tank phase aims the healer arc at its own tank again
+        if (supremus->HasAura(SPELL_SNARE_SELF))
+            EraseState(BtState::SupremusSlotAnchor, supremus->GetInstanceId());
+    }
 
     return false;
 }
@@ -887,29 +939,29 @@ bool MotherShahrazRunAwayToBreakFatalAttractionAction::Execute(Event& event)
 // Illidari Council
 // ---------------------------------------------------------------------------
 
-// Hunter 1: Zerevor -> mage tank, 2: Malande -> first assist tank, 3: Gathios -> main tank, 4: Veras -> second assist tank
+// Hunter 1: Gathios -> main tank, 2: Malande -> first assist tank, 3: Veras -> his tank, 4: Zerevor -> mage tank
 bool IllidariCouncilMisdirectBossesToTanksAction::Execute(Event& event)
 {
     std::vector<Player*> hunters = GetHunterBots(bot, 4);
     Unit* councilTarget = nullptr;
     Player* tank = nullptr;
-    switch (raidboss::GetIndexOf(bot, hunters))
+    switch (council::MisdirectTarget(raidboss::GetIndexOf(bot, hunters)))
     {
-    case 0:
-        councilTarget = FindBoss(ai, NPC_ZEREVOR);
-        tank = GetZerevorMageTank(bot);
-        break;
-    case 1:
-        councilTarget = FindBoss(ai, NPC_MALANDE);
-        tank = raidboss::GetGroupAssistTank(bot, 0);
-        break;
-    case 2:
+    case council::Member::Gathios:
         councilTarget = FindBoss(ai, NPC_GATHIOS);
         tank = raidboss::GetGroupMainTank(bot);
         break;
-    case 3:
+    case council::Member::Malande:
+        councilTarget = FindBoss(ai, NPC_MALANDE);
+        tank = raidboss::GetGroupAssistTank(bot, 0);
+        break;
+    case council::Member::Veras:
         councilTarget = FindBoss(ai, NPC_VERAS);
-        tank = raidboss::GetGroupAssistTank(bot, 1);
+        tank = GetVerasTank(bot);
+        break;
+    case council::Member::Zerevor:
+        councilTarget = FindBoss(ai, NPC_ZEREVOR);
+        tank = GetZerevorMageTank(bot);
         break;
     default:
         return false;
@@ -925,6 +977,32 @@ namespace
     {
         if (bot->GetPositionZ() < COUNCIL_FLOOR_Z_THRESHOLD)
             bot->TeleportTo(BLACK_TEMPLE_MAP_ID, boss->GetPositionX(), boss->GetPositionY(), boss->GetPositionZ(), bot->GetOrientation());
+    }
+
+    // Veras wipes his threat after every Deadly Poison and then hits whoever is next; without a second assist
+    // tank the main tank takes him back
+    bool TauntVerasBack(PlayerbotAI* ai, Player* bot)
+    {
+        Unit* veras = FindBoss(ai, NPC_VERAS);
+        if (!veras || veras->HasAura(SPELL_VANISH) || GetVerasTank(bot) != bot)
+            return false;
+
+        Unit* victim = veras->GetVictim();
+        if (!victim || victim == bot)
+            return false;
+
+        switch (bot->getClass())
+        {
+        case CLASS_WARRIOR:
+            return CastByName(ai, "taunt", veras);
+        case CLASS_DRUID:
+            return CastByName(ai, "growl", veras);
+        case CLASS_PALADIN:
+            // Righteous Defense is cast on the attacked friend
+            return victim->GetTypeId() == TYPEID_PLAYER && CastByName(ai, "righteous defense", victim);
+        default:
+            return false;
+        }
     }
 }
 
@@ -944,6 +1022,9 @@ bool IllidariCouncilMainTankPositionGathiosAction::Execute(Event& event)
     if (!IsCurrentTarget(gathios))
         return AttackTarget(gathios);
 
+    if (gathios->GetVictim() == bot && TauntVerasBack(ai, bot))
+        return true;
+
     if (gathios->GetVictim() != bot || !bot->CanReachWithMeleeAttack(gathios))
         return false;
 
@@ -954,15 +1035,21 @@ bool IllidariCouncilMainTankPositionGathiosAction::Execute(Event& event)
     const WorldPosition* position = &GATHIOS_TANK_POSITIONS[index % 4];
     const float dist = bt::Dist2d(bot->GetPositionX(), bot->GetPositionY(), position->getX(), position->getY());
 
-    // Drag Gathios out of Consecration / Flamestrike / Blizzard to the next corner
-    if (dist <= 2.0f && HasDangerousCouncilAura(bot))
+    // Drag Gathios to his corner, then stand and tank; Consecration / Flamestrike / Blizzard moves him on
+    switch (council::MainTankMove(dist, HasDangerousCouncilAura(bot)))
     {
+    case council::TankMove::Stay:
+        return false;
+    case council::TankMove::NextCorner:
         index = (index + 1) % 4;
         SetState(BtState::GathiosTankStep, key, index);
         position = &GATHIOS_TANK_POSITIONS[index];
+        break;
+    case council::TankMove::StepToCorner:
+        break;
     }
 
-    return StepTowards(position->getX(), position->getY(), 5.0f, 2.0f);
+    return StepTowards(position->getX(), position->getY(), 5.0f, council::GATHIOS_CORNER_REACHED);
 }
 
 bool IllidariCouncilMainTankReflectJudgementOfCommandAction::Execute(Event& event)
@@ -1011,10 +1098,10 @@ bool IllidariCouncilSecondAssistTankPositionDarkshadowAction::Execute(Event& eve
     return false;
 }
 
-bool IllidariCouncilInterruptCircleOfHealingAction::Execute(Event& event)
+bool IllidariCouncilInterruptMalandeAction::Execute(Event& event)
 {
     std::string spell;
-    Unit* malande = GetCircleOfHealingInterrupt(ai, spell);
+    Unit* malande = GetMalandeInterrupt(ai, spell);
     if (!malande)
         return false;
 
@@ -1078,31 +1165,37 @@ bool IllidariCouncilAssignDpsTargetsAction::Execute(Event& event)
     if (!malande)
         return false;
 
-    // Rogues, warriors and shamans on Malande, everybody else on Veras, then Gathios. The health pool is
-    // shared, so a member the bot's damage would not land on (Blessing of Protection or Spell Warding,
-    // Reflective Shield, Vanish) is skipped for the next one. Nobody on Malande in Zerevor's AoE.
+    // Rogues and the warriors / shamans with an interrupt stay at Malande, everybody else goes on Gathios
+    // (council::DpsOrder). The health pool is shared, so a member the bot's damage would not land on
+    // (Blessing of Protection or Spell Warding, Reflective Shield, Vanish) is skipped for the next one.
+    // Nobody on Malande in Zerevor's AoE, nobody on Veras unless his tank holds him.
     Unit* zerevor = FindBoss(ai, NPC_ZEREVOR);
     const bool malandeInAoe = zerevor && raidboss::ExactDist2d(zerevor, malande) < 15.0f;
     const uint8 cls = bot->getClass();
-    const bool malandeFirst = cls == CLASS_ROGUE || ((cls == CLASS_WARRIOR || cls == CLASS_SHAMAN) && raidboss::IsDps(bot));
+    const bool malandeGroup = cls == CLASS_ROGUE || ((cls == CLASS_WARRIOR || cls == CLASS_SHAMAN) && raidboss::IsDps(bot));
 
-    struct Assignment { Unit* member; const char* rti; };
-    std::vector<Assignment> order;
-    if (malandeFirst && !malandeInAoe)
-        order.push_back({ malande, "star" });
-    order.push_back({ FindBoss(ai, NPC_VERAS), "circle" });
-    order.push_back({ FindBoss(ai, NPC_GATHIOS), "square" });
-    if (!malandeFirst && !malandeInAoe)
-        order.push_back({ malande, "star" });
+    Unit* veras = FindBoss(ai, NPC_VERAS);
+    Player* verasTank = GetVerasTank(bot);
+    const bool verasHeld = veras && verasTank && veras->GetVictim() == verasTank;
+
     // Zerevor stays with the mage tank, damage on him would pull him away from it
-
-    for (const Assignment& assignment : order)
+    for (council::Member member : council::DpsOrder(malandeGroup, malandeInAoe, verasHeld))
     {
-        if (!CanDamageCouncilMember(bot, assignment.member))
+        Unit* target = nullptr;
+        const char* rti = nullptr;
+        switch (member)
+        {
+        case council::Member::Gathios: target = FindBoss(ai, NPC_GATHIOS); rti = "square"; break;
+        case council::Member::Malande: target = malande; rti = "star"; break;
+        case council::Member::Veras:   target = veras; rti = "circle"; break;
+        default: continue;
+        }
+
+        if (!CanDamageCouncilMember(bot, target))
             continue;
 
-        raidboss::SetRtiTarget(ai, assignment.rti);
-        return !IsCurrentTarget(assignment.member) && AttackTarget(assignment.member);
+        raidboss::SetRtiTarget(ai, rti);
+        return !IsCurrentTarget(target) && AttackTarget(target);
     }
 
     return false;
@@ -1114,6 +1207,12 @@ bool IllidariCouncilDisperseRangedAction::Execute(Event& event)
         return FleeFrom(nearest->GetPositionX(), nearest->GetPositionY(), 4.0f, 1000);
 
     return false;
+}
+
+bool IllidariCouncilMoveAwayFromZerevorAction::Execute(Event& event)
+{
+    Unit* zerevor = FindBoss(ai, NPC_ZEREVOR);
+    return zerevor && FleeFrom(zerevor->GetPositionX(), zerevor->GetPositionY(), council::ZEREVOR_SAFE_DISTANCE);
 }
 
 bool IllidariCouncilCommandPetsToAttackGathiosAction::Execute(Event& event)
@@ -1129,7 +1228,10 @@ bool IllidariCouncilCommandPetsToAttackGathiosAction::Execute(Event& event)
 bool IllidariCouncilManageDpsTimerAction::Execute(Event& event)
 {
     Unit* gathios = FindBoss(ai, NPC_GATHIOS);
-    return gathios && SetStateIfAbsent(BtState::CouncilDpsTimer, gathios->GetInstanceId(), int64(time(nullptr)));
+    // Started on the pull only: set while the bots walked up, the window was gone (and erased again by
+    // bots out of combat) before the tanks had the council
+    return gathios && gathios->IsInCombat() &&
+           SetStateIfAbsent(BtState::CouncilDpsTimer, gathios->GetInstanceId(), int64(time(nullptr)));
 }
 
 // ---------------------------------------------------------------------------

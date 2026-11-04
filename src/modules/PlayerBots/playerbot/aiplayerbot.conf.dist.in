@@ -195,6 +195,9 @@ AiPlayerbot.EnableGreet = 1
 AiPlayerbot.RandomBotShowHelmet = 1
 AiPlayerbot.RandomBotShowCloak = 1
 
+# Randombots carry random titles that existed in TBC (old honor ranks, arena, Scarab Lord, Champion of the Naaru, ...)
+AiPlayerbot.RandomBotTitles = 1
+
 # Disable random levels for randombots
 # Every bots started on the specified level and level up by killing mobs.
 AiPlayerbot.DisableRandomLevels = 0
@@ -982,6 +985,13 @@ AiPlayerbot.UseKnockback = 1
 
 #Enables performance monitor
 #AiPlayerbot.PerfMonEnabled = 0
+
+# Bot DPS log: per fight summary of human-led bot groups (damage, DPS, HPS, idle/cast/move time,
+# spells, hit/crit stats) written to logs/bot-dps-<time>.log. The master is included and marked with *.
+#AiPlayerbot.BotDpsLog = 1
+#AiPlayerbot.BotDpsLogMinFightSeconds = 15
+#AiPlayerbot.BotDpsLogInstancesOnly = 1
+#AiPlayerbot.BotDpsLogIncludeMaster = 1
 
 # Default action logging history for cdebug history.
 #AiPlayerbot.ActionHistorySize = 0

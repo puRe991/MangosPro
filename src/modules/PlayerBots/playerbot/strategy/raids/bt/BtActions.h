@@ -191,10 +191,10 @@ namespace ai
         bool Execute(Event& event) override;
     };
 
-    class SupremusDisperseRangedAction : public BtMovementAction
+    class SupremusKeepOutOfHatefulStrikeAction : public BtMovementAction
     {
     public:
-        SupremusDisperseRangedAction(PlayerbotAI* ai) : BtMovementAction(ai, "supremus disperse ranged") {}
+        SupremusKeepOutOfHatefulStrikeAction(PlayerbotAI* ai) : BtMovementAction(ai, "supremus keep out of hateful strike") {}
         bool Execute(Event& event) override;
     };
 
@@ -447,10 +447,10 @@ namespace ai
         bool Execute(Event& event) override;
     };
 
-    class IllidariCouncilInterruptCircleOfHealingAction : public Action
+    class IllidariCouncilInterruptMalandeAction : public Action
     {
     public:
-        IllidariCouncilInterruptCircleOfHealingAction(PlayerbotAI* ai) : Action(ai, "illidari council interrupt circle of healing") {}
+        IllidariCouncilInterruptMalandeAction(PlayerbotAI* ai) : Action(ai, "illidari council interrupt malande") {}
         bool Execute(Event& event) override;
         bool ShouldReactionInterruptCast() const override { return true; }
     };
@@ -480,6 +480,13 @@ namespace ai
     {
     public:
         IllidariCouncilDisperseRangedAction(PlayerbotAI* ai) : BtMovementAction(ai, "illidari council disperse ranged") {}
+        bool Execute(Event& event) override;
+    };
+
+    class IllidariCouncilMoveAwayFromZerevorAction : public BtMovementAction
+    {
+    public:
+        IllidariCouncilMoveAwayFromZerevorAction(PlayerbotAI* ai) : BtMovementAction(ai, "illidari council move away from zerevor") {}
         bool Execute(Event& event) override;
     };
 

@@ -49,6 +49,8 @@ public:
 
     static ObjectGuid GetRandomBot();
     static void Init();
+    // max level based skills (weapons, defense) and learn drop-only book spell ranks
+    static void InitLevelSkillsAndBookSpells(Player* bot);
     void Refresh();
     void Randomize(bool incremental, bool syncWithMaster);
     static std::list<uint32> classQuestIds;
@@ -66,6 +68,7 @@ public:
     void InitAmmo();
     void InitPet();
     void InitPetSpells();
+    void InitTitles();
 
 private:
     void Prepare();

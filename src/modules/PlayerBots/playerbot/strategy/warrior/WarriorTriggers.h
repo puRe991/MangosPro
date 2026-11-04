@@ -112,6 +112,14 @@ namespace ai
         }
     };
 
+    // Mortal Strike is the main Arms attack; the debuff trigger only fired once the 10 s debuff
+    // had expired, wasting about 40% of its 5-6 s cooldown windows
+    class MortalStrikeAvailableTrigger : public SpellCanBeCastedTrigger
+    {
+    public:
+        MortalStrikeAvailableTrigger(PlayerbotAI* ai) : SpellCanBeCastedTrigger(ai, "mortal strike") {}
+    };
+
     class WhirlwindTrigger : public SpellCanBeCastedTrigger
     {
     public:

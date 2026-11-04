@@ -424,7 +424,7 @@ void ArmsWarriorStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
         NextAction::array(0, new NextAction("heroic strike", ACTION_NORMAL + 2), NULL)));
 
     triggers.push_back(new TriggerNode(
-        "mortal strike",
+        "mortal strike available",
         NextAction::array(0, new NextAction("mortal strike", ACTION_NORMAL + 4), NULL)));
 
     triggers.push_back(new TriggerNode(

@@ -184,18 +184,21 @@ EncounterRegistry::EncounterRegistry()
         .AvoidArea(37478)                           // Geyser
         .Special(SPECIAL_LURKER_SPOUT);
 
-    // Leotheras the Blind: everybody kills their own Inner Demon, nobody stands in the Whirlwind,
-    // melee leave the demon form (Chaos Blast) to the warlock tank.
+    // Leotheras the Blind: everybody kills their own Inner Demon, nobody stands in the Whirlwind.
+    // Melee keep hitting the demon form: it stays 35 yards from its target and Chaos Blast only
+    // splashes 8 yards around that target, so avoiding it idled melee for half the fight.
     Add("leotheras the blind", MAP_SERPENTSHRINE, { 21215, 21857, 21875 })
         .KillMine(21857)                            // Inner Demon
         .AvoidWhileAura(21215, 37640, 12.0f, ROLE_ALL)   // Whirlwind
-        .AvoidWhileAura(21215, 37673, 12.0f, ROLE_MELEE) // demon form
         .Spread(6.0f, ROLE_CASTERS);
 
     // Fathom-Lord Karathress: Spitfire Totem on sight, then Tidalvess -> Sharkkis -> Caribdis -> Karathress.
+    // No caster spread: Cataclysmic Bolt hits one target and Tidal Surge only the melee around Caribdis,
+    // while the moving council made the casters reposition about every 12 seconds. Casters only step
+    // out of the 8 yard Sear Nova while it is cast (2 s).
     Add("fathom-lord karathress", MAP_SERPENTSHRINE, { 21214, 21964, 21965, 21966 })
         .Avoid(22104, 8.0f, ROLE_NON_TANK)          // Cyclone
-        .Spread(6.0f, ROLE_CASTERS);
+        .AvoidWhileCasting(21214, 38445, 9.0f, ROLE_CASTERS); // Sear Nova
 
     // Morogrim Tidewalker: stay away from the Water Globules, murlocs are AoE tanked.
     Add("morogrim tidewalker", MAP_SERPENTSHRINE, { 21213 })
@@ -356,12 +359,16 @@ EncounterRegistry::EncounterRegistry()
     // Sunwell Plateau
     // ---------------------------------------------------------------------
 
-    // Kalecgos: players sent to the Spectral Realm kill Sathrovarr, the others fight the dragon.
+    // Kalecgos: a realm team (1 tank, 2 healers, 4 dps) enters every Spectral Rift and kills Sathrovarr, the others
+    // fight the dragon. The tank coming back from the realm taunts the dragon on Arcane Buffet stacks, freeing the
+    // dragon tank for the next rift. Melee stay off the tail, everybody spreads for the 5 yd Spectral Blast.
     Add("kalecgos", MAP_SUNWELL_PLATEAU, { 24850, 24892 })
         .KillWithAura(24892, ROLE_ALL, 46021)       // Sathrovarr the Corruptor (Spectral Realm)
         .KillWithoutAura(24850, ROLE_DPS, 46021)    // Kalecgos dragon (normal realm)
         .AvoidFront(24850, 25.0f)                   // Frost Breath
-        .Spread(8.0f, ROLE_CASTERS);
+        .TankSwap(24850, 45018, 4)                  // Arcane Buffet
+        .Spread(8.0f, ROLE_CASTERS)
+        .Special(SPECIAL_SPECTRAL_REALM);
 
     // Brutallus: Burn runs away from everybody so it does not spread, the melee groups rotate soaking Meteor Slash.
     Add("brutallus", MAP_SUNWELL_PLATEAU, { 24882 })

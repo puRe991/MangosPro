@@ -91,6 +91,7 @@ namespace ai
             SPELL_BLESSING_OF_PROTECTION    = 41450,
             SPELL_BLESSING_OF_SPELL_WARDING = 41451,
             SPELL_CIRCLE_OF_HEALING         = 41455,    // heals the whole council through the shared health pool
+            SPELL_DIVINE_WRATH              = 41472,
             SPELL_REFLECTIVE_SHIELD         = 41475,
             SPELL_JUDGEMENT                 = 41467,
             SPELL_SEAL_OF_COMMAND           = 41469,
@@ -150,6 +151,7 @@ namespace ai
         {
             NajentusShieldTimer,
             SupremusPhaseTimer,
+            SupremusSlotAnchor,     // direction of the tank in the current tank phase, milliradians
             GurtoggPhaseTimer,
             CouncilDpsTimer,
             IllidanBossDpsTimer,
@@ -214,6 +216,12 @@ namespace ai
         std::vector<Unit*> GetSupremusVolcanos(Player* bot, float range);
         Unit* GetSupremusMoltenFlameChasingBot(Player* bot);
         float GetSupremusMeleeReach(Player* bot, Unit* supremus);
+        // Tank phase: no Snare Self, Hateful Strike active
+        bool IsSupremusTankPhase(Unit* supremus);
+        // Non-tank which has to wait outside the Hateful Strike reach right now
+        bool MustAvoidSupremusHatefulStrike(Player* bot, Unit* supremus);
+        // Own slot on the ring outside the Hateful Strike reach (healers on the tank's side), false without one
+        bool GetSupremusSafeSlot(Player* bot, Unit* supremus, float& x, float& y, float& z, float& angle);
 
         // Shade of Akama: every Channeler and Sorcerer channeling on the Shade slows it by another stack,
         // the Shade only reaches Akama once they are dead
@@ -232,8 +240,9 @@ namespace ai
         // Illidari Council: whether the bot's damage would land on that council member
         bool IsPhysicalDamageDealer(Player* bot);
         bool CanDamageCouncilMember(Player* bot, Unit* member);
-        // Malande while she casts Circle of Healing and the bot has an interrupt ready for it
-        Unit* GetCircleOfHealingInterrupt(PlayerbotAI* ai, std::string& spell);
+        // Malande while she casts Circle of Healing or Divine Wrath and the bot has an interrupt ready that
+        // her current blessing does not block
+        Unit* GetMalandeInterrupt(PlayerbotAI* ai, std::string& spell);
 
         // Mother Shahraz
         TankPositionState GetShahrazTankPositionState(Player* bot);
@@ -242,6 +251,8 @@ namespace ai
         // Illidari Council
         Player* GetZerevorMageTank(Player* bot);
         Player* GetZerevorHealer(Player* bot);
+        // Second assist tank, or the main tank (next to Gathios) when the raid brought only two tanks
+        Player* GetVerasTank(Player* bot);
         bool HasDangerousCouncilAura(Unit* unit);
 
         // Illidan Stormrage: -1 none/outro, 0 landing, 1 > 65%, 2 flying, 3 normal, 4 demon, 5 <= 30%

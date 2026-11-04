@@ -49,6 +49,7 @@ namespace ai
             SPECIAL_HYDROSS_TANKING   = 0x40,   // Hydross: drag the boss in and out of the purification circle
             SPECIAL_OFFTANK_NO_TAUNT  = 0x80,   // off tanks stay second on threat (Hurtful Strike, Saber Lash)
             SPECIAL_STACK_OFFTANKS    = 0x100,  // off tanks stand on the main tank (Saber Lash)
+            SPECIAL_SPECTRAL_REALM    = 0x200,  // Kalecgos: realm team uses the Spectral Rift, melee stay off the tail
         };
 
         // Keep a distance from a creature (optionally only while it has an aura / casts a spell / targets the bot)

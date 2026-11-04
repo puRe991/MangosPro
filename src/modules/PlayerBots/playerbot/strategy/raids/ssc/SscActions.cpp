@@ -2,6 +2,7 @@
 #include "playerbot/playerbot.h"
 #include "SscActions.h"
 #include "SscHelpers.h"
+#include "SscHydrossRules.h"
 #include "playerbot/strategy/raids/RaidBossStrategies.h"
 #include "playerbot/strategy/raids/RaidBossHelpers.h"
 #include "Loot/LootMgr.h"
@@ -157,8 +158,58 @@ bool SscGreyheartTidecallerMarkWaterElementalTotemAction::Execute(Event& event)
 // the frost spot is inside it and the nature spot outside.
 // ---------------------------------------------------------------------------
 
-// (1) When tanking, move to designated tanking spot on frost side
-// (2) 1 second after 100% Mark of Hydross, move to nature tank's spot to hand off boss
+namespace ai
+{
+namespace ssc
+{
+    bool IsHydrossLeaderless(Unit* hydross);   // SscHelpers.cpp
+    Player* GetHydrossFrostTank(Player* bot);     // SscHelpers.cpp
+    Player* GetHydrossNatureTank(Player* bot);    // SscHelpers.cpp
+}
+}
+
+namespace
+{
+    // Dragging tank arrived at the other spot but the boss has not switched yet: keep walking along the line
+    // away from (or into) the field, a few yards per step, never back. The boss trails a tank by about 8 yards.
+    bool ContinueHydrossDrag(Player* bot, Unit* hydross, bool outwards, float& x, float& y)
+    {
+        const float bossDistance = hydross::DistanceFromField(hydross->GetPositionX(), hydross->GetPositionY());
+        const float botDistance = hydross::DistanceFromField(bot->GetPositionX(), bot->GetPositionY());
+        if (outwards ? (bossDistance >= hydross::SWITCH_DISTANCE + hydross::SWITCH_MARGIN || botDistance >= 50.0f)
+                     : (bossDistance <= hydross::SWITCH_DISTANCE - hydross::SWITCH_MARGIN || botDistance <= 4.0f))
+            return false;
+
+        if (botDistance < 0.1f)
+            return false;
+
+        const float step = 4.0f;
+        const float dirX = (bot->GetPositionX() - hydross::FIELD_X) / botDistance;
+        const float dirY = (bot->GetPositionY() - hydross::FIELD_Y) / botDistance;
+        x = bot->GetPositionX() + (outwards ? step : -step) * dirX;
+        y = bot->GetPositionY() + (outwards ? step : -step) * dirY;
+        return true;
+    }
+
+    // The tank of the current form takes the boss back from a healer or damage dealer
+    bool TauntHydross(PlayerbotAI* ai, Unit* hydross)
+    {
+        Player* bot = ai->GetBot();
+        Unit* victim = hydross->GetVictim();
+        if (victim == bot)
+            return false;
+
+        if (raidboss::TryCast(ai, "taunt", hydross))
+            return true;
+
+        // Paladins take the boss from the player he attacks
+        return victim && victim->GetTypeId() == TYPEID_PLAYER && raidboss::TryCast(ai, "righteous defense", victim);
+    }
+}
+
+// (1) When tanking, move to designated tanking spot on frost side. On the pull the tank walks into the
+//     Cleansing Field himself and taunts, a boss chasing healers left it within 4 seconds in the logs.
+// (2) 1 second after the hand-off time, walk straight to nature tank's spot to hand off boss
 // (3) When Hydross is in nature form, move back to frost tank spot and wait for transition
 bool SscHydrossPositionFrostTankAction::Execute(Event& event)
 {
@@ -171,7 +222,9 @@ bool SscHydrossPositionFrostTankAction::Execute(Event& event)
 
     UpdateHydrossState(ai);
     const time_t changeTime = GetState(bot).hydrossChangeToNaturePhase;
-    if (!corrupted && !changeTime)
+    // Also during the hand-off: a replacement tank (the frost tank died) or a tank who lost the boss takes him back
+    const bool holding = hydross->GetVictim() == bot;
+    if (!corrupted && (!changeTime || !holding))
     {
         if (raidboss::MarkTargetWithSquare(bot, hydross))
             return true;
@@ -182,26 +235,35 @@ bool SscHydrossPositionFrostTankAction::Execute(Event& event)
 
         if (tanking)
             return StepToPosition(HYDROSS_FROST_TANK_POSITION, 2.0f, 5.0f);
+
+        // Hydross is immune to taunt (boss guides): build threat in melee, the generic reach and attack
+        // actions bring the tank to him. Walking back to the spot left the boss on the damage dealers.
+        return TauntHydross(ai, hydross);
     }
 
-    if (!corrupted && changeTime && tanking)
+    if (!corrupted && changeTime && holding)
     {
         if (changeTime && time(nullptr) - changeTime >= 1)
         {
-            if (StepToPosition(HYDROSS_NATURE_TANK_POSITION, 2.0f, 5.0f))
+            if (MoveToPosition(HYDROSS_NATURE_TANK_POSITION))
                 return true;
 
-            // Keep threat until the form actually changes.
-            return false;
+            // Arrived but the boss is still in the field: walk on outwards. Keep threat until the form changes.
+            float x, y;
+            return ContinueHydrossDrag(bot, hydross, true, x, y) && MoveToPosition(WorldPosition(bot->GetMapId(), x, y, bot->GetPositionZ()));
         }
     }
+
+    // The last living tank tanks both forms, the nature action handles this form
+    if (corrupted && GetHydrossNatureTank(bot) == bot)
+        return false;
 
     if (corrupted)
     {
         if (StopAttacking(ai))
             return true;
         // Do not drag the boss back over the boundary before the other tank takes over.
-        if (hydross->GetVictim() != raidboss::GetGroupAssistTank(bot, 0))
+        if (hydross->GetVictim() != GetHydrossNatureTank(bot))
             return false;
         return MoveToPosition(HYDROSS_FROST_TANK_POSITION);
     }
@@ -210,7 +272,7 @@ bool SscHydrossPositionFrostTankAction::Execute(Event& event)
 }
 
 // (1) When tanking, move to designated tanking spot on nature side
-// (2) 1 second after 100% Mark of Corruption, move to frost tank's spot to hand off boss
+// (2) 1 second after the hand-off time, walk straight to frost tank's spot to hand off boss
 // (3) When Hydross is in frost form, move back to nature tank spot and wait for transition
 bool SscHydrossPositionNatureTankAction::Execute(Event& event)
 {
@@ -223,7 +285,8 @@ bool SscHydrossPositionNatureTankAction::Execute(Event& event)
 
     UpdateHydrossState(ai);
     const time_t changeTime = GetState(bot).hydrossChangeToFrostPhase;
-    if (corrupted && !changeTime)
+    const bool holding = hydross->GetVictim() == bot;
+    if (corrupted && (!changeTime || !holding))
     {
         if (raidboss::MarkTargetWithTriangle(bot, hydross))
             return true;
@@ -234,24 +297,34 @@ bool SscHydrossPositionNatureTankAction::Execute(Event& event)
 
         if (tanking)
             return StepToPosition(HYDROSS_NATURE_TANK_POSITION, 2.0f, 5.0f);
+
+        // The form change wiped the threat: take him from whoever he chases
+        if (TauntHydross(ai, hydross))
+            return true;
     }
 
-    if (corrupted && changeTime && tanking)
+    if (corrupted && changeTime && holding)
     {
         if (changeTime && time(nullptr) - changeTime >= 1)
         {
-            if (StepToPosition(HYDROSS_FROST_TANK_POSITION, 2.0f, 5.0f))
+            if (MoveToPosition(HYDROSS_FROST_TANK_POSITION))
                 return true;
 
-            return false;
+            // Arrived but the boss is still outside: walk on into the field
+            float x, y;
+            return ContinueHydrossDrag(bot, hydross, false, x, y) && MoveToPosition(WorldPosition(bot->GetMapId(), x, y, bot->GetPositionZ()));
         }
     }
+
+    // The last living tank tanks both forms, the frost action handles this form
+    if (!corrupted && GetHydrossFrostTank(bot) == bot)
+        return false;
 
     if (!corrupted)
     {
         if (StopAttacking(ai))
             return true;
-        if (hydross->GetVictim() != raidboss::GetGroupMainTank(bot))
+        if (hydross->GetVictim() != GetHydrossFrostTank(bot))
             return false;
         return MoveToPosition(HYDROSS_NATURE_TANK_POSITION);
     }
@@ -281,8 +354,14 @@ bool SscHydrossFrostPhaseSpreadOutAction::Execute(Event& event)
 {
     constexpr float safeDistance = 9.0f;    // Water Tomb radius 8y, 1y of padding
     constexpr float maxRangedDistance = 30.0f;
+    // A new spot at most every 4 seconds, and healers never break off a heal for it: with a move every
+    // second the healers cast only 22 heals in 15 seconds and the frost tank died in the 2.4.3 raid log
+    constexpr uint32 moveIntervalMs = 4000;
     const uint32 now = WorldTimer::getMSTime();
-    if (lastMoveTime && now >= lastMoveTime && now - lastMoveTime < 1000)
+    if (lastMoveTime && now >= lastMoveTime && now - lastMoveTime < moveIntervalMs)
+        return false;
+
+    if (PlayerbotAI::IsHeal(bot) && (bot->IsNonMeleeSpellCasted(false)))
         return false;
 
     Unit* hydross = FindSscUnit(ai, NPC_HYDROSS);
@@ -318,16 +397,26 @@ bool SscHydrossMisdirectBossToTankAction::Execute(Event& event)
         return false;
 
     if (!hydross->HasAura(SPELL_CORRUPTION) && HasNoMarkOfHydross(bot))
-        return Misdirect(ai, raidboss::GetGroupMainTank(bot), hydross);
+        return Misdirect(ai, GetHydrossFrostTank(bot), hydross);
 
     if (hydross->HasAura(SPELL_CORRUPTION) && HasNoMarkOfCorruption(bot))
-        return Misdirect(ai, raidboss::GetGroupAssistTank(bot, 0), hydross);
+        return Misdirect(ai, GetHydrossNatureTank(bot), hydross);
 
     return false;
 }
 
 bool SscHydrossStopDpsUponPhaseChangeAction::Execute(Event& event)
 {
+    // Never pull the bot off an elemental
+    Unit* hydross = FindSscUnit(ai, NPC_HYDROSS);
+    if (!hydross || AI_VALUE(ObjectGuid, "current target") != hydross->GetObjectGuid())
+        return false;
+
+    // Additional tanks leave the boss to the frost / nature tank completely, their threat stole him.
+    // Without a tank on him (dead or resurrected out of combat) they take him instead.
+    if (PlayerbotAI::IsTank(bot))
+        return !IsHydrossLeaderless(hydross) && StopAttacking(ai);
+
     return ShouldPauseHydrossDps(ai) && StopAttacking(ai);
 }
 
@@ -863,9 +952,46 @@ bool SscLeotherasManageDpsWaitTimersAction::Execute(Event& event)
 
 namespace
 {
+    // A tank drags a council member while it is this close behind him, and is done this close to the spot
+    constexpr float KARATHRESS_DRAG_RANGE = 12.0f;
+    constexpr float KARATHRESS_TANK_ARRIVAL = 5.0f;
+
+    // Taunts the bot's own mob back from whoever has it. The generic "lose aggro" trigger ignores a mob on
+    // another tank, so a stand-in or revived tank never got his mob back without this.
+    bool TauntBack(PlayerbotAI* ai, Player* bot, Unit* target)
+    {
+        Unit* victim = target->GetVictim();
+        if (!victim || victim == bot)
+            return false;
+
+        switch (bot->getClass())
+        {
+        case CLASS_WARRIOR:
+            return raidboss::TryCast(ai, "taunt", target) || raidboss::TryCast(ai, "mocking blow", target);
+        case CLASS_DRUID:
+            return raidboss::TryCast(ai, "growl", target);
+        case CLASS_PALADIN:
+        {
+            // Righteous Defense taunts every attacker of the victim: only if nothing else attacks him
+            if (victim->GetTypeId() != TYPEID_PLAYER || !bot->IsInGroup(victim))
+                return false;
+
+            for (Unit* attacker : victim->getAttackers())
+            {
+                if (attacker != target && attacker->GetVictim() == victim)
+                    return false;
+            }
+
+            return raidboss::TryCast(ai, "righteous defense", victim);
+        }
+        default:
+            return false;
+        }
+    }
+
     template <class T>
     bool TankAddAtPosition(T* action, PlayerbotAI* ai, Player* bot, Unit* target, uint8 icon, const char* rti,
-                           const WorldPosition& position, float maxStep, bool needMelee, std::function<bool(Unit*)> isCurrent,
+                           const WorldPosition& position, float maxStep, std::function<bool(Unit*)> isCurrent,
                            std::function<bool(Unit*)> attack, std::function<bool(const WorldPosition&, float, float)> step)
     {
         if (!target)
@@ -878,76 +1004,111 @@ namespace
         if (!isCurrent(target))
             return attack(target);
 
-        if (target->GetVictim() == bot && (!needMelee || bot->CanReachWithMeleeAttack(target)))
-            return step(position, 3.0f, maxStep);
+        if (TauntBack(ai, bot, target))
+            return true;
+
+        // The mob follows its victim once the tank leaves its reach: walk on in long steps while it is
+        // close behind ("reach melee" is held by the multiplier). Micro steps inside its reach made the
+        // tank walk away and back for the whole raid log of 2026-10-30.
+        if (target->GetVictim() == bot && bot->GetDistance(target) < KARATHRESS_DRAG_RANGE)
+            return step(position, KARATHRESS_TANK_ARRIVAL, maxStep);
 
         return false;
     }
 }
 
-#define SSC_TANK_ADD(target, icon, rti, position, maxStep, needMelee) \
-    TankAddAtPosition(this, ai, bot, target, icon, rti, position, maxStep, needMelee, \
+#define SSC_TANK_ADD(target, icon, rti, position) \
+    TankAddAtPosition(this, ai, bot, target, icon, rti, position, 10.0f, \
         [this](Unit* u) { return IsCurrentTarget(u); }, [this](Unit* u) { return AttackUnit(u); }, \
         [this](const WorldPosition& p, float a, float s) { return StepToPosition(p, a, s); })
 
-// Karathress is tanked near his starting position. Without enough assist tanks the main tank also
-// holds the unassigned council members there: a loose one is taken back first (false lets the
-// taunt run once it is the current target), otherwise the current dps kill target is tanked.
+// Karathress is tanked near his starting position. Without enough assist tanks the Karathress tank also
+// holds the council members left over (Sharkkis first). A mob not on him is taken back first, Karathress
+// before the others, also from another tank (false lets the taunt run once it is the current target).
 bool SscKarathressMainTankPositionBossAction::Execute(Event& event)
 {
-    const std::vector<Unit*> units = GetKarathressMainTankUnits(ai);
+    const std::vector<Unit*> units = GetKarathressTankUnits(ai);
+    if (units.empty())
+        return false;
+
     if (units.size() > 1)
     {
         for (Unit* unit : units)
         {
             Unit* victim = unit->GetVictim();
-            Player* victimPlayer = victim && victim->GetTypeId() == TYPEID_PLAYER ? static_cast<Player*>(victim) : nullptr;
-            if (!victim || victim == bot || (victimPlayer && PlayerbotAI::IsTank(victimPlayer)))
+            if (!victim || victim == bot)
                 continue;
 
-            return !IsCurrentTarget(unit) && AttackUnit(unit);
+            if (!IsCurrentTarget(unit))
+                return AttackUnit(unit);
+
+            // On taunt cooldown stay on it (false: the normal threat rotation runs); switching to the next
+            // mob every tick would leave both loose
+            return TauntBack(ai, bot, unit);
         }
 
-        Unit* killTarget = units.front();
-        if (!IsCurrentTarget(killTarget))
-            return AttackUnit(killTarget);
+        Unit* anchor = units.front();
+        if (!IsCurrentTarget(anchor))
+            return AttackUnit(anchor);
 
-        if (killTarget->GetVictim() == bot && bot->CanReachWithMeleeAttack(killTarget))
-            return StepToPosition(KARATHRESS_TANK_POSITION, 3.0f, 5.0f);
+        if (anchor->GetEntry() == NPC_KARATHRESS && anchor->GetVictim() == bot && bot->GetDistance(anchor) < KARATHRESS_DRAG_RANGE)
+            return StepToPosition(KARATHRESS_TANK_POSITION, KARATHRESS_TANK_ARRIVAL, 10.0f);
 
         return false;
     }
 
-    return SSC_TANK_ADD(FindSscUnit(ai, NPC_KARATHRESS), raidboss::ICON_TRIANGLE, "triangle", KARATHRESS_TANK_POSITION, 5.0f, true);
+    Unit* unit = units.front();
+    switch (unit->GetEntry())
+    {
+    case NPC_KARATHRESS: return SSC_TANK_ADD(unit, raidboss::ICON_TRIANGLE, "triangle", KARATHRESS_TANK_POSITION);
+    case NPC_CARIBDIS:   return SSC_TANK_ADD(unit, raidboss::ICON_DIAMOND, "diamond", CARIBDIS_TANK_POSITION);
+    case NPC_SHARKKIS:   return SSC_TANK_ADD(unit, raidboss::ICON_STAR, "star", SHARKKIS_TANK_POSITION);
+    case NPC_TIDALVESS:  return SSC_TANK_ADD(unit, raidboss::ICON_CIRCLE, "circle", TIDALVESS_TANK_POSITION);
+    default: return false;
+    }
 }
 
 // Caribdis is pulled far to the West in the corner (best with a Warrior or Druid tank for interrupts)
 bool SscKarathressFirstAssistTankPositionCaribdisAction::Execute(Event& event)
 {
-    return SSC_TANK_ADD(FindSscUnit(ai, NPC_CARIBDIS), raidboss::ICON_DIAMOND, "diamond", CARIBDIS_TANK_POSITION, 10.0f, false);
+    return SSC_TANK_ADD(FindSscUnit(ai, NPC_CARIBDIS), raidboss::ICON_DIAMOND, "diamond", CARIBDIS_TANK_POSITION);
 }
 
 // Sharkkis is pulled North to the other side of the ramp
 bool SscKarathressSecondAssistTankPositionSharkkisAction::Execute(Event& event)
 {
-    return SSC_TANK_ADD(FindSscUnit(ai, NPC_SHARKKIS), raidboss::ICON_STAR, "star", SHARKKIS_TANK_POSITION, 10.0f, true);
+    return SSC_TANK_ADD(FindSscUnit(ai, NPC_SHARKKIS), raidboss::ICON_STAR, "star", SHARKKIS_TANK_POSITION);
 }
 
 // Tidalvess is pulled Northwest near the pillar
 bool SscKarathressThirdAssistTankPositionTidalvessAction::Execute(Event& event)
 {
-    return SSC_TANK_ADD(FindSscUnit(ai, NPC_TIDALVESS), raidboss::ICON_CIRCLE, "circle", TIDALVESS_TANK_POSITION, 10.0f, true);
+    return SSC_TANK_ADD(FindSscUnit(ai, NPC_TIDALVESS), raidboss::ICON_CIRCLE, "circle", TIDALVESS_TANK_POSITION);
 }
 
 #undef SSC_TANK_ADD
 
-// Caribdis's tank spot is far away so a dedicated healer is needed (first healer, assistants first)
+// Caribdis's tank spot is far away so a dedicated healer is needed (first healer, assistants first).
+// The trigger only runs while Caribdis is in her corner; 8 yards of slack keep the healer from
+// re-issuing the move every tick, and a tank already in heal range needs no walk at all.
 bool SscKarathressPositionCaribdisTankHealerAction::Execute(Event& event)
 {
-    if (raidboss::ExactDist2d(bot, CARIBDIS_HEALER_POSITION.getX(), CARIBDIS_HEALER_POSITION.getY()) <= 3.0f)
+    if (raidboss::ExactDist2d(bot, CARIBDIS_HEALER_POSITION.getX(), CARIBDIS_HEALER_POSITION.getY()) <= 8.0f)
+        return false;
+
+    Player* tank = GetKarathressTank(bot, NPC_CARIBDIS);
+    if (tank && bot->IsWithinDistInMap(tank, 35.0f) && bot->IsWithinLOSInMap(tank))
         return false;
 
     return MoveToPosition(GetStepTowards(bot, CARIBDIS_HEALER_POSITION, 10.0f));
+}
+
+// Caribdis' Healing Wave heals the council: the nearest interrupter in range stops it
+bool SscKarathressInterruptCaribdisHealAction::Execute(Event& event)
+{
+    std::string spell;
+    Unit* caribdis = GetCaribdisInterruptTarget(ai, spell);
+    return caribdis && raidboss::TryCast(ai, spell, caribdis);
 }
 
 // Misdirect priority: (1) Caribdis tank, (2) Tidalvess tank, (3) Sharkkis tank
@@ -965,9 +1126,9 @@ bool SscKarathressMisdirectBossesToTanksAction::Execute(Event& event)
 
     switch (raidboss::GetIndexOf(bot, hunters))
     {
-    case 0: return Misdirect(ai, raidboss::GetGroupAssistTank(bot, 0), FindSscUnit(ai, NPC_CARIBDIS));
-    case 1: return Misdirect(ai, raidboss::GetGroupAssistTank(bot, 2), FindSscUnit(ai, NPC_TIDALVESS));
-    case 2: return Misdirect(ai, raidboss::GetGroupAssistTank(bot, 1), FindSscUnit(ai, NPC_SHARKKIS));
+    case 0: return Misdirect(ai, GetKarathressTank(bot, NPC_CARIBDIS), FindSscUnit(ai, NPC_CARIBDIS));
+    case 1: return Misdirect(ai, GetKarathressTank(bot, NPC_TIDALVESS), FindSscUnit(ai, NPC_TIDALVESS));
+    case 2: return Misdirect(ai, GetKarathressTank(bot, NPC_SHARKKIS), FindSscUnit(ai, NPC_SHARKKIS));
     default: return false;
     }
 }
@@ -978,6 +1139,14 @@ bool SscKarathressAssignDpsPriorityAction::Execute(Event& event)
 {
     auto focus = [&](Unit* target, uint8 icon, const char* rti) -> bool
     {
+        // A tank without a mob of his own leaves the mobs of the other tanks alone (no threat ping-pong)
+        if (PlayerbotAI::IsTank(bot))
+        {
+            Unit* victim = target->GetVictim();
+            if (victim && victim != bot && victim->GetTypeId() == TYPEID_PLAYER && PlayerbotAI::IsTank(static_cast<Player*>(victim)))
+                return false;
+        }
+
         if (raidboss::MarkTargetWithIcon(bot, target, icon))
             return true;
 
@@ -985,13 +1154,16 @@ bool SscKarathressAssignDpsPriorityAction::Execute(Event& event)
         return !IsCurrentTarget(target) && AttackUnit(target);
     };
 
-    // Every free damage dealer focuses Spitfire Totems immediately.
-    Unit* totem = FindSscUnit(ai, NPC_SPITFIRE_TOTEM, 100.0f);
+    // Every free damage dealer focuses Spitfire Totems immediately (free tanks pick up loose council
+    // members through their own role instead).
+    Unit* totem = raidboss::IsDps(bot) ? FindSscUnit(ai, NPC_SPITFIRE_TOTEM, 100.0f) : nullptr;
     if (totem)
     {
-        Unit* current = ai->GetUnit(AI_VALUE(ObjectGuid, "current target"));
-        if (current != totem)
-            bot->InterruptNonMeleeSpells(true);
+        // Only a damage cast at another unit is cut; heals and casts already at the totem keep running
+        for (CurrentSpellTypes type : { CURRENT_GENERIC_SPELL, CURRENT_CHANNELED_SPELL })
+            if (Spell* spell = bot->GetCurrentSpell(type))
+                if (spell->m_targets.getUnitTargetGuid() != totem->GetObjectGuid() && !IsPositiveSpell(spell->m_spellInfo))
+                    bot->InterruptSpell(type);
         if (focus(totem, raidboss::ICON_SKULL, "skull"))
             return true;
 
@@ -1006,7 +1178,9 @@ bool SscKarathressAssignDpsPriorityAction::Execute(Event& event)
     if (Unit* tidalvess = FindSscUnit(ai, NPC_TIDALVESS))
         return focus(tidalvess, raidboss::ICON_CIRCLE, "circle");
 
-    // Target priority 3: Caribdis for ranged dps
+    // Target priority 3: Caribdis for ranged dps. Switch the target first (the walk kept the dead Tidalvess
+    // as target for up to 21 s), and only walk to the ranged spot while Caribdis really is in her corner
+    // and out of reach: with Caribdis elsewhere the fixed spot fought "reach spell" every tick.
     Unit* caribdis = FindSscUnit(ai, NPC_CARIBDIS);
     if (caribdis && raidboss::IsDps(bot) && raidboss::IsRangedPlayer(bot))
     {
@@ -1014,10 +1188,15 @@ bool SscKarathressAssignDpsPriorityAction::Execute(Event& event)
             return true;
 
         raidboss::SetRtiTarget(ai, "diamond");
-        if (raidboss::ExactDist2d(bot, CARIBDIS_RANGED_DPS_POSITION.getX(), CARIBDIS_RANGED_DPS_POSITION.getY()) > 8.0f)
-            return MoveToPosition(CARIBDIS_RANGED_DPS_POSITION);
+        if (!IsCurrentTarget(caribdis))
+            return AttackUnit(caribdis);
 
-        return !IsCurrentTarget(caribdis) && AttackUnit(caribdis);
+        const bool inCorner = raidboss::ExactDist2d(caribdis, CARIBDIS_TANK_POSITION.getX(), CARIBDIS_TANK_POSITION.getY()) < 12.0f;
+        const bool inReach = bot->IsWithinDistInMap(caribdis, 30.0f) && bot->IsWithinLOSInMap(caribdis);
+        if (inCorner && !inReach && raidboss::ExactDist2d(bot, CARIBDIS_RANGED_DPS_POSITION.getX(), CARIBDIS_RANGED_DPS_POSITION.getY()) > 8.0f)
+            return MoveToPosition(GetStepTowards(bot, CARIBDIS_RANGED_DPS_POSITION, 10.0f));
+
+        return false;
     }
 
     // Target priority 4: Sharkkis for melee dps and, after Caribdis is down, ranged dps also
@@ -1052,6 +1231,10 @@ bool SscKarathressManageDpsTimerAction::Execute(Event& event)
             changed = true;
         }
     });
+
+    // New pull: tank roles are latched from scratch
+    if (changed)
+        ResetKarathressRoles(bot);
 
     return changed;
 }
@@ -1578,6 +1761,7 @@ bool SscVashjAssignPhase2AndPhase3DpsPriorityAction::Execute(Event& event)
     // Search and attack radius keep the bots from going down the stairs
     const float maxSearchRange = ranged ? 60.0f : 55.0f;
     const float maxPursueRange = maxSearchRange - 5.0f;
+    constexpr float TAINTED_SEARCH_RANGE = 85.0f;
 
     Unit* tainted = nullptr;
     Unit* enchanted = nullptr;
@@ -1591,7 +1775,9 @@ bool SscVashjAssignPhase2AndPhase3DpsPriorityAction::Execute(Event& event)
         if (!IsValidLadyVashjCombatNpc(unit, ai))
             continue;
 
-        if (phase2 && raidboss::ExactDist2d(unit, center.getX(), center.getY()) > maxSearchRange)
+        // Tainted Elementals stand still further out; their core is the only way through phase 2
+        const float searchRange = unit->GetEntry() == NPC_TAINTED_ELEMENTAL ? TAINTED_SEARCH_RANGE : maxSearchRange;
+        if (phase2 && raidboss::ExactDist2d(unit, center.getX(), center.getY()) > searchRange)
             continue;
 
         switch (unit->GetEntry())
@@ -1620,6 +1806,9 @@ bool SscVashjAssignPhase2AndPhase3DpsPriorityAction::Execute(Event& event)
         }
     }
 
+    // An Enchanted Elemental about to reach Vashj stacks Surge on her: everybody ranged stops it
+    Unit* urgentEnchanted = enchanted && raidboss::ExactDist2d(vashj, enchanted) < 30.0f ? enchanted : nullptr;
+
     std::vector<Unit*> targets;
     if (phase2)
     {
@@ -1630,7 +1819,7 @@ bool SscVashjAssignPhase2AndPhase3DpsPriorityAction::Execute(Event& event)
             if (bot->getClass() == CLASS_HUNTER || bot->getClass() == CLASS_MAGE)
                 targets = { tainted, enchanted, strider, elite };
             else
-                targets = { tainted, strider, elite, enchanted };
+                targets = { tainted, urgentEnchanted, strider, elite, enchanted };
         }
         else if (raidboss::IsDps(bot))
             targets = { enchanted, elite };
@@ -1671,7 +1860,8 @@ bool SscVashjAssignPhase2AndPhase3DpsPriorityAction::Execute(Event& event)
     Unit* target = nullptr;
     for (Unit* candidate : targets)
     {
-        if (candidate && raidboss::ExactDist2d(bot, candidate) <= maxPursueRange)
+        const float pursueRange = candidate && candidate->GetEntry() == NPC_TAINTED_ELEMENTAL ? TAINTED_SEARCH_RANGE : maxPursueRange;
+        if (candidate && raidboss::ExactDist2d(bot, candidate) <= pursueRange)
         {
             target = candidate;
             break;
@@ -1688,8 +1878,9 @@ bool SscVashjAssignPhase2AndPhase3DpsPriorityAction::Execute(Event& event)
     if (target && currentTarget != target)
         return AttackUnit(target);
 
-    // If bots have wandered too far from the center, move them back
-    if (raidboss::ExactDist2d(bot, vashj) > maxPursueRange)
+    // If bots have wandered too far from the center, move them back (not while killing a Tainted Elemental)
+    const bool onTainted = currentTarget && currentTarget->GetEntry() == NPC_TAINTED_ELEMENTAL;
+    if (!onTainted && raidboss::ExactDist2d(bot, vashj) > maxPursueRange)
         return MoveToPosition(GetStepTowards(bot, WorldPosition(vashj), raidboss::ExactDist2d(bot, vashj) - (maxPursueRange - 10.0f)));
 
     return false;

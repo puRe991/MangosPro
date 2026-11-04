@@ -8,6 +8,15 @@
 using namespace ai;
 using namespace ai::ssc;
 
+namespace ai
+{
+namespace ssc
+{
+    Player* GetHydrossFrostTank(Player* bot);     // SscHelpers.cpp
+    Player* GetHydrossNatureTank(Player* bot);    // SscHelpers.cpp
+}
+}
+
 namespace
 {
     // A boss which is fighting (the creature also exists out of combat while the raid clears trash)
@@ -52,17 +61,17 @@ bool SscGreyheartTidecallerWaterElementalTotemSpawnedTrigger::IsActive()
 
 bool SscHydrossBotIsFrostTankTrigger::IsActive()
 {
-    return raidboss::IsMainTank(bot) && GetEngaged(ai, NPC_HYDROSS);
+    return GetHydrossFrostTank(bot) == bot && GetEngaged(ai, NPC_HYDROSS);
 }
 
 bool SscHydrossBotIsNatureTankTrigger::IsActive()
 {
-    return raidboss::IsAssistTank(bot, 0) && GetEngaged(ai, NPC_HYDROSS);
+    return GetHydrossNatureTank(bot) == bot && GetEngaged(ai, NPC_HYDROSS);
 }
 
 bool SscHydrossElementalsSpawnedTrigger::IsActive()
 {
-    if (PlayerbotAI::IsHeal(bot) || raidboss::IsMainTank(bot) || raidboss::IsAssistTank(bot, 0))
+    if (PlayerbotAI::IsHeal(bot) || GetHydrossFrostTank(bot) == bot || GetHydrossNatureTank(bot) == bot)
         return false;
 
     Unit* hydross = GetEngaged(ai, NPC_HYDROSS);
@@ -90,10 +99,20 @@ bool SscHydrossTankNeedsAggroUponPhaseChangeTrigger::IsActive()
 
 bool SscHydrossAggroResetsUponPhaseChangeTrigger::IsActive()
 {
-    if (PlayerbotAI::IsHeal(bot) || raidboss::IsMainTank(bot) || raidboss::IsAssistTank(bot, 0))
+    if (PlayerbotAI::IsHeal(bot) || GetHydrossFrostTank(bot) == bot || GetHydrossNatureTank(bot) == bot)
         return false;
 
     return GetEngaged(ai, NPC_HYDROSS);
+}
+
+// Nature form: every shaman puts down Nature Resistance Totem for his party (air slot)
+bool SscHydrossNatureFormNeedsResistanceTotemTrigger::IsActive()
+{
+    if (bot->getClass() != CLASS_SHAMAN)
+        return false;
+
+    Unit* hydross = GetEngaged(ai, NPC_HYDROSS);
+    return hydross && hydross->HasAura(SPELL_CORRUPTION) && !AI_VALUE2(bool, "has totem", "nature resistance totem");
 }
 
 bool SscHydrossNeedToManageTimersTrigger::IsActive()
@@ -278,29 +297,66 @@ bool SscLeotherasBossWipesAggroUponPhaseChangeTrigger::IsActive()
 
 // Fathom-Lord Karathress
 
+namespace
+{
+    bool IsKarathressCouncilEngaged(PlayerbotAI* ai)
+    {
+        return GetEngaged(ai, NPC_KARATHRESS) || GetEngaged(ai, NPC_CARIBDIS) || GetEngaged(ai, NPC_TIDALVESS) ||
+            GetEngaged(ai, NPC_SHARKKIS);
+    }
+
+    // The bot tanks exactly this one council member (roles: GetKarathressTank)
+    bool TanksOnly(PlayerbotAI* ai, uint32 entry)
+    {
+        if (!PlayerbotAI::IsTank(ai->GetBot()) || !IsKarathressCouncilEngaged(ai))
+            return false;
+
+        const std::vector<Unit*> units = GetKarathressTankUnits(ai);
+        return units.size() == 1 && units.front()->GetEntry() == entry;
+    }
+}
+
+// The Karathress tank, and any tank holding more than one council member
 bool SscKarathressBossEngagedByMainTankTrigger::IsActive()
 {
-    return raidboss::IsMainTank(bot) && GetEngaged(ai, NPC_KARATHRESS);
+    if (!PlayerbotAI::IsTank(bot) || !IsKarathressCouncilEngaged(ai))
+        return false;
+
+    const std::vector<Unit*> units = GetKarathressTankUnits(ai);
+    return units.size() > 1 || (units.size() == 1 && units.front()->GetEntry() == NPC_KARATHRESS);
 }
 
 bool SscKarathressCaribdisEngagedByFirstAssistTankTrigger::IsActive()
 {
-    return raidboss::IsAssistTank(bot, 0) && (GetEngaged(ai, NPC_CARIBDIS) || (GetEngaged(ai, NPC_KARATHRESS) && FindSscUnit(ai, NPC_CARIBDIS)));
+    return TanksOnly(ai, NPC_CARIBDIS);
 }
 
 bool SscKarathressSharkkisEngagedBySecondAssistTankTrigger::IsActive()
 {
-    return raidboss::IsAssistTank(bot, 1) && (GetEngaged(ai, NPC_SHARKKIS) || (GetEngaged(ai, NPC_KARATHRESS) && FindSscUnit(ai, NPC_SHARKKIS)));
+    return TanksOnly(ai, NPC_SHARKKIS);
 }
 
 bool SscKarathressTidalvessEngagedByThirdAssistTankTrigger::IsActive()
 {
-    return raidboss::IsAssistTank(bot, 2) && (GetEngaged(ai, NPC_TIDALVESS) || (GetEngaged(ai, NPC_KARATHRESS) && FindSscUnit(ai, NPC_TIDALVESS)));
+    return TanksOnly(ai, NPC_TIDALVESS);
 }
 
+// Only while Caribdis is held in her corner: elsewhere the fixed healer spot sent the healer away from
+// her tank and "reach party member to heal" pulled him back, every few seconds in the raid log
 bool SscKarathressCaribdisTankNeedsDedicatedHealerTrigger::IsActive()
 {
-    return PlayerbotAI::IsHeal(bot) && GetHealerOfIndex(bot, 0) == bot && GetEngaged(ai, NPC_CARIBDIS);
+    if (!PlayerbotAI::IsHeal(bot))
+        return false;
+
+    Unit* caribdis = GetEngaged(ai, NPC_CARIBDIS);
+    return caribdis && GetHealerOfIndex(bot, 0) == bot &&
+        raidboss::ExactDist2d(caribdis, CARIBDIS_TANK_POSITION.getX(), CARIBDIS_TANK_POSITION.getY()) < 15.0f;
+}
+
+bool SscKarathressCaribdisCastsHealingWaveTrigger::IsActive()
+{
+    std::string spell;
+    return GetCaribdisInterruptTarget(ai, spell) != nullptr;
 }
 
 bool SscKarathressPullingBossesTrigger::IsActive()
@@ -323,16 +379,8 @@ bool SscKarathressDeterminingKillOrderTrigger::IsActive()
     if (raidboss::IsDps(bot))
         return true;
 
-    if (raidboss::IsAssistTank(bot, 0))
-        return !FindSscUnit(ai, NPC_CARIBDIS);
-
-    if (raidboss::IsAssistTank(bot, 1))
-        return !FindSscUnit(ai, NPC_SHARKKIS);
-
-    if (raidboss::IsAssistTank(bot, 2))
-        return !FindSscUnit(ai, NPC_TIDALVESS);
-
-    return false;
+    // A tank without a council member of his own helps with the kill order
+    return PlayerbotAI::IsTank(bot) && GetKarathressTankUnits(ai).empty();
 }
 
 bool SscKarathressTanksNeedToEstablishAggroTrigger::IsActive()

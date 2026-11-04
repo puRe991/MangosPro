@@ -1102,6 +1102,15 @@ bool TkKaelthasAssignLegendaryWeaponDpsPriorityAction::Execute(Event& event)
         return true;
     }
 
+    // The ranged dps waits at the room entrance, about 70 yards from the weapons: Attack() refuses
+    // targets beyond sight distance and nothing brought them closer, so they idled the whole phase
+    if (!didAvoidDevastation && isRangedDps && raidboss::ExactDist2d(bot, target) > 30.0f)
+    {
+        const float angle = target->GetAngle(bot);
+        if (MoveToPosition(target->GetPositionX() + std::cos(angle) * 28.0f, target->GetPositionY() + std::sin(angle) * 28.0f, bot->GetPositionZ()))
+            return true;
+    }
+
     return didAvoidDevastation || (GetCurrentTarget(ai) != target && Attack(GetMaster(), target));
 }
 
@@ -1218,7 +1227,9 @@ bool TkKaelthasLootLegendaryWeaponsAction::LootWeapon(uint32 weaponEntry, uint32
     if (!weapon)
         return false;
 
-    if (!bot->IsWithinDistInMap(weapon, INTERACTION_DISTANCE - 1.0f))
+    // The weapon corpses hover above the floor: a 3D check never passed for bots standing below
+    // them, so most bots stepped around the corpse until the phase ended without looting
+    if (raidboss::ExactDist2d(bot, weapon) > INTERACTION_DISTANCE - 1.0f)
     {
         const float targetDist = INTERACTION_DISTANCE - 2.0f;
         const float angle = weapon->GetAngle(bot);

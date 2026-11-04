@@ -55,10 +55,13 @@ int main()
     assert(MeleeGroupAngle(0, orientation) == MeleeGroupAngle(2, orientation));
 
     // Tidal Shield: wait for the raid to be topped up, but never longer than the time limit
-    assert(!ThrowSpineNow(60.0f, 0));
-    assert(!ThrowSpineNow(84.9f, 9));
-    assert(ThrowSpineNow(85.0f, 0));
-    assert(ThrowSpineNow(40.0f, 10));
+    assert(!ThrowSpineNow(60.0f, 0, 0));
+    assert(!ThrowSpineNow(84.9f, 0, 9));
+    assert(ThrowSpineNow(85.0f, 0, 0));
+    // Topped up on average, but a caster under 9500 health would die to Tidal Burst
+    assert(!ThrowSpineNow(92.0f, 1, 10));
+    assert(!ThrowSpineNow(40.0f, 3, MAX_SHIELD_SECONDS - 1));
+    assert(ThrowSpineNow(40.0f, 3, MAX_SHIELD_SECONDS));
 
     std::cout << "PASS: Naj'entus ranged rings, melee flanks and Tidal Shield timing\n";
 }

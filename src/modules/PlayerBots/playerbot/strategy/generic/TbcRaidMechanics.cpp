@@ -37,7 +37,47 @@ namespace
         NPC_KILJAEDEN               = 25315,
         SPELL_DARKNESS_OF_SOULS     = 46605,
         SPELL_VENGEANCE_BLUE_FLIGHT = 45839,
+
+        // Kalecgos
+        NPC_KALECGOS_DRAGON         = 24850,
+        NPC_SATHROVARR              = 24892,
+        GO_SPECTRAL_RIFT            = 187055,
+        SPELL_SPECTRAL_REALM_AURA   = 46021,
+        SPELL_SPECTRAL_EXHAUSTION   = 44867,
+        SPELL_SATHROVARR_BANISH     = 44836,
     };
+
+    // Kalecgos: players wanted in the Spectral Realm at the same time. Only 7 left most of the raid on the platform
+    // stacking Arcane Buffet: 57 deaths at 7-15 stacks on 2026-10-31.
+    const uint32 REALM_TANKS = 1;
+    const uint32 REALM_HEALERS = 3;
+    const uint32 REALM_DAMAGE = 8;
+    const uint32 REALM_DAMAGE_CATCH_UP = 10;  // while the dragon is ahead of Sathrovarr
+    const uint32 REALM_DAMAGE_SLOW = 5;       // while Sathrovarr is more than 10% ahead of the dragon
+    const float SATHROVARR_HOLD_PCT = 12.0f;  // Crazed Rage starts below 10%
+    const uint32 SPELL_ARCANE_BUFFET = 45018;
+
+    // Kalecgos dragon and Sathrovarr (128 yd below the platform), alive and in combat
+    bool GetKalecgosPair(Player* bot, Unit*& dragon, Unit*& sathrovarr)
+    {
+        dragon = nullptr;
+        sathrovarr = nullptr;
+        for (Unit* unit : TbcRaidHelper::FindCreatures(bot, NPC_KALECGOS_DRAGON, 160.0f))
+        {
+            if (unit->IsAlive() && unit->IsInCombat())
+                dragon = unit;
+        }
+
+        // Sathrovarr is not killed but banished at 0 HP; afterwards the dragon has to be finished (on 2026-10-31
+        // the hold rule kept the raid off the dragon at 8.7% while the banished Sathrovarr still counted as alive)
+        for (Unit* unit : TbcRaidHelper::FindCreatures(bot, NPC_SATHROVARR, 160.0f))
+        {
+            if (unit->IsAlive() && unit->IsInCombat() && !unit->HasAura(SPELL_SATHROVARR_BANISH))
+                sathrovarr = unit;
+        }
+
+        return dragon && sathrovarr;
+    }
 
     const float HYDROSS_SWITCH_RADIUS = 20.0f;   // purification circle around the combat start position
 
@@ -478,6 +518,178 @@ GameObject* TbcRaidHelper::GetBlueOrbToUse(PlayerbotAI* ai)
             if (user == bot)
                 return orb;
         }
+    }
+
+    return nullptr;
+}
+
+GameObject* TbcRaidHelper::GetSpectralRiftToUse(PlayerbotAI* ai)
+{
+    Unit* boss = nullptr;
+    const Encounter* encounter = GetEncounter(ai, &boss);
+    if (!encounter || !(encounter->special & SPECIAL_SPECTRAL_REALM))
+        return nullptr;
+
+    Player* bot = ai->GetBot();
+    if (bot->HasAura(SPELL_SPECTRAL_REALM_AURA) || bot->HasAura(SPELL_SPECTRAL_EXHAUSTION))
+        return nullptr;
+
+    GameObject* rift = nullptr;
+    for (GameObject* candidate : FindGameObjects(bot, GO_SPECTRAL_RIFT, 60.0f))
+    {
+        if (candidate->IsSpawned() && (!rift || bot->GetDistance(candidate) < bot->GetDistance(rift)))
+            rift = candidate;
+    }
+
+    if (!rift)
+        return nullptr;
+
+    // The tank holding the dragon stays; the returning tank takes it over on Arcane Buffet stacks (TankSwap)
+    Unit* dragonVictim = nullptr;
+    for (Unit* dragon : FindCreatures(bot, NPC_KALECGOS_DRAGON, 100.0f))
+    {
+        if (dragon->IsAlive())
+            dragonVictim = dragon->GetVictim();
+    }
+
+    if (dragonVictim == bot)
+        return nullptr;
+
+    const uint8 role = tbcraid::GetRole(ai, bot);
+    const bool damage = (role & ROLE_DPS) != 0;
+    Unit* dragon = nullptr;
+    Unit* sathrovarr = nullptr;
+    uint32 realmDamage = REALM_DAMAGE;
+    if (GetKalecgosPair(bot, dragon, sathrovarr))
+    {
+        const float lead = dragon->GetHealthPercent() - sathrovarr->GetHealthPercent();
+        if (lead < 0.0f)
+            realmDamage = REALM_DAMAGE_CATCH_UP;
+        else if (lead > 10.0f)
+            realmDamage = REALM_DAMAGE_SLOW;
+    }
+
+    const uint32 wanted = role == ROLE_TANK ? REALM_TANKS : (role == ROLE_HEAL ? REALM_HEALERS : realmDamage);
+
+    // The realm is 128 yd below the platform: count the whole raid
+    uint32 inRealm = 0;
+    std::vector<Player*> candidates;
+    for (Player* member : GetRaidMembers(bot, 300.0f, true))
+    {
+        const uint8 memberRole = tbcraid::GetRole(ai, member);
+        if (damage ? !(memberRole & ROLE_DPS) : memberRole != role)
+            continue;
+
+        if (member->HasAura(SPELL_SPECTRAL_REALM_AURA))
+        {
+            ++inRealm;
+            continue;
+        }
+
+        if (!member->GetPlayerbotAI() || member == dragonVictim || member->HasAura(SPELL_SPECTRAL_EXHAUSTION) ||
+            !member->IsWithinDistInMap(rift, 60.0f))
+            continue;
+
+        candidates.push_back(member);
+    }
+
+    if (inRealm >= wanted)
+        return nullptr;
+
+    // The bots with the most Arcane Buffet stacks go first (the realm clears them), then the closest
+    std::sort(candidates.begin(), candidates.end(), [rift](Player* a, Player* b)
+    {
+        const uint32 stacksA = a->GetAuraCount(SPELL_ARCANE_BUFFET);
+        const uint32 stacksB = b->GetAuraCount(SPELL_ARCANE_BUFFET);
+        if (stacksA != stacksB)
+            return stacksA > stacksB;
+
+        return a->GetDistance(rift) < b->GetDistance(rift);
+    });
+    const size_t needed = wanted - inRealm;
+    for (size_t i = 0; i < candidates.size() && i < needed; ++i)
+    {
+        if (candidates[i] == bot)
+            return rift;
+    }
+
+    return nullptr;
+}
+
+Unit* TbcRaidHelper::GetKalecgosToHoldDamage(PlayerbotAI* ai)
+{
+    const Encounter* encounter = GetEncounter(ai);
+    if (!encounter || !(encounter->special & SPECIAL_SPECTRAL_REALM))
+        return nullptr;
+
+    Player* bot = ai->GetBot();
+    if (PlayerbotAI::IsTank(bot) || PlayerbotAI::IsHeal(bot))
+        return nullptr;
+
+    // Both have to fall nearly together. Sathrovarr has to die first: at 1% the dragon banishes itself and opens
+    // no more rifts (2026-10-31: dragon 1% with Sathrovarr at 40%, fail). But Sathrovarr below 10% gives the dragon
+    // Crazed Rage until its own end (2026-10-31: Sathrovarr banished with the dragon at 36%, the enraged dragon
+    // wiped the raid). So the platform waits for Sathrovarr, and the realm holds Sathrovarr at 12% for the dragon.
+    // Asked by the multiplier for every action: search at most every 500 ms per bot
+    static thread_local std::unordered_map<uint32, std::pair<uint32, ObjectGuid>> cache;
+    std::pair<uint32, ObjectGuid>& cached = cache[bot->GetGUIDLow()];
+    const uint32 now = WorldTimer::getMSTime();
+    if (cached.first && WorldTimer::getMSTimeDiff(cached.first, now) < 500)
+        return cached.second ? ai->GetUnit(cached.second) : nullptr;
+
+    cached.first = now;
+    cached.second = ObjectGuid();
+
+    Unit* dragon = nullptr;
+    Unit* sathrovarr = nullptr;
+    if (!GetKalecgosPair(bot, dragon, sathrovarr))
+        return nullptr;
+
+    const float dragonPct = dragon->GetHealthPercent();
+    const float sathrovarrPct = sathrovarr->GetHealthPercent();
+    Unit* hold = nullptr;
+    if (bot->HasAura(SPELL_SPECTRAL_REALM_AURA))
+    {
+        if (sathrovarrPct < SATHROVARR_HOLD_PCT && dragonPct > sathrovarrPct + 2.0f)
+            hold = sathrovarr;
+    }
+    else if (dragonPct < 10.0f || dragonPct < sathrovarrPct - 3.0f)
+        hold = dragon;
+
+    if (hold)
+        cached.second = hold->GetObjectGuid();
+
+    return hold;
+}
+
+Unit* TbcRaidHelper::GetSathrovarrToTaunt(PlayerbotAI* ai)
+{
+    const Encounter* encounter = GetEncounter(ai);
+    if (!encounter || !(encounter->special & SPECIAL_SPECTRAL_REALM))
+        return nullptr;
+
+    Player* bot = ai->GetBot();
+    if (!bot->HasAura(SPELL_SPECTRAL_REALM_AURA) || GetRole(ai) != ROLE_TANK)
+        return nullptr;
+
+    // Kalec's Heroic Strikes out-threaten a paladin tank: Sathrovarr hit Kalec most of the 2026-10-31 attempt
+    for (Unit* sathrovarr : FindCreatures(bot, NPC_SATHROVARR, 40.0f))
+    {
+        if (!sathrovarr->IsAlive() || !sathrovarr->IsInCombat())
+            continue;
+
+        Unit* victim = sathrovarr->GetVictim();
+        if (!victim || victim == bot)
+            continue;
+
+        if (victim->GetTypeId() == TYPEID_PLAYER && PlayerbotAI::IsTank((Player*)victim))
+            continue;
+
+        // Righteous Defense on Kalec only started and never landed (2026-10-31): paladins taunt off players only
+        if (bot->getClass() == CLASS_PALADIN && victim->GetTypeId() != TYPEID_PLAYER)
+            continue;
+
+        return sathrovarr;
     }
 
     return nullptr;

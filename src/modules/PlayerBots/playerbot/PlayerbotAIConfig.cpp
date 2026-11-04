@@ -7,6 +7,7 @@
 #include "RandomItemMgr.h"
 #include "World/WorldState.h"
 #include "playerbot/PlayerbotHelpMgr.h"
+#include "playerbot/BotPerformanceLog.h"
 #include "playerbot/strategy/actions/CheatAction.h"
 
 #include "playerbot/TravelMgr.h"
@@ -278,6 +279,8 @@ bool PlayerbotAIConfig::Initialize()
 
     commandServerPort = config.GetIntDefault("AiPlayerbot.CommandServerPort", 0);
     perfMonEnabled = config.GetBoolDefault("AiPlayerbot.PerfMonEnabled", false);
+    botperf::Configure(config.GetBoolDefault("AiPlayerbot.BotDpsLog", true), config.GetIntDefault("AiPlayerbot.BotDpsLogMinFightSeconds", 15),
+        config.GetBoolDefault("AiPlayerbot.BotDpsLogInstancesOnly", true), config.GetBoolDefault("AiPlayerbot.BotDpsLogIncludeMaster", true));
     bExplicitDbStoreSave = config.GetBoolDefault("AiPlayerbot.ExplicitDbStoreSave", false);
 
     randomBotLoginWithPlayer = config.GetBoolDefault("AiPlayerbot.RandomBotLoginWithPlayer", false);
@@ -515,6 +518,7 @@ bool PlayerbotAIConfig::Initialize()
     //cosmetics (by lidocain)
     randomBotShowCloak = config.GetBoolDefault("AiPlayerbot.RandomBotShowCloak", false);
     randomBotShowHelmet = config.GetBoolDefault("AiPlayerbot.RandomBotShowHelmet", false);
+    randomBotTitles = config.GetBoolDefault("AiPlayerbot.RandomBotTitles", true);
 
 	//SPP switches
     enableGreet = config.GetBoolDefault("AiPlayerbot.EnableGreet", false);

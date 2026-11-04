@@ -3,11 +3,13 @@
 #include "playerbot/strategy/raids/RaidBossStrategies.h"
 #include "playerbot/strategy/raids/dungeons/DungeonBossStrategy.h"
 #include "playerbot/strategy/values/AttackersValue.h"
+#include "playerbot/strategy/actions/GenericSpellActions.h"
 #include "playerbot/strategy/raids/karazhan/KarazhanHelpers.h"
 #include "playerbot/strategy/raids/magtheridon/MagtheridonHelpers.h"
 #include "playerbot/strategy/raids/ssc/SscHelpers.h"
 #include "playerbot/strategy/raids/RaidBossHelpers.h"
 #include "Entities/DynamicObject.h"
+#include "Movement/MoveSpline.h"
 #include "Grids/GridNotifiers.h"
 #include "Grids/GridNotifiersImpl.h"
 #include "Grids/CellImpl.h"
@@ -121,6 +123,14 @@ void TbcRaidStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
     triggers.push_back(new TriggerNode(
         "tbc raid use blue orb",
         NextAction::array(0, new NextAction("tbc raid use blue orb", ACTION_EMERGENCY + 5), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "tbc raid use spectral rift",
+        NextAction::array(0, new NextAction("tbc raid use spectral rift", ACTION_EMERGENCY + 5), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "tbc raid hold kalecgos damage",
+        NextAction::array(0, new NextAction("tbc raid hold kalecgos damage", ACTION_EMERGENCY + 1), NULL)));
 
     triggers.push_back(new TriggerNode(
         "tbc raid hydross tank",
@@ -247,6 +257,12 @@ float TbcRaidMultiplier::GetValue(Action* action)
         return 0.0f;
 
     const std::string& name = action->getName();
+
+    // Kalecgos is ahead of Sathrovarr: the platform damage dealers wait (also blocks the priority target attack)
+    if ((dynamic_cast<AttackAction*>(action) || dynamic_cast<CastSpellAction*>(action)) &&
+        !dynamic_cast<CastHealingSpellAction*>(action) && TbcRaidHelper::GetKalecgosToHoldDamage(ai))
+        return 0.0f;
+
     if (name.rfind("tbc raid", 0) == 0)
         return 1.0f;
 
@@ -259,8 +275,18 @@ float TbcRaidMultiplier::GetValue(Action* action)
     if (bot->HasAura(38132))
         return 0.0f;
 
-    if (!TbcRaidHelper::GetEncounter(ai))
+    const Encounter* encounter = TbcRaidHelper::GetEncounter(ai);
+    if (!encounter)
         return 1.0f;
+
+    // Kalecgos' Tail Lash stuns everybody behind him: melee stay at the flanks
+    if ((encounter->special & SPECIAL_SPECTRAL_REALM) && name == "set behind")
+        return 0.0f;
+
+    // The raid has dedicated healers: damage dealers healing others (every shaman's base
+    // "party member low health", druid offheal with form changes) dropped to ~20 dps on Void Reaver
+    if (!PlayerbotAI::IsHeal(bot) && !PlayerbotAI::IsTank(bot) && dynamic_cast<HealPartyMemberAction*>(action))
+        return 0.0f;
 
     // Keep attacking the priority target instead of switching to the lowest health enemy
     if (name == "dps assist" || name == "dps aoe" || name == "attack least hp target")
@@ -288,10 +314,22 @@ float TbcRaidMultiplier::GetValue(Action* action)
         const ObjectGuid currentTarget = ai->GetAiObjectContext()->GetValue<ObjectGuid>("current target")->Get();
         if (currentTarget)
         {
+            Unit* target = ai->GetUnit(currentTarget);
             for (const HazardZone& hazard : TbcRaidHelper::GetHazards(ai))
             {
                 if (hazard.guid == currentTarget)
                     return 0.0f;
+
+                // Nor into a moving creature hazard passing the target (Karathress' Cyclones): leave hazard
+                // put the bot out, reach melee walked straight back in. Stationary ones (Flame Crash, ...)
+                // leave free melee spots on the far side and are left to the path scoring.
+                Unit* hazardUnit = target && hazard.guid.IsCreatureOrPet() ? ai->GetUnit(hazard.guid) : nullptr;
+                if (hazardUnit && (hazardUnit->IsMoving() || !hazardUnit->movespline->Finalized()))
+                {
+                    const float radius = hazard.radius + 3.0f;
+                    if (WorldPosition(target).sqDistance2d(hazard.position) < radius * radius)
+                        return 0.0f;
+                }
             }
         }
     }
@@ -756,6 +794,9 @@ Unit* TbcRaidHelper::GetTauntTarget(PlayerbotAI* ai)
     Player* bot = ai->GetBot();
     if (GetRole(ai) != ROLE_TANK)
         return nullptr;
+
+    if (Unit* sathrovarr = GetSathrovarrToTaunt(ai))
+        return sathrovarr;
 
     for (const TankSwapRule& rule : encounter->tankSwap)
     {

@@ -8,6 +8,8 @@
 #include "playerbot/strategy/generic/MoltenCoreDungeonStrategies.h"
 #include "playerbot/strategy/generic/BlackwingLairDungeonStrategies.h"
 #include "playerbot/strategy/generic/NaxxramasDungeonStrategies.h"
+#include <map>
+#include <mutex>
 
 using namespace ai;
 using namespace ai::tbcraid;
@@ -108,16 +110,51 @@ namespace
         }
     }
 
-    bool NeedsCover(Unit* boss)
+    // Chromaggus breathes every 30 s (first one 30 s after the pull) with a 2 s cast and a
+    // room-wide radius, too short to run around a corner once the cast is visible. Track the
+    // timing so everyone but the tanks is already out of line of sight when it lands.
+    bool ChromaggusBreathSoon(PlayerbotAI* ai, Unit* boss, bool casting)
+    {
+        static std::mutex lock;
+        static std::map<ObjectGuid, std::pair<uint32, uint32>> timing; // pull time, last breath time
+        const uint32 now = WorldTimer::getMSTime();
+
+        std::lock_guard<std::mutex> guard(lock);
+        if (!boss->IsInCombat())
+        {
+            timing.erase(boss->GetObjectGuid());
+            return false;
+        }
+
+        auto it = timing.find(boss->GetObjectGuid());
+        if (it == timing.end())
+            it = timing.emplace(boss->GetObjectGuid(), std::make_pair(now, 0u)).first;
+        if (casting)
+            it->second.second = now;
+
+        if (PlayerbotAI::IsTank(ai->GetBot()))
+            return false;
+
+        // The last breath time is refreshed until the cast ends, so the next one starts ~28 s later
+        const uint32 next = it->second.second ? it->second.second + 28000 : it->second.first + 30000;
+        const int32 untilNext = int32(next - now);
+        return untilNext <= 4000 && untilNext >= -3000;
+    }
+
+    bool NeedsCover(PlayerbotAI* ai, Unit* boss)
     {
         if (!boss)
             return false;
         if (boss->GetEntry() == 18473)
             return TbcRaidHelper::IsCreatureCasting(boss, 38197) || TbcRaidHelper::IsCreatureCasting(boss, 40425);
         if (boss->GetEntry() == 14020)
-            for (uint32 spell : { 23308u, 23309u, 23310u, 23312u, 23313u })
+        {
+            bool casting = false;
+            for (uint32 spell : { 23308u, 23309u, 23310u, 23312u, 23313u, 23314u, 23315u, 23316u, 23187u, 23189u })
                 if (TbcRaidHelper::IsCreatureCasting(boss, spell))
-                    return true;
+                    casting = true;
+            return ChromaggusBreathSoon(ai, boss, casting) || casting;
+        }
         return false;
     }
 
@@ -301,7 +338,7 @@ bool DungeonBossSpecialTrigger::IsActive()
     if (GameObject* crystal = FindOssirianCrystal(ai, boss))
         if (IsCrystalHandler(bot) && boss->GetDistance(crystal) <= 20.0f && bot->GetDistance(crystal) <= INTERACTION_DISTANCE)
             return true;
-    if (NeedsCover(boss))
+    if (NeedsCover(ai, boss))
         return boss->IsWithinLOSInMap(bot);
     if (HoldDamage(ai, boss))
         return bot->GetVictim() == boss || CastingAtBoss(bot, boss) ||
@@ -335,7 +372,7 @@ bool DungeonBossSpecialAction::Execute(Event& event)
             return true;
         }
     }
-    if (NeedsCover(boss))
+    if (NeedsCover(ai, boss))
     {
         return MoveToBestPoint(3.0f, 45.0f, [&](const WorldPosition& point) -> float
         {
@@ -384,7 +421,7 @@ bool DungeonBossSpecialAction::ShouldReactionInterruptCast() const
     Unit* boss = nullptr;
     TbcRaidHelper::GetEncounter(ai, &boss);
     WorldPosition position;
-    return NeedsCover(boss) || ClassicPosition(ai, boss, position) || CastingAtBoss(bot, boss) ||
+    return NeedsCover(ai, boss) || ClassicPosition(ai, boss, position) || CastingAtBoss(bot, boss) ||
         (bot->GetMapId() == 556 && bot->HasAura(40303));
 }
 
@@ -407,7 +444,7 @@ float DungeonBossMultiplier::GetValue(Action* action)
     if (raidboss::IsMovementAction(action) && name.rfind("tbc raid", 0) != 0 &&
         (debuffRun || TbcRaidHelper::IsInHazard(WorldPosition(bot), TbcRaidHelper::GetHazards(ai))))
         return 0.0f;
-    if (NeedsCover(boss) && (raidboss::IsMovementAction(action) || HostileAction(action, bot)))
+    if (NeedsCover(ai, boss) && (raidboss::IsMovementAction(action) || HostileAction(action, bot)))
         return name == "tbc raid leave hazard" ? 1.0f : 0.0f;
     if (HoldDamage(ai, boss) && HostileAction(action, bot) &&
         (action->GetTarget() == boss || action->getThreatType() == ActionThreatType::ACTION_THREAT_AOE))

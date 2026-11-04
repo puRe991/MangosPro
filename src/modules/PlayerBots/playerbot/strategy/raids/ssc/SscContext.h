@@ -51,6 +51,7 @@ namespace ai
             creators["fathom-lord karathress second assist tank position sharkkis"] = [](PlayerbotAI* ai) { return new SscKarathressSecondAssistTankPositionSharkkisAction(ai); };
             creators["fathom-lord karathress third assist tank position tidalvess"] = [](PlayerbotAI* ai) { return new SscKarathressThirdAssistTankPositionTidalvessAction(ai); };
             creators["fathom-lord karathress position caribdis tank healer"] = [](PlayerbotAI* ai) { return new SscKarathressPositionCaribdisTankHealerAction(ai); };
+            creators["fathom-lord karathress interrupt caribdis heal"] = [](PlayerbotAI* ai) { return new SscKarathressInterruptCaribdisHealAction(ai); };
             creators["fathom-lord karathress misdirect bosses to tanks"] = [](PlayerbotAI* ai) { return new SscKarathressMisdirectBossesToTanksAction(ai); };
             creators["fathom-lord karathress assign dps priority"] = [](PlayerbotAI* ai) { return new SscKarathressAssignDpsPriorityAction(ai); };
             creators["fathom-lord karathress manage dps timer"] = [](PlayerbotAI* ai) { return new SscKarathressManageDpsTimerAction(ai); };
@@ -90,6 +91,7 @@ namespace ai
             creators["hydross the unstable tank needs aggro upon phase change"] = [](PlayerbotAI* ai) { return new SscHydrossTankNeedsAggroUponPhaseChangeTrigger(ai); };
             creators["hydross the unstable aggro resets upon phase change"] = [](PlayerbotAI* ai) { return new SscHydrossAggroResetsUponPhaseChangeTrigger(ai); };
             creators["hydross the unstable need to manage timers"] = [](PlayerbotAI* ai) { return new SscHydrossNeedToManageTimersTrigger(ai); };
+            creators["hydross the unstable nature form needs resistance totem"] = [](PlayerbotAI* ai) { return new SscHydrossNatureFormNeedsResistanceTotemTrigger(ai); };
             creators["the lurker below spout is active"] = [](PlayerbotAI* ai) { return new SscLurkerSpoutIsActiveTrigger(ai); };
             creators["the lurker below boss is active for main tank"] = [](PlayerbotAI* ai) { return new SscLurkerBossIsActiveForMainTankTrigger(ai); };
             creators["the lurker below boss casts geyser"] = [](PlayerbotAI* ai) { return new SscLurkerBossCastsGeyserTrigger(ai); };
@@ -112,6 +114,7 @@ namespace ai
             creators["fathom-lord karathress sharkkis engaged by second assist tank"] = [](PlayerbotAI* ai) { return new SscKarathressSharkkisEngagedBySecondAssistTankTrigger(ai); };
             creators["fathom-lord karathress tidalvess engaged by third assist tank"] = [](PlayerbotAI* ai) { return new SscKarathressTidalvessEngagedByThirdAssistTankTrigger(ai); };
             creators["fathom-lord karathress caribdis tank needs dedicated healer"] = [](PlayerbotAI* ai) { return new SscKarathressCaribdisTankNeedsDedicatedHealerTrigger(ai); };
+            creators["fathom-lord karathress caribdis casts healing wave"] = [](PlayerbotAI* ai) { return new SscKarathressCaribdisCastsHealingWaveTrigger(ai); };
             creators["fathom-lord karathress pulling bosses"] = [](PlayerbotAI* ai) { return new SscKarathressPullingBossesTrigger(ai); };
             creators["fathom-lord karathress determining kill order"] = [](PlayerbotAI* ai) { return new SscKarathressDeterminingKillOrderTrigger(ai); };
             creators["fathom-lord karathress tanks need to establish aggro"] = [](PlayerbotAI* ai) { return new SscKarathressTanksNeedToEstablishAggroTrigger(ai); };

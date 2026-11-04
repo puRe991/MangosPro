@@ -2,6 +2,7 @@
 #include "TbcRaidActions.h"
 #include "playerbot/strategy/generic/TbcRaidStrategy.h"
 #include "Loot/LootMgr.h"
+#include "Movement/MoveSpline.h"
 
 using namespace ai;
 using namespace ai::tbcraid;
@@ -154,9 +155,18 @@ bool TbcRaidLeaveHazardAction::Execute(Event& event)
     const float anchorRange = GetAnchorRange();
     const bool melee = TbcRaidHelper::GetRole(ai) == ROLE_MELEE || TbcRaidHelper::GetRole(ai) == ROLE_TANK;
 
-    // Copy: the cache can be refreshed while scoring
-    const std::vector<HazardZone> zones = hazards;
-    return MoveToBestPoint(3.0f, maxRadius, [&](const WorldPosition& point) -> float
+    // Copy: the cache can be refreshed while scoring. A moving hazard (Karathress' Cyclones chase players)
+    // gets 5 yards of extra room: 1.5 yards was less than it travels per update, so bots left it and were
+    // caught again on the next tick.
+    std::vector<HazardZone> zones = hazards;
+    for (HazardZone& zone : zones)
+    {
+        Unit* unit = zone.guid.IsCreatureOrPet() ? ai->GetUnit(zone.guid) : nullptr;
+        if (unit && (unit->IsMoving() || !unit->movespline->Finalized()))
+            zone.radius += 3.5f;
+    }
+
+    return MoveToBestPoint(3.0f, maxRadius + 7.0f, [&](const WorldPosition& point) -> float
     {
         if (TbcRaidHelper::IsInHazard(point, zones, 1.5f))
             return -1.0f;
@@ -805,9 +815,52 @@ bool TbcRaidControlPossessedAction::ControlBlueDragon(Creature* dragon)
 bool TbcRaidUseBlueOrbAction::Execute(Event& event)
 {
     GameObject* orb = TbcRaidHelper::GetBlueOrbToUse(ai);
-    if (!orb)
+    return orb && UseObject(orb);
+}
+
+bool TbcRaidUseSpectralRiftAction::Execute(Event& event)
+{
+    GameObject* rift = TbcRaidHelper::GetSpectralRiftToUse(ai);
+    return rift && UseObject(rift);
+}
+
+bool TbcRaidHoldKalecgosDamageAction::Execute(Event& event)
+{
+    Unit* dragon = TbcRaidHelper::GetKalecgosToHoldDamage(ai);
+    if (!dragon)
         return false;
 
+    bool stopped = false;
+    if (bot->GetVictim() == dragon)
+    {
+        bot->AttackStop();
+        stopped = true;
+    }
+
+    if (bot->IsNonMeleeSpellCasted(false, false, true))
+    {
+        bot->InterruptNonMeleeSpells(true);
+        stopped = true;
+    }
+
+    Pet* pet = bot->GetPet();
+    if (pet && pet->GetVictim() == dragon)
+    {
+        pet->AttackStop();
+        stopped = true;
+    }
+
+    if (AI_VALUE(ObjectGuid, "current target") == dragon->GetObjectGuid())
+    {
+        SET_AI_VALUE(ObjectGuid, "current target", ObjectGuid());
+        stopped = true;
+    }
+
+    return stopped;
+}
+
+bool TbcRaidUseBlueOrbAction::UseObject(GameObject* orb)
+{
     if (!bot->IsWithinDistInMap(orb, INTERACTION_DISTANCE - 1.0f))
     {
         const float angle = orb->GetAngle(bot);

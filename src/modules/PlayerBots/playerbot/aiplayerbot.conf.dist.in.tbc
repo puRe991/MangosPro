@@ -214,6 +214,9 @@ AiPlayerbot.EnableGreet = 1
 AiPlayerbot.RandomBotShowHelmet = 1
 AiPlayerbot.RandomBotShowCloak = 1
 
+# Randombots carry random titles that existed in TBC (old honor ranks, arena, Scarab Lord, Champion of the Naaru, ...)
+AiPlayerbot.RandomBotTitles = 1
+
 # Disable random levels for randombots
 # Every bots started on the specified level and level up by killing mobs.
 AiPlayerbot.DisableRandomLevels = 0
@@ -560,14 +563,14 @@ AiPlayerbot.PremadeSpecName.1.5 = pvp prot
 AiPlayerbot.PremadeSpecLink.1.5.70 = 050253212--2305011303302123201351
 
 AiPlayerbot.PremadeSpecName.1.6 = fury slam
-AiPlayerbot.PremadeSpecLink.1.5.70 = 33005001332-050530020052120531151
+AiPlayerbot.PremadeSpecLink.1.6.70 = 33005001332-050530020052120531151
 
 AiPlayerbot.PremadeSpecName.1.7 = arms poleaxes
-AiPlayerbot.PremadeSpecLink.1.5.70 = 333005001352510000321-0505300200521202
+AiPlayerbot.PremadeSpecLink.1.7.70 = 33005001352510000321-0505300200521202
 AiPlayerbot.PremadeSpecName.1.8 = arms maces
-AiPlayerbot.PremadeSpecLink.1.5.70 = 33005001352015000321-0505300200521202
+AiPlayerbot.PremadeSpecLink.1.8.70 = 33005001352015000321-0505300200521202
 AiPlayerbot.PremadeSpecName.1.9 = arms swords
-AiPlayerbot.PremadeSpecLink.1.5.70 = 33005001352010500321-0505300200521202
+AiPlayerbot.PremadeSpecLink.1.9.70 = 33005001352010500321-0505300200521202
 
 # Paladin
 AiPlayerbot.PremadeSpecName.2.0 = pve holy
@@ -587,7 +590,7 @@ AiPlayerbot.PremadeSpecProb.2.5 = 66
 AiPlayerbot.PremadeSpecLink.2.5.70 = 0525300250310050135--05230200320301
 AiPlayerbot.PremadeSpecName.2.6 = pvp holy + prot
 AiPlayerbot.PremadeSpecProb.2.6 = 66
-AiPlayerbot.PremadeSpecLink.2.6.70 = 0550310250113050133-050241300230
+AiPlayerbot.PremadeSpecLink.2.6.70 = 0550310250213050135-050241300230
 AiPlayerbot.PremadeSpecName.2.7 = pvp dps ret (ret-recko)
 AiPlayerbot.PremadeSpecProb.2.7 = 66
 AiPlayerbot.PremadeSpecLink.2.7.70 = -053211300230005-0523005132003104331
@@ -1031,6 +1034,13 @@ AiPlayerbot.RandomBotTeleportDistance = 100
 
 #Enables performance monitor
 #AiPlayerbot.PerfMonEnabled = 0
+
+# Bot DPS log: per fight summary of human-led bot groups (damage, DPS, HPS, idle/cast/move time,
+# spells, hit/crit stats) written to logs/bot-dps-<time>.log. The master is included and marked with *.
+#AiPlayerbot.BotDpsLog = 1
+#AiPlayerbot.BotDpsLogMinFightSeconds = 15
+#AiPlayerbot.BotDpsLogInstancesOnly = 1
+#AiPlayerbot.BotDpsLogIncludeMaster = 1
 
 # Default action logging history for cdebug history.
 #AiPlayerbot.ActionHistorySize = 0

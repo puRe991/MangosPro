@@ -72,6 +72,15 @@ float TkAlarSuppressGapClosersMultiplier::GetValueInEncounter(Action* action)
     if (!alar || IsAlarInPhase2(alar->GetInstanceId()))
         return 1.0f;
 
+    // A tank may run to Al'ar on his platform when he is on a non-tank: the fixed platform spots
+    // left him untanked after a tank died or arrived late, and Flame Buffet then killed one
+    // caster after another (about a third of phase 1 in the test fight).
+    const int8 locationIndex = GetAlarCurrentLocationIndex(alar);
+    Unit* victim = alar->GetVictim();
+    if (PlayerbotAI::IsTank(bot) && locationIndex >= PLATFORM_0_IDX && locationIndex <= PLATFORM_3_IDX &&
+        victim && victim->GetTypeId() == TYPEID_PLAYER && !PlayerbotAI::IsTank(static_cast<Player*>(victim)))
+        return 1.0f;
+
     if (isBlockedMovement)
         return 0.0f;
 
@@ -154,6 +163,11 @@ float TkAlarControlTauntingMultiplier::GetValueInEncounter(Action* action)
         return 0.0f;
 
     if (IsAlarInPhase2(alar->GetInstanceId()))
+        return 1.0f;
+
+    // Al'ar on a non-tank: whichever tank is in range takes him back
+    Unit* victim = alar->GetVictim();
+    if (victim && victim->GetTypeId() == TYPEID_PLAYER && !PlayerbotAI::IsTank(static_cast<Player*>(victim)))
         return 1.0f;
 
     const int8 platformIndex = GetAlarPlatformIndex(alar);

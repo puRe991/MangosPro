@@ -2473,11 +2473,9 @@ bool MovementAction::Follow(Unit* target, float distance, float angle)
     if (!bot->IsStandState())
         bot->SetStandState(UNIT_STAND_STATE_STAND);
 
-    if (bot->IsNonMeleeSpellCasted(true))
-    {
-        bot->CastStop();
-        ai->InterruptSpell();
-    }
+    // Keep auto shot running like the other movement paths; moving cancels hard casts anyway
+    if (bot->IsNonMeleeSpellCasted(true, false, true))
+        ai->InterruptSpell(false);
 
     AI_VALUE(LastMovement&, "last movement").Set(target);
     ClearIdleState();
@@ -3247,9 +3245,77 @@ bool MovementAction::GeneratePathAvoidingHazards(std::vector<WorldPosition>& mov
     return false;
 }
 
+namespace
+{
+    // Point just outside the hostile ground effect the bot stands in (Rain of Fire, Consecration, ...).
+    // Tries the direction straight out of the centre first, then turns step by step.
+    bool GetPointOutOfAreaDebuff(Player* bot, const std::list<ObjectGuid>& dynObjects, float& outX, float& outY, float& outZ)
+    {
+        for (const ObjectGuid& guid : dynObjects)
+        {
+            DynamicObject* dynObject = bot->GetMap()->GetDynamicObject(guid);
+            if (!dynObject || !dynObject->IsAffecting(bot))
+                continue;
+
+            SpellEntry const* spell = sSpellTemplate.LookupEntry<SpellEntry>(dynObject->GetSpellId());
+            if (!spell || IsPositiveEffect(spell, dynObject->GetEffIndex()))
+                continue;
+
+            Unit* caster = dynObject->GetCaster();
+            if (caster && !caster->CanAttack(bot))
+                continue;
+
+            // Area-wide markers cannot be left (see HasAreaDebuffValue)
+            if (dynObject->GetRadius() > 40.0f)
+                continue;
+
+            const float centerX = dynObject->GetPositionX();
+            const float centerY = dynObject->GetPositionY();
+            const float distance = dynObject->GetRadius() + 3.0f;
+            float baseAngle = std::atan2(bot->GetPositionY() - centerY, bot->GetPositionX() - centerX);
+            if (bot->GetDistance2d(centerX, centerY) < 0.5f)
+                baseAngle = bot->GetOrientation() + M_PI_F;
+
+            for (float offset : { 0.0f, 0.6f, -0.6f, 1.2f, -1.2f, 1.8f, -1.8f, 2.6f, -2.6f, M_PI_F })
+            {
+                const float x = centerX + distance * std::cos(baseAngle + offset);
+                const float y = centerY + distance * std::sin(baseAngle + offset);
+                if (!MaNGOS::IsValidMapCoord(x, y))
+                    continue;
+
+                const float z = bot->GetMap()->GetHeight(x, y, bot->GetPositionZ() + 5.0f);
+                if (z <= INVALID_HEIGHT || std::fabs(z - bot->GetPositionZ()) > 6.0f)
+                    continue;
+
+                if (!bot->IsWithinLOS(x, y, z + 2.0f))
+                    continue;
+
+                outX = x;
+                outY = y;
+                outZ = z;
+                return true;
+            }
+        }
+
+        return false;
+    }
+}
+
 bool FleeAction::Execute(Event& event)
 {
-    return Flee(ai->GetUnit(AI_VALUE(ObjectGuid, "current target")));
+    if (Flee(ai->GetUnit(AI_VALUE(ObjectGuid, "current target"))))
+        return true;
+
+    // Flee found no group member to run to (everybody stands in it, stairs): standing still in a ground effect
+    // with all cast-time spells blocked killed 19 bots at the Shade of Akama, so step straight out of it instead
+    if (!AI_VALUE2(bool, "has area debuff", "self target") || !ai->CanMove())
+        return false;
+
+    float x, y, z;
+    if (!GetPointOutOfAreaDebuff(bot, AI_VALUE(std::list<ObjectGuid>, "nearest dynamic objects no los"), x, y, z))
+        return false;
+
+    return MoveTo(bot->GetMapId(), x, y, z, false, false, false, true);
 }
 
 bool FleeWithPetAction::Execute(Event& event)

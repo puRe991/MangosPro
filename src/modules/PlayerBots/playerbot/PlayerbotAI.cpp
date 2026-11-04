@@ -4,6 +4,7 @@
 #include <iomanip>
 
 #include "playerbot/AiFactory.h"
+#include "playerbot/BotPerformanceLog.h"
 
 #include "MotionGenerators/MovementGenerator.h"
 #include "Grids/GridNotifiers.h"
@@ -255,6 +256,9 @@ PlayerbotAI::PlayerbotAI(Player* bot) :
     masterOutgoingPacketHandlers.AddHandler(MSG_RAID_READY_CHECK_FINISHED, "ready check finished");
 #endif
 
+    // bots that levelled by xp never trained weapon/defense skills
+    PlayerbotFactory::InitLevelSkillsAndBookSpells(bot);
+
     if (!HasRealPlayerMaster() && bot->GetFreeTalentPoints() > 0)
     {
         DoSpecificAction("auto talents");
@@ -278,7 +282,8 @@ void PlayerbotAI::UpdateAI(uint32 elapsed, bool minimal)
     AiObjectContext* context = aiObjectContext;
     std::string mapString = WorldPosition(bot).isInstance() ? "I" : std::to_string(bot->GetMapId());
     auto pmo = sPerformanceMonitor.start(PERF_MON_TOTAL, "PlayerbotAI::UpdateAI " + mapString, nullptr, bot->GetMapId(), bot->GetInstanceId());
-    
+    botperf::Update(this);
+
     if(aiInternalUpdateDelay > elapsed)
     {
         aiInternalUpdateDelay -= elapsed;
@@ -369,6 +374,11 @@ void PlayerbotAI::UpdateAI(uint32 elapsed, bool minimal)
             StopMoving();
 
         isMoving = false;
+
+        // Movement actions wait for the estimated travel time; once arrived in combat
+        // the rest of that wait is dead time
+        if (sServerFacade.IsInCombat(bot) && !bot->IsNonMeleeSpellCasted(true))
+            ResetAIInternalUpdateDelay();
     }
 
 #ifdef MANGOSBOT_TWO
@@ -651,26 +661,11 @@ bool PlayerbotAI::UpdateAIReaction(uint32 elapsed, bool minimal, bool isStunned)
     bool reactionFound;
     std::string mapString = WorldPosition(bot).isInstance() ? "I" : std::to_string(bot->GetMapId());
     auto pmo = sPerformanceMonitor.start(PERF_MON_TOTAL, "PlayerbotAI::UpdateAIReaction " + mapString, nullptr, bot->GetMapId(), bot->GetInstanceId());
+    // Casts and movement are stopped by ReactionEngine::StartReaction once the reaction really runs.
+    // Interrupting here on discovery cancelled casts for reactions that then failed and did
+    // nothing (e.g. raid positioning that was already satisfied), costing a third of caster uptime.
     const bool reactionInProgress = reactionEngine->Update(elapsed, minimal, isStunned, reactionFound);
     pmo.reset();
-
-    if(reactionFound)
-    {
-        // If new reaction found force stop current actions (if required)
-        const Reaction* reaction = reactionEngine->GetReaction();
-        if(reaction)
-        {
-            if(reaction->ShouldInterruptCast())
-            {
-                InterruptSpell();
-            }
-
-            if (reaction->ShouldInterruptMovement())
-            {
-                StopMoving();
-            }
-        }
-    }
 
     return reactionInProgress;
 }

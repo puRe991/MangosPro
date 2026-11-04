@@ -357,7 +357,7 @@ bool WorldPosition::canFly() const
 #ifdef MANGOSBOT_ONE  
     uint32 v_map = GetVirtualMapForMapAndZone(getMapId(), zoneid);
     MapEntry const* mapEntry = sMapStore.LookupEntry(v_map);
-    if (!mapEntry || mapEntry->addon < 1 || !mapEntry->IsContinent())
+    if (!mapEntry || !mapEntry->IsContinent() || (mapEntry->addon < 1 && !sWorld.getConfig(CONFIG_BOOL_FLYING_MOUNTS_AZEROTH)))
         return false;
 #endif
 #ifdef MANGOSBOT_TWO
